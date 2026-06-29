@@ -1144,8 +1144,9 @@ function startFriendCall() {
   }
 
   showToast('Подключаем голосовой чат...');
-  if (window.joinVoice) {
-    window.joinVoice(channelName, currentUser && currentUser.id).catch(function () {
+  const joinFn = window.joinVoiceAndEnableMic || window.joinVoice;
+  if (joinFn) {
+    joinFn(channelName, currentUser && currentUser.id).catch(function () {
       showToast('Не удалось подключить голосовой чат');
     });
   } else {
@@ -1153,7 +1154,118 @@ function startFriendCall() {
   }
 }
 
-// ── PROFILE ───────────────────────────────────────────────────────────────────
+function startTrialCall(pts) {
+  var wrap = document.getElementById('trialParticipants');
+  wrap.innerHTML = pts.map(function(p){
+    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || '🎮') + '</div><div class="tp-name">' + (p.username || 'Игрок') + '</div></div>';
+  }).join('') + '<div class="tp-item"><div class="tp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + (currentUser.avatar_emoji || '🎮') + '</div><div class="tp-name">Ты</div></div>';
+
+  trialSeconds = 120; trialVoted = false; trialMuted = false;
+  document.getElementById('trialMuteBtn').textContent = '🎙️';
+  document.getElementById('trialMuteBtn').classList.remove('muted');
+  document.getElementById('voteSection').classList.remove('show');
+  document.getElementById('trialTimer').classList.remove('warning');
+  document.getElementById('trialStatus').textContent = 'Познакомьтесь и решите, продолжать ли';
+  document.getElementById('trialProgressFill').style.width = '100%';
+  document.getElementById('trialOverlay').classList.add('show');
+  clearInterval(trialInterval);
+  trialInterval = setInterval(tickTrial, 1000);
+
+  const channelName = currentRoomId ? 'voice-' + currentRoomId : 'chalk-default';
+  const joinFn = window.joinVoiceAndEnableMic || window.joinVoice;
+  if (joinFn) {
+    joinFn(channelName, currentUser && currentUser.id).catch(function () {
+      showToast('Не удалось подключить голосовой чат');
+    });
+  }
+}
+
+function leaveTrialCall() { clearInterval(trialInterval); if (window.leaveVoice) window.leaveVoice(); endTrialCall(); }
+function endTrialCall() { document.getElementById('trialOverlay').classList.remove('show'); showToast('📝 Звонок завершён'); }
+function toggleTrialMute() {
+  if (window.toggleVoiceMute) {
+    window.toggleVoiceMute().catch(function () {
+      showToast('Не удалось переключить микрофон');
+    });
+  }
+  trialMuted = !trialMuted;
+  var btn = document.getElementById('trialMuteBtn');
+  btn.textContent = trialMuted ? '🔇' : '🎙️';
+  btn.classList.toggle('muted', trialMuted);
+}
+
+// ── FULL CALL ────────────────────────────────────────────────────────────────
+function startFullCall(pts) {
+  var fcWrap = document.getElementById('fcParticipants');
+  fcWrap.innerHTML = pts.map(function(p){
+    var isFriend = false; // TODO: check friends list
+    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || p.avatar_emoji || '🎮') + '</div><div class="fp-name">' + (p.username || 'Игрок') + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + (p.username || '') + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
+  }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + (currentUser.avatar_emoji || '🎮') + '</div><div class="fp-you">Ты</div></div>';
+
+  document.getElementById('fcTitle').textContent = pts.length > 1 ? 'Группа · ' + (pts.length + 1) + ' чел.' : (pts[0].username || 'Игрок');
+  fcSeconds = 0; fcMuted = false; fcDeafened = false;
+  document.getElementById('fcMuteBtn').textContent = '🎙️';
+  document.getElementById('fcMuteBtn').classList.remove('muted');
+  document.getElementById('fcDeafBtn').textContent = '🔊';
+  document.getElementById('fcTimer').textContent = '00:00';
+  document.getElementById('fullCallOverlay').classList.add('show');
+  clearInterval(fcInterval);
+  fcInterval = setInterval(function(){
+    fcSeconds++;
+    var m = String(Math.floor(fcSeconds / 60)).padStart(2, '0');
+    var s = String(fcSeconds % 60).padStart(2, '0');
+    document.getElementById('fcTimer').textContent = m + ':' + s;
+  }, 1000);
+
+  const channelName = currentRoomId ? 'voice-' + currentRoomId : 'chalk-default';
+  const joinFn = window.joinVoiceAndEnableMic || window.joinVoice;
+  if (joinFn) {
+    joinFn(channelName, currentUser && currentUser.id).catch(function () {
+      showToast('Не удалось подключить голосовой чат');
+    });
+  }
+
+  // Speaking animation
+  var avas = fcWrap.querySelectorAll('.fp-ava');
+  var si = 0;
+  setInterval(function(){
+    avas.forEach(function(a){ a.classList.remove('speaking') });
+    if (avas.length > 1) avas[si % (avas.length - 1)].classList.add('speaking');
+    si++;
+  }, 2000);
+}
+
+function toggleFCMute() {
+  if (window.toggleVoiceMute) {
+    window.toggleVoiceMute().catch(function () {
+      showToast('Не удалось переключить микрофон');
+    });
+  }
+  fcMuted = !fcMuted;
+  var btn = document.getElementById('fcMuteBtn');
+  btn.textContent = fcMuted ? '🔇' : '🎙️';
+  btn.classList.toggle('muted', fcMuted);
+}
+function toggleFCDeaf() {
+  fcDeafened = !fcDeafened;
+  document.getElementById('fcDeafBtn').textContent = fcDeafened ? '🔕' : '🔊';
+}
+function endFullCall(silent) {
+  clearInterval(fcInterval);
+  if (!silent && socket && currentRoomId) socket.emit('call:end', { roomId: currentRoomId });
+  if (window.leaveVoice) window.leaveVoice();
+  document.getElementById('fullCallOverlay').classList.remove('show');
+  showPostCall(currentCallParticipants);
+}
+
+function showPostCall(pts) {
+  if (!pts || !pts.length) return;
+  document.getElementById('postCallParticipants').innerHTML = pts.map(function(p){
+    return '<div class="pc-item"><div class="pc-ava" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || p.avatar_emoji || '🎮') + '</div><div class="pc-name">' + (p.username || 'Игрок') + '</div><button class="pc-add-btn" onclick="addFriendPost(this,\'' + p.id + '\',\'' + (p.username || '') + '\')">+ Добавить</button></div>';
+  }).join('');
+  document.getElementById('postCallOverlay').classList.add('show');
+}
+
 async function loadProfile() {
   if (!currentUser) return;
   document.getElementById('profileAva').textContent = currentUser.avatar_emoji || '🎮';
