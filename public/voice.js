@@ -1,35 +1,86 @@
-import AgoraRTC from "agora-rtc-sdk-ng";
+const FALLBACK_APP_ID = "78a6c18e54f34fe5a13aa04b4a2d89f3";
 
-const APP_ID = "YOUR_APP_ID";
+let client = null;
+let microphoneTrack = null;
+let voiceState = { joined: false, channel: null, muted: false, appId: FALLBACK_APP_ID };
 
-const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+function ensureVoiceClient() {
+  if (!client) {
+    client = AgoraRTC.createClient({ mode: "rtc", codec: "opus" });
+    client.on("user-published", async (user, mediaType) => {
+      if (!client) return;
+      await client.subscribe(user, mediaType);
+      if (mediaType === "audio" && user.audioTrack) {
+        user.audioTrack.play();
+      }
+    });
+  }
+  return client;
+}
 
-let audioTrack;
+async function requestVoiceToken(channelName, uid) {
+  const response = await fetch(`/api/agora/token?channel=${encodeURIComponent(channelName)}&uid=${encodeURIComponent(uid || 0)}`);
+  if (!response.ok) {
+    throw new Error("Voice token request failed");
+  }
+  return response.json();
+}
 
-window.joinVoice = async function () {
-  // 1. берём токен с твоего backend
-  const res = await fetch("/api/agora/token?channel=test");
-  const data = await res.json();
+window.joinVoice = async function (channelName = "chalk-default", uid = null) {
+  const channel = String(channelName || "chalk-default");
+  const userId = uid ? parseInt(uid) : parseInt(String(Date.now()).slice(-6));
+  ensureVoiceClient();
 
-  const token = data.token;
+  if (voiceState.joined && voiceState.channel === channel) {
+    window.dispatchEvent(new CustomEvent("voice:status", { detail: { type: "info", message: "Вы уже в голосовом канале" } }));
+    return { ok: true, channel, appId: voiceState.appId };
+  }
 
-  // 2. подключаемся к Agora
-  await client.join(APP_ID, "test", token, null);
+  try {
+    const data = await requestVoiceToken(channel, userId);
+    const appId = data.appId || FALLBACK_APP_ID;
 
-  // 3. включаем микрофон
-  audioTrack = await AgoraRTC.createMicrophoneAudioTrack();
+    await client.join(appId, channel, data.token || null, userId);
+    microphoneTrack = await AgoraRTC.createMicrophoneAudioTrack();
+    await client.publish(microphoneTrack);
 
-  // 4. отправляем голос
-  await client.publish([audioTrack]);
+    voiceState = { joined: true, channel, muted: false, appId };
+    window.dispatchEvent(new CustomEvent("voice:status", {
+      detail: { type: "success", message: `Подключились к голосовому чату: ${channel}` }
+    }));
 
-  console.log("🎤 joined voice");
+    return { ok: true, channel, appId };
+  } catch (error) {
+    console.error("[voice] join failed", error);
+    window.dispatchEvent(new CustomEvent("voice:status", {
+      detail: { type: "error", message: "Не удалось подключить голосовой чат" }
+    }));
+    throw error;
+  }
 };
 
-// слушаем других пользователей
-client.on("user-published", async (user, mediaType) => {
-  await client.subscribe(user, mediaType);
+window.leaveVoice = async function () {
+  if (!voiceState.joined || !client) return;
 
-  if (mediaType === "audio") {
-    user.audioTrack.play();
+  try {
+    await client.leave();
+  } catch (_) {}
+
+  if (microphoneTrack) {
+    microphoneTrack.stop();
+    microphoneTrack.close();
+    microphoneTrack = null;
   }
-});
+
+  voiceState = { joined: false, channel: null, muted: false, appId: FALLBACK_APP_ID };
+  window.dispatchEvent(new CustomEvent("voice:status", { detail: { type: "info", message: "Голосовой чат отключён" } }));
+};
+
+window.toggleVoiceMute = async function () {
+  if (!microphoneTrack) return;
+  voiceState.muted = !voiceState.muted;
+  microphoneTrack.setEnabled(!voiceState.muted);
+  window.dispatchEvent(new CustomEvent("voice:status", {
+    detail: { type: "info", message: voiceState.muted ? "Микрофон выключен" : "Микрофон включён" }
+  }));
+};

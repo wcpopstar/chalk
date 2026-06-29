@@ -1137,7 +1137,20 @@ function sendMsgBtn() {
 }
 
 function startFriendCall() {
-  showToast('Звонок другу... (нужен Agora)');
+  const channelName = currentConvId || ('voice-' + (currentUser && currentUser.id ? currentUser.id : 'guest'));
+  if (!channelName) {
+    showToast('Сначала откройте чат');
+    return;
+  }
+
+  showToast('Подключаем голосовой чат...');
+  if (window.joinVoice) {
+    window.joinVoice(channelName, currentUser && currentUser.id).catch(function () {
+      showToast('Не удалось подключить голосовой чат');
+    });
+  } else {
+    showToast('Голосовой чат временно недоступен');
+  }
 }
 
 // ── PROFILE ───────────────────────────────────────────────────────────────────
@@ -1176,7 +1189,15 @@ function showToast(msg) {
 }
 
 // ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('voice:status', function (event) {
+  showToast(event.detail && event.detail.message ? event.detail.message : 'Voice status updated');
+});
+
 checkAuth();
 </script>
+
+<script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"></script>
+<script type="module" src="/voice.js"></script>
+
 </body>
 </html>

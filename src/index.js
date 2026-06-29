@@ -18,6 +18,7 @@ const agoraRoutes = require('./routes/agora');
 const { initSocket } = require('./socket');
 
 const app    = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 const io = new Server(server, {
