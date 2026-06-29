@@ -122,7 +122,7 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
     .from('messages')
     .select(`
       id, text, created_at,
-      sender:users!messages_sender_id_fkey ( id, username, avatar_emoji )
+      sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
     `)
     .eq('conversation_id', convId)
     .order('created_at', { ascending: false })
@@ -140,7 +140,7 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
 router.get('/:id/members', requireAuth, async (req, res) => {
   const { data, error } = await supabaseAdmin
     .from('conversation_members')
-    .select('users ( id, username, avatar_emoji, status )')
+    .select('users ( id, username, avatar_emoji, avatar_url, status )')
     .eq('conversation_id', req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });

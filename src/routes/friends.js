@@ -10,8 +10,8 @@ router.get('/', requireAuth, async (req, res) => {
     .from('friends')
     .select(`
       id, status, created_at,
-      user_a_profile:users!friends_user_a_fkey ( id, username, avatar_emoji, status, last_seen ),
-      user_b_profile:users!friends_user_b_fkey ( id, username, avatar_emoji, status, last_seen )
+      user_a_profile:users!friends_user_a_fkey ( id, username, avatar_emoji, avatar_url, status, last_seen ),
+      user_b_profile:users!friends_user_b_fkey ( id, username, avatar_emoji, avatar_url, status, last_seen )
     `)
     .or(`user_a.eq.${uid},user_b.eq.${uid}`)
     .order('created_at', { ascending: false });

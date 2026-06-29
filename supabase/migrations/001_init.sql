@@ -44,7 +44,21 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS users_username_trgm ON users USING gin (username gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS users_status_idx    ON users (status);
+-- Add profile personalization fields if this migration is run against an existing schema.
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS age INT,
+  ADD COLUMN IF NOT EXISTS gender TEXT,
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE;
 
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_age_check;
+ALTER TABLE users ADD CONSTRAINT users_age_check CHECK (age IS NULL OR (age BETWEEN 13 AND 100));
+
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_gender_check;
+ALTER TABLE users ADD CONSTRAINT users_gender_check
+  CHECK (gender IS NULL OR gender IN ('male', 'female', 'other', 'prefer_not_to_say'));
+
+UPDATE users SET onboarding_completed = TRUE WHERE onboarding_completed IS DISTINCT FROM TRUE;
 -- ── USER GAMES ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS user_games (
   user_id      UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -161,6 +175,11 @@ ALTER TABLE users                ENABLE ROW LEVEL SECURITY;
 ALTER TABLE friends              ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversation_members ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public profiles readable" ON users;
+DROP POLICY IF EXISTS "Own row writable" ON users;
+DROP POLICY IF EXISTS "Friends visible to members" ON friends;
+DROP POLICY IF EXISTS "Messages readable by members" ON messages;
 
 -- Users can read public profiles (no email/password_hash)
 CREATE POLICY "Public profiles readable" ON users

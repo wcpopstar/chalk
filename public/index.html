@@ -31,29 +31,36 @@
   .auth-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:13px;font-family:'Inter',sans-serif;outline:none;margin-bottom:10px;cursor:pointer}
 
   /* NAV */
-  nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:54px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+  nav{display:flex;align-items:center;padding:0 24px;height:72px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+  .nav-left{flex:1;display:flex;align-items:center}
   .logo{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;letter-spacing:4px;color:var(--accent);text-transform:uppercase;line-height:1}
   .logo::after{content:'';display:block;height:2px;background:var(--accent);opacity:.35;border-radius:1px;margin-top:2px}
-  .nav-tabs{display:flex;gap:2px}
-  .nav-tab{padding:6px 15px;border-radius:6px;border:none;background:transparent;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+  .nav-tabs{flex:1.6;display:flex;justify-content:center;gap:10px}
+  .nav-tab{display:flex;align-items:center;gap:10px;padding:11px 24px;border-radius:12px;border:none;background:transparent;color:var(--muted);font-family:'Inter',sans-serif;font-size:16px;font-weight:600;cursor:pointer;transition:all .15s}
+  .nav-tab .tab-icon{font-size:22px;line-height:1}
   .nav-tab:hover{color:var(--text);background:var(--surface2)}
   .nav-tab.active{color:var(--accent);background:var(--accent-dim)}
-  .nav-right{display:flex;align-items:center;gap:10px}
-  .avatar-btn{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#c8ff00);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;border:2px solid var(--border);transition:border-color .15s}
+  .nav-right{flex:1;display:flex;align-items:center;justify-content:flex-end;gap:12px}
+  .profile-btn{display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
+  .profile-btn .tab-icon{font-size:18px;line-height:1}
+  .profile-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
+  .avatar-btn{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#7c3aed,#c8ff00);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;border:2px solid var(--border);transition:border-color .15s}
   .avatar-btn:hover{border-color:var(--accent)}
   .logout-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--muted);font-size:11px;cursor:pointer;transition:all .12s}
   .logout-btn:hover{border-color:var(--danger);color:var(--danger)}
 
   /* LAYOUT */
-  .app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 54px)}
+  .app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 72px)}
   .sidebar{width:248px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
-  .sidebar-section{padding:14px 16px;border-bottom:1px solid var(--border)}
-  .sidebar-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px}
-  .my-profile{display:flex;align-items:center;gap:10px}
-  .my-avatar{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#7c3aed,#c8ff00);display:flex;align-items:center;justify-content:center;font-size:18px;position:relative;flex-shrink:0}
-  .online-dot{width:9px;height:9px;background:var(--online);border-radius:50%;border:2px solid var(--surface);position:absolute;bottom:-2px;right:-2px}
-  .my-name{font-size:13px;font-weight:600}
-  .my-rank{font-size:11px;color:var(--accent);font-weight:500}
+  .sidebar-section{padding:16px 16px}
+  .sidebar-section:not(:last-child){border-bottom:1px solid var(--border)}
+  .sidebar-label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:12px}
+  .sidebar-label .tab-icon{font-size:16px;line-height:1}
+  .my-profile{display:flex;align-items:center;gap:12px}
+  .my-avatar{width:48px;height:48px;border-radius:11px;background:linear-gradient(135deg,#7c3aed,#c8ff00);display:flex;align-items:center;justify-content:center;font-size:21px;position:relative;flex-shrink:0}
+  .online-dot{width:10px;height:10px;background:var(--online);border-radius:50%;border:2px solid var(--surface);position:absolute;bottom:-2px;right:-2px}
+  .my-name{font-size:15px;font-weight:700}
+  .my-rank{font-size:12px;color:var(--accent);font-weight:500}
   .friend-item{display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;border-radius:6px;transition:background .12s}
   .friend-item:hover{background:var(--surface2)}
   .friend-ava{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;position:relative;flex-shrink:0}
@@ -65,30 +72,30 @@
   .page.active{display:block}
 
   /* MATCH */
-  .match-page-inner{padding:28px}
+  .match-page-inner{padding:28px;max-width:560px;margin:0 auto}
   .match-logo{text-align:center;padding:32px 0 28px}
   .match-logo-text{font-family:'Rajdhani',sans-serif;font-size:72px;font-weight:700;letter-spacing:14px;color:var(--accent);text-transform:uppercase;line-height:1;text-shadow:0 0 50px rgba(200,255,0,.25)}
   .match-logo-line{width:48px;height:2px;background:var(--accent);opacity:.35;margin:10px auto 0;border-radius:1px}
   .online-count{text-align:center;font-size:12px;color:var(--muted);margin-bottom:24px}
   .online-count span{color:var(--accent);font-weight:600}
   .mode-select{display:flex;gap:10px;margin-bottom:20px}
-  .mode-btn{flex:1;padding:12px;background:var(--surface2);border:2px solid var(--border);border-radius:10px;cursor:pointer;text-align:center;transition:all .15s;color:var(--muted);font-size:13px;font-weight:600}
+  .mode-btn{flex:1;padding:16px 12px;background:var(--surface2);border:2px solid var(--border);border-radius:12px;cursor:pointer;text-align:center;transition:all .15s;color:var(--muted);font-size:14px;font-weight:600}
   .mode-btn:hover{border-color:var(--accent);color:var(--text)}
   .mode-btn.active{border-color:var(--accent);background:var(--accent-dim);color:var(--accent)}
-  .mode-btn .mode-icon{font-size:22px;display:block;margin-bottom:4px}
-  .mode-btn .mode-count{font-size:10px;color:var(--muted);margin-top:3px;font-weight:400}
+  .mode-btn .mode-icon{font-size:30px;display:block;margin-bottom:6px}
+  .mode-btn .mode-count{font-size:11px;color:var(--muted);margin-top:4px;font-weight:400}
   .squad-picker{display:none;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px}
-  .squad-picker.show{display:flex;align-items:center;gap:10px}
+  .squad-picker.show{display:flex;align-items:center;gap:10px;justify-content:center}
   .squad-label{font-size:12px;color:var(--muted);white-space:nowrap}
   .squad-nums{display:flex;gap:6px}
   .squad-num{width:32px;height:32px;border-radius:6px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;cursor:pointer;transition:all .12s;color:var(--muted)}
   .squad-num:hover,.squad-num.sel{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
-  .game-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin-bottom:22px}
-  .game-card{background:var(--surface2);border:2px solid var(--border);border-radius:9px;padding:12px 8px;text-align:center;cursor:pointer;transition:all .15s}
+  .game-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:22px}
+  .game-card{background:var(--surface2);border:2px solid var(--border);border-radius:11px;padding:18px 8px;text-align:center;cursor:pointer;transition:all .15s}
   .game-card:hover{border-color:var(--accent);transform:translateY(-2px)}
   .game-card.selected{border-color:var(--accent);background:var(--accent-dim)}
-  .game-emoji{font-size:24px;margin-bottom:5px}
-  .game-name{font-size:11px;font-weight:600}
+  .game-emoji{font-size:32px;margin-bottom:7px}
+  .game-name{font-size:12px;font-weight:600}
   .game-players{font-size:10px;color:var(--muted);margin-top:2px}
   .match-btn-wrap{text-align:center}
   .match-btn{background:var(--accent);border:none;border-radius:50px;padding:16px 56px;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;color:#000;cursor:pointer;text-transform:uppercase;transition:all .18s}
@@ -244,7 +251,8 @@
   .call-btn-inline:hover{background:rgba(200,255,0,.18)}
   .chat-messages{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
   .msg{display:flex;gap:9px;align-items:flex-start}
-  .msg-ava{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0}
+  .msg-ava{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;overflow:hidden}
+  .msg-ava img{width:100%;height:100%;object-fit:cover}
   .msg-name{font-size:10px;font-weight:600;color:var(--muted);margin-bottom:2px}
   .msg-text{background:var(--surface2);border:1px solid var(--border);border-radius:0 8px 8px 8px;padding:7px 11px;font-size:12px;line-height:1.5;max-width:300px}
   .msg.me{flex-direction:row-reverse}
@@ -278,6 +286,52 @@
   .settings-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border)}
   .settings-label{font-size:12px}
   .settings-value{font-size:11px;color:var(--accent);font-weight:500;cursor:pointer}
+  .edit-profile-btn{background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:7px;padding:7px 14px;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;margin-top:10px}
+  .edit-profile-btn:hover{background:rgba(200,255,0,.18)}
+
+  /* AVATAR IMAGE (photo overrides emoji avatar) */
+  .profile-ava-big img,.my-avatar img,.avatar-btn img,.friend-ava img,.chat-ava img,.chat-header-ava img,.found-ava img,.tp-ava img,.fp-ava img,.pc-ava img,.tc-banner img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+
+  /* ── ONBOARDING WIZARD ───────────────────────────────────────────────── */
+  .onboarding-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:900;align-items:center;justify-content:center}
+  .onboarding-overlay.show{display:flex}
+  .ob-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:30px;width:420px;max-width:calc(100vw - 32px)}
+  .ob-eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);text-align:center;margin-bottom:4px}
+  .ob-title{font-family:'Rajdhani',sans-serif;font-size:24px;font-weight:700;text-align:center;margin-bottom:18px}
+  .ob-progress{display:flex;gap:6px;justify-content:center;margin-bottom:22px}
+  .ob-dot{width:28px;height:4px;border-radius:2px;background:var(--border);transition:background .2s}
+  .ob-dot.done,.ob-dot.active{background:var(--accent)}
+  .ob-step{display:none}
+  .ob-step.active{display:block;animation:fadeIn .2s ease}
+  .ob-avatar-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:18px}
+  .ob-avatar{width:96px;height:96px;border-radius:20px;background:linear-gradient(135deg,#7c3aed,#c8ff00);display:flex;align-items:center;justify-content:center;font-size:38px;cursor:pointer;border:2px dashed var(--accent-border);position:relative;overflow:hidden}
+  .ob-avatar:hover{border-color:var(--accent)}
+  .ob-avatar-hint{font-size:11px;color:var(--muted);margin-top:8px}
+  .ob-field-label{font-size:11px;color:var(--muted);margin-bottom:6px;margin-top:14px;font-weight:600}
+  .chip-row{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 14px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;transition:all .12s;user-select:none}
+  .chip:hover{border-color:var(--accent-border);color:var(--text)}
+  .chip.selected{border-color:var(--accent);background:var(--accent-dim);color:var(--accent)}
+  .chip-game{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;min-width:78px}
+  .ob-nav{display:flex;gap:10px;margin-top:24px}
+  .ob-btn-back{flex:0 0 auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}
+  .ob-btn-back:hover{color:var(--text)}
+  .ob-btn-next{flex:1;background:var(--accent);border:none;border-radius:8px;padding:12px;color:#000;font-weight:700;font-size:14px;cursor:pointer}
+  .ob-btn-next:hover{filter:brightness(1.1)}
+  .ob-btn-next:disabled{opacity:.5;cursor:not-allowed}
+  .ob-skip{display:block;text-align:center;font-size:11px;color:var(--muted);margin-top:14px;cursor:pointer;text-decoration:underline}
+  .ob-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:12px;display:none}
+  .ob-error.show{display:block}
+
+  /* ── MODAL (edit profile) ────────────────────────────────────────────── */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:900;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.show{display:flex;animation:fadeIn .2s ease}
+  .modal-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:26px;width:440px;max-width:100%;max-height:88vh;overflow-y:auto}
+  .modal-title{font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;margin-bottom:18px}
+  .modal-actions{display:flex;gap:10px;margin-top:20px}
+  .modal-cancel{flex:0 0 auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 16px;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}
+  .modal-save{flex:1;background:var(--accent);border:none;border-radius:8px;padding:12px;color:#000;font-weight:700;font-size:14px;cursor:pointer}
+  .modal-save:disabled{opacity:.5;cursor:not-allowed}
 
   /* TOAST */
   .toast{display:none;position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,var(--accent2),var(--accent));color:#000;padding:11px 22px;border-radius:50px;font-weight:700;font-size:14px;z-index:600;white-space:nowrap}
@@ -297,8 +351,13 @@
   .chat-sidebar{width:140px}
   .match-logo-text{font-size:44px;letter-spacing:6px}
   .match-page-inner{padding:14px}
-  nav{padding:0 10px}
-  .nav-tab{padding:5px 8px;font-size:11px}
+  nav{padding:0 10px;height:60px}
+  .app{height:calc(100vh - 60px)}
+  .nav-tabs{gap:2px}
+  .nav-tab{padding:7px 10px;font-size:12px;gap:5px}
+  .nav-tab .tab-icon{font-size:17px}
+  .profile-btn .btn-label{display:none}
+  .profile-btn{padding:7px}
   .logo{font-size:20px;letter-spacing:2px}
   .logout-btn{display:none}
   .tinder-stack{width:calc(100vw - 44px);height:360px}
@@ -307,6 +366,8 @@
   .found-card{width:calc(100vw - 32px)}
   .post-call-card{width:calc(100vw - 32px)}
   .auth-card{width:calc(100vw - 32px);padding:24px 20px}
+  .ob-card{padding:22px}
+  .modal-card{width:100%}
 }
 </style>
 </head>
@@ -352,17 +413,151 @@
   </div>
 </div>
 
+<!-- ONBOARDING WIZARD (shown once, right after sign-up) -->
+<div class="onboarding-overlay" id="onboardingOverlay">
+  <div class="ob-card">
+    <div class="ob-eyebrow">Шаг <span id="obStepNum">1</span> из 4</div>
+    <div class="ob-title">Настроим твой профиль</div>
+    <div class="ob-progress">
+      <div class="ob-dot active" data-step="1"></div>
+      <div class="ob-dot" data-step="2"></div>
+      <div class="ob-dot" data-step="3"></div>
+      <div class="ob-dot" data-step="4"></div>
+    </div>
+
+    <!-- STEP 1: photo + nickname -->
+    <div class="ob-step active" id="obStep1">
+      <div class="ob-avatar-wrap">
+        <div class="ob-avatar" id="obAvatarPreview" onclick="document.getElementById('obAvatarInput').click()">🎮</div>
+        <div class="ob-avatar-hint">Нажми, чтобы загрузить фото профиля</div>
+        <input type="file" accept="image/*" id="obAvatarInput" style="display:none" onchange="handleAvatarFile(event,'obAvatarPreview')">
+      </div>
+      <div class="ob-field-label">Никнейм</div>
+      <input class="auth-input" id="obNickname" type="text" placeholder="Как тебя называть?">
+    </div>
+
+    <!-- STEP 2: age + gender -->
+    <div class="ob-step" id="obStep2">
+      <div class="ob-field-label">Возраст</div>
+      <input class="auth-input" id="obAge" type="number" min="13" max="100" placeholder="Сколько тебе лет?">
+      <div class="ob-field-label">Пол</div>
+      <div class="chip-row" id="obGenderChips">
+        <div class="chip" data-value="male" onclick="selectChip(this,'obGenderChips',true)">Мужской</div>
+        <div class="chip" data-value="female" onclick="selectChip(this,'obGenderChips',true)">Женский</div>
+        <div class="chip" data-value="other" onclick="selectChip(this,'obGenderChips',true)">Другое</div>
+        <div class="chip" data-value="prefer_not_to_say" onclick="selectChip(this,'obGenderChips',true)">Не указывать</div>
+      </div>
+    </div>
+
+    <!-- STEP 3: languages -->
+    <div class="ob-step" id="obStep3">
+      <div class="ob-field-label">На каких языках общаешься?</div>
+      <div class="chip-row" id="obLangChips">
+        <div class="chip" data-value="ru" onclick="selectChip(this,'obLangChips',false)">🇷🇺 Русский</div>
+        <div class="chip" data-value="en" onclick="selectChip(this,'obLangChips',false)">🇬🇧 English</div>
+        <div class="chip" data-value="uk" onclick="selectChip(this,'obLangChips',false)">🇺🇦 Українська</div>
+        <div class="chip" data-value="de" onclick="selectChip(this,'obLangChips',false)">🇩🇪 Deutsch</div>
+        <div class="chip" data-value="pl" onclick="selectChip(this,'obLangChips',false)">🇵🇱 Polski</div>
+        <div class="chip" data-value="tr" onclick="selectChip(this,'obLangChips',false)">🇹🇷 Türkçe</div>
+        <div class="chip" data-value="kz" onclick="selectChip(this,'obLangChips',false)">🇰🇿 Қазақша</div>
+        <div class="chip" data-value="es" onclick="selectChip(this,'obLangChips',false)">🇪🇸 Español</div>
+      </div>
+    </div>
+
+    <!-- STEP 4: games -->
+    <div class="ob-step" id="obStep4">
+      <div class="ob-field-label">В какие игры играешь?</div>
+      <div class="chip-row" id="obGameChips">
+        <div class="chip chip-game" data-value="valorant" onclick="selectChip(this,'obGameChips',false)">🎯<br>Valorant</div>
+        <div class="chip chip-game" data-value="cs2" onclick="selectChip(this,'obGameChips',false)">💥<br>CS2</div>
+        <div class="chip chip-game" data-value="apex" onclick="selectChip(this,'obGameChips',false)">🏆<br>Apex</div>
+        <div class="chip chip-game" data-value="lol" onclick="selectChip(this,'obGameChips',false)">⚔️<br>LoL</div>
+        <div class="chip chip-game" data-value="fortnite" onclick="selectChip(this,'obGameChips',false)">🏗️<br>Fortnite</div>
+        <div class="chip chip-game" data-value="dota2" onclick="selectChip(this,'obGameChips',false)">🛡️<br>Dota 2</div>
+        <div class="chip chip-game" data-value="overwatch" onclick="selectChip(this,'obGameChips',false)">🦸<br>Overwatch 2</div>
+        <div class="chip chip-game" data-value="pubg" onclick="selectChip(this,'obGameChips',false)">🪖<br>PUBG</div>
+      </div>
+    </div>
+
+    <div class="ob-error" id="obError"></div>
+    <div class="ob-nav">
+      <button class="ob-btn-back" id="obBackBtn" onclick="obBack()" style="display:none">Назад</button>
+      <button class="ob-btn-next" id="obNextBtn" onclick="obNext()">Далее</button>
+    </div>
+    <div class="ob-skip" onclick="obSkip()">Пропустить, заполню позже</div>
+  </div>
+</div>
+
+<!-- EDIT PROFILE MODAL (always available from the profile page) -->
+<div class="modal-overlay" id="editProfileOverlay">
+  <div class="modal-card">
+    <div class="modal-title">Редактировать профиль</div>
+
+    <div class="ob-avatar-wrap" style="margin-bottom:14px">
+      <div class="ob-avatar" id="epAvatarPreview" onclick="document.getElementById('epAvatarInput').click()">🎮</div>
+      <div class="ob-avatar-hint">Нажми, чтобы изменить фото</div>
+      <input type="file" accept="image/*" id="epAvatarInput" style="display:none" onchange="handleAvatarFile(event,'epAvatarPreview')">
+    </div>
+
+    <div class="ob-field-label">Никнейм</div>
+    <input class="auth-input" id="epNickname" type="text">
+
+    <div class="ob-field-label">Возраст</div>
+    <input class="auth-input" id="epAge" type="number" min="13" max="100">
+
+    <div class="ob-field-label">Пол</div>
+    <div class="chip-row" id="epGenderChips">
+      <div class="chip" data-value="male" onclick="selectChip(this,'epGenderChips',true)">Мужской</div>
+      <div class="chip" data-value="female" onclick="selectChip(this,'epGenderChips',true)">Женский</div>
+      <div class="chip" data-value="other" onclick="selectChip(this,'epGenderChips',true)">Другое</div>
+      <div class="chip" data-value="prefer_not_to_say" onclick="selectChip(this,'epGenderChips',true)">Не указывать</div>
+    </div>
+
+    <div class="ob-field-label">Языки</div>
+    <div class="chip-row" id="epLangChips">
+      <div class="chip" data-value="ru" onclick="selectChip(this,'epLangChips',false)">🇷🇺 Русский</div>
+      <div class="chip" data-value="en" onclick="selectChip(this,'epLangChips',false)">🇬🇧 English</div>
+      <div class="chip" data-value="uk" onclick="selectChip(this,'epLangChips',false)">🇺🇦 Українська</div>
+      <div class="chip" data-value="de" onclick="selectChip(this,'epLangChips',false)">🇩🇪 Deutsch</div>
+      <div class="chip" data-value="pl" onclick="selectChip(this,'epLangChips',false)">🇵🇱 Polski</div>
+      <div class="chip" data-value="tr" onclick="selectChip(this,'epLangChips',false)">🇹🇷 Türkçe</div>
+      <div class="chip" data-value="kz" onclick="selectChip(this,'epLangChips',false)">🇰🇿 Қазақша</div>
+      <div class="chip" data-value="es" onclick="selectChip(this,'epLangChips',false)">🇪🇸 Español</div>
+    </div>
+
+    <div class="ob-field-label">Игры</div>
+    <div class="chip-row" id="epGameChips">
+      <div class="chip chip-game" data-value="valorant" onclick="selectChip(this,'epGameChips',false)">🎯<br>Valorant</div>
+      <div class="chip chip-game" data-value="cs2" onclick="selectChip(this,'epGameChips',false)">💥<br>CS2</div>
+      <div class="chip chip-game" data-value="apex" onclick="selectChip(this,'epGameChips',false)">🏆<br>Apex</div>
+      <div class="chip chip-game" data-value="lol" onclick="selectChip(this,'epGameChips',false)">⚔️<br>LoL</div>
+      <div class="chip chip-game" data-value="fortnite" onclick="selectChip(this,'epGameChips',false)">🏗️<br>Fortnite</div>
+      <div class="chip chip-game" data-value="dota2" onclick="selectChip(this,'epGameChips',false)">🛡️<br>Dota 2</div>
+      <div class="chip chip-game" data-value="overwatch" onclick="selectChip(this,'epGameChips',false)">🦸<br>Overwatch 2</div>
+      <div class="chip chip-game" data-value="pubg" onclick="selectChip(this,'epGameChips',false)">🪖<br>PUBG</div>
+    </div>
+
+    <div class="ob-error" id="epError"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeEditProfile()">Отмена</button>
+      <button class="modal-save" id="epSaveBtn" onclick="saveEditProfile()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- MAIN APP -->
 <nav id="mainNav" style="display:none">
-  <div class="logo">chalk</div>
+  <div class="nav-left">
+    <div class="logo">chalk</div>
+  </div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('match',this)">🎯 Матч</button>
-    <button class="nav-tab" onclick="showPage('tinder',this);loadDiscover()">👥 Найти</button>
-    <button class="nav-tab" onclick="showPage('chat',this);loadChats()">💬 Чаты</button>
-    <button class="nav-tab" onclick="showPage('profile',this);loadProfile()">⚙️ Профиль</button>
+    <button class="nav-tab active" onclick="showPage('match',this)"><span class="tab-icon">🎯</span>Матч</button>
+    <button class="nav-tab" onclick="showPage('tinder',this);loadDiscover()"><span class="tab-icon">👥</span>Найти</button>
+    <button class="nav-tab" onclick="showPage('chat',this);loadChats()"><span class="tab-icon">💬</span>Чаты</button>
   </div>
   <div class="nav-right">
     <div style="width:7px;height:7px;background:var(--online);border-radius:50%;box-shadow:0 0 5px var(--online)"></div>
+    <button class="profile-btn" onclick="showPage('profile',this);loadProfile()"><span class="tab-icon">⚙️</span><span class="btn-label">Профиль</span></button>
     <div class="avatar-btn" id="navAvatar">🎮</div>
     <button class="logout-btn" onclick="logout()">Выйти</button>
   </div>
@@ -372,14 +567,14 @@
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sidebar-section">
-      <div class="sidebar-label">Профиль</div>
+      <div class="sidebar-label"><span class="tab-icon">👤</span>Профиль</div>
       <div class="my-profile">
         <div class="my-avatar" id="sidebarAvatar">🎮<div class="online-dot"></div></div>
         <div><div class="my-name" id="sidebarName">...</div><div class="my-rank" id="sidebarRank">⚡ Загрузка...</div></div>
       </div>
     </div>
     <div class="sidebar-section" style="flex:1">
-      <div class="sidebar-label">Друзья онлайн</div>
+      <div class="sidebar-label"><span class="tab-icon">🟢</span>Друзья онлайн</div>
       <div id="friendsList"><div style="font-size:11px;color:var(--muted)">Загрузка...</div></div>
     </div>
   </div>
@@ -455,11 +650,11 @@
       <div class="chat-layout" style="height:100%">
         <div class="chat-sidebar">
           <div class="chat-sidebar-section">
-            <div class="sidebar-label">Личные</div>
+            <div class="sidebar-label"><span class="tab-icon">💬</span>Личные</div>
             <div id="dmList"><div style="font-size:11px;color:var(--muted);padding:4px">Загрузка...</div></div>
           </div>
           <div class="chat-sidebar-section" style="flex:1">
-            <div class="sidebar-label">Группы</div>
+            <div class="sidebar-label"><span class="tab-icon">👥</span>Группы</div>
             <div id="groupList"><div style="font-size:11px;color:var(--muted);padding:4px">Пусто</div></div>
             <button class="new-group-btn" onclick="showToast('Скоро!')">+ Новая группа</button>
           </div>
@@ -493,6 +688,7 @@
             <div class="profile-username" id="profileUsername">...</div>
             <div class="profile-tagline" id="profileTagline">Загрузка...</div>
             <div class="profile-tags" id="profileTags"></div>
+            <button class="edit-profile-btn" onclick="openEditProfile()">✏️ Редактировать профиль</button>
           </div>
         </div>
         <div class="profile-stats">
@@ -503,8 +699,11 @@
         <div class="profile-games">
           <div class="section-title">Настройки поиска</div>
           <div class="settings-row"><span class="settings-label">Email</span><span class="settings-value" id="profileEmail">...</span></div>
+          <div class="settings-row"><span class="settings-label">Возраст</span><span class="settings-value" id="profileAge">...</span></div>
+          <div class="settings-row"><span class="settings-label">Пол</span><span class="settings-value" id="profileGender">...</span></div>
           <div class="settings-row"><span class="settings-label">Страна</span><span class="settings-value" id="profileCountry">...</span></div>
           <div class="settings-row"><span class="settings-label">Языки</span><span class="settings-value" id="profileLangs">...</span></div>
+          <div class="settings-row"><span class="settings-label">Игры</span><span class="settings-value" id="profileGames">...</span></div>
           <div class="settings-row" style="border:none"><span class="settings-label">Статус</span><span class="settings-value" style="color:var(--online)">● Онлайн</span></div>
         </div>
       </div>
@@ -641,7 +840,7 @@ async function login() {
     token = data.token;
     currentUser = data.user;
     localStorage.setItem('chalk_token', token);
-    bootApp();
+    afterAuth();
   } catch(e) {
     showAuthError(e.message);
   } finally {
@@ -664,7 +863,7 @@ async function register() {
     token = data.token;
     currentUser = data.user;
     localStorage.setItem('chalk_token', token);
-    bootApp();
+    afterAuth();
   } catch(e) {
     showAuthError(e.message);
   } finally {
@@ -686,20 +885,34 @@ async function logout() {
   currentUser = null;
   localStorage.removeItem('chalk_token');
   document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('onboardingOverlay').classList.remove('show');
   document.getElementById('mainNav').style.display = 'none';
   document.getElementById('mainApp').style.display = 'none';
 }
 
 // ── BOOT ──────────────────────────────────────────────────────────────────────
+// Called right after login/register/checkAuth succeed. New accounts (or ones
+// that never finished setup) get routed into the onboarding wizard first;
+// everyone else goes straight into the app.
+function afterAuth() {
+  document.getElementById('authScreen').classList.add('hidden');
+  if (!currentUser.onboarding_completed) {
+    startOnboarding();
+  } else {
+    bootApp();
+  }
+}
+
 async function bootApp() {
   document.getElementById('authScreen').classList.add('hidden');
+  document.getElementById('onboardingOverlay').classList.remove('show');
   document.getElementById('mainNav').style.display = 'flex';
   document.getElementById('mainApp').style.display = 'flex';
 
   // Update nav avatar
-  document.getElementById('navAvatar').textContent = currentUser.avatar_emoji || '🎮';
+  document.getElementById('navAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
   document.getElementById('sidebarName').textContent = currentUser.username;
-  document.getElementById('sidebarAvatar').innerHTML = (currentUser.avatar_emoji || '🎮') + '<div class="online-dot"></div>';
+  document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '<div class="online-dot"></div>';
 
   // Connect socket
   connectSocket();
@@ -713,11 +926,246 @@ async function checkAuth() {
   try {
     var data = await api('/api/auth/me');
     currentUser = data.user;
-    bootApp();
+    afterAuth();
   } catch(_) {
     localStorage.removeItem('chalk_token');
     token = null;
   }
+}
+
+// ── PROFILE PERSONALIZATION HELPERS ─────────────────────────────────────────
+var GENDER_LABELS = { male: 'Мужской', female: 'Женский', other: 'Другое', prefer_not_to_say: 'Не указан' };
+var LANG_LABELS = { ru: '🇷🇺 Русский', en: '🇬🇧 English', uk: '🇺🇦 Українська', de: '🇩🇪 Deutsch', pl: '🇵🇱 Polski', tr: '🇹🇷 Türkçe', kz: '🇰🇿 Қазақша', es: '🇪🇸 Español' };
+var GAME_LABELS = { valorant: 'Valorant', cs2: 'CS2', apex: 'Apex Legends', lol: 'League of Legends', fortnite: 'Fortnite', dota2: 'Dota 2', overwatch: 'Overwatch 2', pubg: 'PUBG' };
+
+function avatarHtml(emoji, url) {
+  if (url) return '<img src="' + url + '" alt="">';
+  return escHtml(emoji || '🎮');
+}
+
+function genderLabel(g) { return GENDER_LABELS[g] || 'Не указан'; }
+
+// Resizes/crops an uploaded image client-side and turns it into a small
+// JPEG data URL so it can be stored directly as avatar_url.
+function handleAvatarFile(event, previewElId) {
+  var file = event.target.files && event.target.files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) { showToast('Выбери файл изображения'); return; }
+  if (file.size > 8 * 1024 * 1024) { showToast('Файл слишком большой (макс. 8 МБ)'); return; }
+
+  var reader = new FileReader();
+  reader.onload = function() {
+    var img = new Image();
+    img.onload = function() {
+      var size = 256;
+      var canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      var ctx = canvas.getContext('2d');
+      var side = Math.min(img.width, img.height);
+      var sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+      var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      var preview = document.getElementById(previewElId);
+      preview.innerHTML = '<img src="' + dataUrl + '" alt="">';
+      if (previewElId === 'obAvatarPreview') obData.avatar_url = dataUrl;
+      if (previewElId === 'epAvatarPreview') epData.avatar_url = dataUrl;
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// Generic single/multi-select chip toggler shared by onboarding + edit modal
+function selectChip(el, groupId, singleSelect) {
+  var group = document.getElementById(groupId);
+  if (singleSelect) {
+    group.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('selected') });
+    el.classList.add('selected');
+  } else {
+    el.classList.toggle('selected');
+  }
+}
+
+function getSelectedChipValues(groupId) {
+  var group = document.getElementById(groupId);
+  return Array.prototype.map.call(group.querySelectorAll('.chip.selected'), function(c){ return c.dataset.value; });
+}
+
+function setSelectedChipValues(groupId, values) {
+  values = values || [];
+  document.getElementById(groupId).querySelectorAll('.chip').forEach(function(c){
+    c.classList.toggle('selected', values.indexOf(c.dataset.value) !== -1);
+  });
+}
+
+// ── ONBOARDING WIZARD ───────────────────────────────────────────────────────
+var obStep = 1;
+var obData = { avatar_url: null };
+
+function startOnboarding() {
+  obStep = 1;
+  obData = { avatar_url: null };
+  document.getElementById('obNickname').value = currentUser.username || '';
+  document.getElementById('obAge').value = '';
+  document.getElementById('obAvatarPreview').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
+  setSelectedChipValues('obGenderChips', []);
+  setSelectedChipValues('obLangChips', ['ru']);
+  setSelectedChipValues('obGameChips', []);
+  document.getElementById('obError').classList.remove('show');
+  renderObStep();
+  document.getElementById('onboardingOverlay').classList.add('show');
+}
+
+function renderObStep() {
+  document.querySelectorAll('.ob-step').forEach(function(s){ s.classList.remove('active') });
+  document.getElementById('obStep' + obStep).classList.add('active');
+  document.querySelectorAll('.ob-dot').forEach(function(d){
+    var n = parseInt(d.dataset.step);
+    d.classList.toggle('active', n === obStep);
+    d.classList.toggle('done', n < obStep);
+  });
+  document.getElementById('obStepNum').textContent = obStep;
+  document.getElementById('obBackBtn').style.display = obStep > 1 ? 'block' : 'none';
+  document.getElementById('obNextBtn').textContent = obStep < 4 ? 'Далее' : 'Готово';
+  document.getElementById('obError').classList.remove('show');
+}
+
+function obShowError(msg) {
+  var el = document.getElementById('obError');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function obBack() {
+  if (obStep > 1) { obStep--; renderObStep(); }
+}
+
+async function obNext() {
+  if (obStep === 1) {
+    var nickname = document.getElementById('obNickname').value.trim();
+    if (nickname.length < 3) return obShowError('Никнейм должен быть от 3 символов');
+    obData.username = nickname;
+    obStep = 2; renderObStep(); return;
+  }
+  if (obStep === 2) {
+    var age = parseInt(document.getElementById('obAge').value, 10);
+    var gender = getSelectedChipValues('obGenderChips')[0];
+    if (!age || age < 13 || age > 100) return obShowError('Укажи реальный возраст (13–100)');
+    if (!gender) return obShowError('Выбери пол');
+    obData.age = age; obData.gender = gender;
+    obStep = 3; renderObStep(); return;
+  }
+  if (obStep === 3) {
+    var langs = getSelectedChipValues('obLangChips');
+    if (!langs.length) return obShowError('Выбери хотя бы один язык');
+    obData.languages = langs;
+    obStep = 4; renderObStep(); return;
+  }
+  if (obStep === 4) {
+    obData.games = getSelectedChipValues('obGameChips').map(function(id){ return { game_id: id }; });
+    await finishOnboarding();
+  }
+}
+
+async function obSkip() {
+  // Still requires the bare minimum (age + gender + language) so matching
+  // makes sense, but lets the player jump straight past games/avatar.
+  if (obStep < 2) { obStep = 2; renderObStep(); return; }
+  if (obStep === 2) {
+    var age = parseInt(document.getElementById('obAge').value, 10);
+    var gender = getSelectedChipValues('obGenderChips')[0];
+    if (!age || age < 13 || age > 100 || !gender) return obShowError('Заполни возраст и пол перед тем, как пропустить остальное');
+    obData.age = age; obData.gender = gender;
+  }
+  if (!obData.languages) obData.languages = getSelectedChipValues('obLangChips').length ? getSelectedChipValues('obLangChips') : ['ru'];
+  obData.games = getSelectedChipValues('obGameChips').map(function(id){ return { game_id: id }; });
+  await finishOnboarding();
+}
+
+async function finishOnboarding() {
+  var btn = document.getElementById('obNextBtn');
+  btn.disabled = true;
+  try {
+    var data = await api('/api/users/me/onboarding', { method: 'POST', body: JSON.stringify(obData) });
+    currentUser = Object.assign({}, currentUser, data.user);
+    bootApp();
+    showToast('Профиль готов 🎉');
+  } catch(e) {
+    obShowError(e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── EDIT PROFILE MODAL ───────────────────────────────────────────────────────
+var epData = { avatar_url: null };
+
+async function openEditProfile() {
+  epData = { avatar_url: currentUser.avatar_url || null };
+  document.getElementById('epNickname').value = currentUser.username || '';
+  document.getElementById('epAge').value = currentUser.age || '';
+  document.getElementById('epAvatarPreview').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
+  setSelectedChipValues('epGenderChips', currentUser.gender ? [currentUser.gender] : []);
+  setSelectedChipValues('epLangChips', currentUser.languages || ['ru']);
+  document.getElementById('epError').classList.remove('show');
+
+  // Pre-fill currently selected games
+  try {
+    var data = await api('/api/users/' + currentUser.id);
+    var gameIds = (data.user.user_games || []).map(function(g){ return g.game_id; });
+    setSelectedChipValues('epGameChips', gameIds);
+  } catch(_) {
+    setSelectedChipValues('epGameChips', []);
+  }
+
+  document.getElementById('editProfileOverlay').classList.add('show');
+}
+
+function closeEditProfile() {
+  document.getElementById('editProfileOverlay').classList.remove('show');
+}
+
+async function saveEditProfile() {
+  var nickname = document.getElementById('epNickname').value.trim();
+  var age = parseInt(document.getElementById('epAge').value, 10);
+  var gender = getSelectedChipValues('epGenderChips')[0];
+  var langs = getSelectedChipValues('epLangChips');
+  var gameIds = getSelectedChipValues('epGameChips');
+
+  if (nickname.length < 3) return epShowError('Никнейм должен быть от 3 символов');
+  if (!age || age < 13 || age > 100) return epShowError('Укажи реальный возраст (13–100)');
+  if (!gender) return epShowError('Выбери пол');
+  if (!langs.length) return epShowError('Выбери хотя бы один язык');
+
+  var btn = document.getElementById('epSaveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span>Сохранение...';
+  try {
+    var profileUpdate = { username: nickname, age: age, gender: gender, languages: langs };
+    if (epData.avatar_url) profileUpdate.avatar_url = epData.avatar_url;
+
+    var data = await api('/api/users/me', { method: 'PATCH', body: JSON.stringify(profileUpdate) });
+    await api('/api/users/me/games', { method: 'PUT', body: JSON.stringify({ games: gameIds.map(function(id){ return { game_id: id }; }) }) });
+
+    currentUser = Object.assign({}, currentUser, data.user);
+    closeEditProfile();
+    document.getElementById('navAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
+    document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '<div class="online-dot"></div>';
+    document.getElementById('sidebarName').textContent = currentUser.username;
+    loadProfile();
+    showToast('Профиль обновлён ✓');
+  } catch(e) {
+    epShowError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Сохранить';
+  }
+}
+
+function epShowError(msg) {
+  var el = document.getElementById('epError');
+  el.textContent = msg;
+  el.classList.add('show');
 }
 
 // ── SOCKET ────────────────────────────────────────────────────────────────────
@@ -1012,7 +1460,7 @@ async function loadFriends() {
     var el = document.getElementById('friendsList');
     if (!online.length) { el.innerHTML = '<div style="font-size:11px;color:var(--muted)">Никого онлайн</div>'; return; }
     el.innerHTML = online.map(function(f){
-      return '<div class="friend-item friend-online" onclick="openDM(\'' + f.friend.id + '\',\'' + f.friend.username + '\',\'' + (f.friend.avatar_emoji || '🎮') + '\')"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">' + (f.friend.avatar_emoji || '🎮') + '</div><div><div class="friend-name">' + f.friend.username + '</div><div class="friend-game">● Онлайн</div></div></div>';
+      return '<div class="friend-item friend-online" onclick="openDM(\'' + f.friend.id + '\',\'' + f.friend.username + '\',\'' + (f.friend.avatar_emoji || '🎮') + '\')"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">' + avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url) + '</div><div><div class="friend-name">' + f.friend.username + '</div><div class="friend-game">● Онлайн</div></div></div>';
     }).join('');
   } catch(e) { console.error(e); }
 }
@@ -1036,7 +1484,7 @@ function renderTinderCards() {
   }
   stack.innerHTML = slice.map(function(u, i){
     var bg = ['linear-gradient(135deg,#1a0533,#0f172a)','linear-gradient(135deg,#0c1445,#1e3a5f)','linear-gradient(135deg,#1a1a2e,#16213e)'][i % 3];
-    return '<div class="tinder-card" data-userid="' + u.id + '" data-username="' + u.username + '"><div class="tc-banner" style="background:' + bg + '">' + (u.avatar_emoji || '🎮') + '<div class="tc-badges"><div class="tc-badge">🌍 ' + (u.country || '?') + '</div></div></div><div class="tc-body"><div class="tc-name">' + u.username + '</div><div class="tc-game">🎮 Игрок</div><div class="tc-details"><div class="tc-detail">' + (u.languages || ['ru']).join(', ').toUpperCase() + '</div><div class="tc-detail">● Онлайн</div></div><div class="tc-bio">' + (u.bio || 'Ищу тиммейтов для совместной игры!') + '</div></div></div>';
+    return '<div class="tinder-card" data-userid="' + u.id + '" data-username="' + u.username + '"><div class="tc-banner" style="background:' + bg + '">' + avatarHtml(u.avatar_emoji, u.avatar_url) + '<div class="tc-badges"><div class="tc-badge">🌍 ' + (u.country || '?') + '</div></div></div><div class="tc-body"><div class="tc-name">' + u.username + (u.age ? ', ' + u.age : '') + '</div><div class="tc-game">🎮 Игрок</div><div class="tc-details"><div class="tc-detail">' + (u.languages || ['ru']).join(', ').toUpperCase() + '</div>' + (u.gender ? '<div class="tc-detail">' + genderLabel(u.gender) + '</div>' : '') + '<div class="tc-detail">● Онлайн</div></div><div class="tc-bio">' + (u.bio || 'Ищу тиммейтов для совместной игры!') + '</div></div></div>';
   }).join('');
 }
 
@@ -1108,7 +1556,7 @@ async function openConv(convId, name) {
     el.innerHTML = msgs.map(function(m){
       var isMe = m.sender_id === currentUser.id;
       var sender = m.sender || {};
-      return '<div class="msg' + (isMe ? ' me' : '') + '"><div class="msg-ava" style="background:linear-gradient(135deg,#7c3aed,' + (isMe ? '#c8ff00' : '#ec4899') + ')">' + (sender.avatar_emoji || '🎮') + '</div><div class="msg-body"><div class="msg-name">' + (isMe ? 'Ты' : (sender.username || '?')) + '</div><div class="msg-text">' + escHtml(m.text) + '</div></div></div>';
+      return '<div class="msg' + (isMe ? ' me' : '') + '"><div class="msg-ava" style="background:linear-gradient(135deg,#7c3aed,' + (isMe ? '#c8ff00' : '#ec4899') + ')">' + avatarHtml(sender.avatar_emoji, sender.avatar_url) + '</div><div class="msg-body"><div class="msg-name">' + (isMe ? 'Ты' : (sender.username || '?')) + '</div><div class="msg-text">' + escHtml(m.text) + '</div></div></div>';
     }).join('');
     el.scrollTop = el.scrollHeight;
   } catch(e) { console.error(e); }
@@ -1122,7 +1570,7 @@ function appendMessage(msg) {
   if (empty) el.innerHTML = '';
   var div = document.createElement('div');
   div.className = 'msg' + (isMe ? ' me' : '');
-  div.innerHTML = '<div class="msg-ava" style="background:linear-gradient(135deg,#7c3aed,' + (isMe ? '#c8ff00' : '#ec4899') + ')">' + (sender.avatar_emoji || '🎮') + '</div><div class="msg-body"><div class="msg-name">' + (isMe ? 'Ты' : (sender.username || '?')) + '</div><div class="msg-text">' + escHtml(msg.text) + '</div></div>';
+  div.innerHTML = '<div class="msg-ava" style="background:linear-gradient(135deg,#7c3aed,' + (isMe ? '#c8ff00' : '#ec4899') + ')">' + avatarHtml(sender.avatar_emoji, sender.avatar_url) + '</div><div class="msg-body"><div class="msg-name">' + (isMe ? 'Ты' : (sender.username || '?')) + '</div><div class="msg-text">' + escHtml(msg.text) + '</div></div>';
   el.appendChild(div);
   el.scrollTop = el.scrollHeight;
 }
@@ -1268,12 +1716,14 @@ function showPostCall(pts) {
 
 async function loadProfile() {
   if (!currentUser) return;
-  document.getElementById('profileAva').textContent = currentUser.avatar_emoji || '🎮';
+  document.getElementById('profileAva').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
   document.getElementById('profileUsername').textContent = currentUser.username;
   document.getElementById('profileTagline').textContent = currentUser.bio || 'Нет описания';
   document.getElementById('profileEmail').textContent = currentUser.email;
+  document.getElementById('profileAge').textContent = currentUser.age ? (currentUser.age + ' лет') : 'Не указан';
+  document.getElementById('profileGender').textContent = genderLabel(currentUser.gender);
   document.getElementById('profileCountry').textContent = currentUser.country || 'Не указана';
-  document.getElementById('profileLangs').textContent = (currentUser.languages || ['ru']).join(', ').toUpperCase();
+  document.getElementById('profileLangs').textContent = (currentUser.languages || ['ru']).map(function(l){ return l.toUpperCase(); }).join(', ');
 
   try {
     var data = await api('/api/users/me/stats');
@@ -1282,9 +1732,18 @@ async function loadProfile() {
     document.getElementById('statFriends').textContent = data.friends_count || 0;
   } catch(e) {}
 
+  var gameNames = [];
+  try {
+    var meData = await api('/api/users/' + currentUser.id);
+    gameNames = (meData.user.user_games || []).map(function(g){ return (g.games && g.games.emoji ? g.games.emoji + ' ' : '') + (g.games ? g.games.name : g.game_id); });
+  } catch(e) {}
+  document.getElementById('profileGames').textContent = gameNames.length ? gameNames.join(', ') : 'Пока не выбраны';
+
   var tags = document.getElementById('profileTags');
   tags.innerHTML = (currentUser.languages || ['ru']).map(function(l){ return '<span class="ptag ptag-lang">🌍 ' + l.toUpperCase() + '</span>'; }).join('');
+  if (currentUser.age) tags.innerHTML += '<span class="ptag ptag-rank">🎂 ' + currentUser.age + '</span>';
   if (currentUser.country) tags.innerHTML += '<span class="ptag ptag-rank">📍 ' + currentUser.country + '</span>';
+  gameNames.forEach(function(g){ tags.innerHTML += '<span class="ptag ptag-game">' + g + '</span>'; });
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────

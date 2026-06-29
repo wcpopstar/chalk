@@ -7,13 +7,13 @@ const helmet     = require('helmet');
 const cors       = require('cors');
 const rateLimit  = require('express-rate-limit');
 
-const authRoutes    = require('./routes/auth');
-const userRoutes    = require('./routes/users');
-const matchRoutes   = require('./routes/match');
-const friendRoutes  = require('./routes/friends');
-const callRoutes    = require('./routes/calls');
-const chatRoutes    = require('./routes/chats');
-const agoraRoutes = require('./routes/agora');
+const authRoutes   = require('./routes/auth');
+const userRoutes   = require('./routes/users');
+const matchRoutes  = require('./routes/match');
+const friendRoutes = require('./routes/friends');
+const callRoutes   = require('./routes/calls');
+const chatRoutes   = require('./routes/chats');
+const agoraRoutes  = require('./routes/agora');
 
 const { initSocket } = require('./socket');
 
@@ -41,13 +41,22 @@ app.use('/api/match',   matchRoutes);
 app.use('/api/friends', friendRoutes);
 app.use('/api/calls',   callRoutes);
 app.use('/api/chats',   chatRoutes);
-app.use('/api/agora', agoraRoutes);
+app.use('/api/agora',   agoraRoutes);
 
-
+// Static frontend — must come BEFORE the catch-all
 app.use(express.static(path.join(__dirname, '../public')));
-app.get('*', (_req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
+// SPA catch-all: return index.html for any non-API, non-file route
+app.get('*', (req, res, next) => {
+  // Let the 404 handler deal with unknown /api/* paths
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// 404 for unknown API routes (unreachable for frontend routes now)
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+
+// Global error handler
 app.use((err, _req, res, _next) => {
   console.error('[ERROR]', err);
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });

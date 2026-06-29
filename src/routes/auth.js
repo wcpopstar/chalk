@@ -51,9 +51,10 @@ router.post('/register', authLimiter, async (req, res) => {
       country: country || null,
       languages,
       avatar_emoji: '🎮',
+      onboarding_completed: false,
       created_at: new Date().toISOString(),
     })
-    .select('id, username, email, country, languages, avatar_emoji, created_at')
+    .select('id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, created_at')
     .single();
 
   if (error) {
@@ -74,7 +75,7 @@ router.post('/login', authLimiter, async (req, res) => {
 
   const { data: user, error } = await supabaseAdmin
     .from('users')
-    .select('id, username, email, password_hash, country, languages, avatar_emoji, status')
+    .select('id, username, email, password_hash, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status')
     .eq('email', email.toLowerCase())
     .maybeSingle();
 
@@ -117,7 +118,7 @@ router.get('/me', async (req, res) => {
     const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
     const { data: user } = await supabaseAdmin
       .from('users')
-      .select('id, username, email, country, languages, avatar_emoji, status, bio, created_at')
+      .select('id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, bio, created_at')
       .eq('id', payload.id)
       .single();
     res.json({ user });
