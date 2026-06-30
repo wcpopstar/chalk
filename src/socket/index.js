@@ -223,12 +223,25 @@ function initSocket(io) {
       rooms.delete(roomId);
     });
 
-    socket.on('call:invite', ({ targetUserId, roomId }) => {
+    socket.on('call:invite', async ({ targetUserId, roomId }) => {
       const targetSocket = online.get(targetUserId);
       if (!targetSocket) {
         return socket.emit('call:invite_failed', { reason: 'Пользователь сейчас офлайн' });
       }
-      io.to(targetSocket).emit('call:incoming', { roomId, from: { id: userId, username } });
+      const { data: profile } = await supabaseAdmin
+        .from('users')
+        .select('id, username, avatar_emoji, avatar_url')
+        .eq('id', userId)
+        .single();
+      io.to(targetSocket).emit('call:incoming', {
+        roomId,
+        from: {
+          id: userId,
+          username: profile?.username || username,
+          avatar_emoji: profile?.avatar_emoji || '🎮',
+          avatar_url: profile?.avatar_url || null,
+        }
+      });
     });
 
     socket.on('call:accept', ({ roomId, inviterId }) => {
@@ -253,7 +266,7 @@ function initSocket(io) {
 
     // ── JOIN AN ONGOING CALL (e.g. friend is in a group call already) ──────
 
-    socket.on('call:request_join', ({ targetUserId }) => {
+    socket.on('call:request_join', async ({ targetUserId }) => {
       const targetRoomId = userCurrentRoom.get(targetUserId);
       if (!targetRoomId) {
         return socket.emit('call:join_failed', { reason: 'Пользователь сейчас не в звонке' });
@@ -261,9 +274,23 @@ function initSocket(io) {
       const room = rooms.get(targetRoomId);
       if (!room) return socket.emit('call:join_failed', { reason: 'Звонок уже завершён' });
 
+      const { data: profile } = await supabaseAdmin
+        .from('users')
+        .select('id, username, avatar_emoji, avatar_url')
+        .eq('id', userId)
+        .single();
+
       room.participants.forEach(pid => {
         const pSocket = online.get(pid);
-        if (pSocket) io.to(pSocket).emit('call:join_requested', { roomId: targetRoomId, from: { id: userId, username } });
+        if (pSocket) io.to(pSocket).emit('call:join_requested', {
+          roomId: targetRoomId,
+          from: {
+            id: userId,
+            username: profile?.username || username,
+            avatar_emoji: profile?.avatar_emoji || '🎮',
+            avatar_url: profile?.avatar_url || null,
+          }
+        });
       });
       socket.emit('call:join_request_sent', { roomId: targetRoomId });
     });
@@ -401,11 +428,27 @@ async function handleMatch(io, participants, mode) {
 
   await saveMatchHistory(participants, gameId, mode);
 
+  const participantIds = participants.map(p => p.userId);
+  const { data: profiles } = await supabaseAdmin
+    .from('users')
+    .select('id, username, avatar_emoji, avatar_url')
+    .in('id', participantIds);
+
+  const profileMap = new Map((profiles || []).map(profile => [profile.id, profile]));
   const payload = {
     roomId,
     mode,
     gameId,
-    participants: participants.map(p => ({ userId: p.userId, socketId: p.socketId })),
+    participants: participants.map(p => {
+      const profile = profileMap.get(p.userId) || {};
+      return {
+        userId: p.userId,
+        socketId: p.socketId,
+        username: profile.username || null,
+        avatar_emoji: profile.avatar_emoji || '🎮',
+        avatar_url: profile.avatar_url || null,
+      };
+    }),
   };
 
   for (const p of participants) {

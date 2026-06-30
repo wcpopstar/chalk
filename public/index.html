@@ -1077,7 +1077,7 @@
     <div class="post-call-participants" id="postCallParticipants"></div>
     <div class="post-call-actions">
       <button class="pc-done" onclick="closePostCall()">Готово</button>
-      <button class="pc-rate" onclick="closePostCall()">⭐ Оценить</button>
+      <button class="pc-rate" onclick="rateParticipantsAfterCall()">⭐ Оценить</button>
     </div>
   </div>
 </div>
@@ -1190,6 +1190,8 @@ var fcMuted = false;
 var fcDeafened = false;
 var discoverUsers = [];
 var discoverIndex = 0;
+var currentFriendIds = new Set();
+var currentCallMatchIds = {};
 
 // ── API HELPER ───────────────────────────────────────────────────────────────
 async function api(path, opts) {
@@ -1379,6 +1381,18 @@ var GAME_LABELS = { valorant: 'Valorant', cs2: 'CS2', apex: 'Apex Legends', lol:
 function avatarHtml(emoji, url) {
   if (url) return '<img src="' + url + '" alt="">';
   return escHtml(emoji || '🎮');
+}
+
+function participantDisplayName(p) {
+  return (p && (p.username || p.userName || p.nickname || 'Игрок')) || 'Игрок';
+}
+
+function participantAvatarHtml(p) {
+  return avatarHtml(p && (p.avatar_emoji || p.avatarEmoji || null), p && (p.avatar_url || p.avatarUrl || null));
+}
+
+function participantIsAlreadyFriend(p) {
+  return !!(p && p.id && currentFriendIds.has(String(p.id)));
 }
 
 function genderLabel(g) { return GENDER_LABELS[g] || 'Не указан'; }
@@ -1906,8 +1920,8 @@ function showFoundOverlay(data) {
 
   var pts = currentCallParticipants;
   document.getElementById('foundBadge').textContent = '✓ ' + selectedGameId + ' · ' + (currentMode === 'group' ? 'Группа' : 'Solo');
-  document.getElementById('foundAvas').innerHTML = pts.map(function(p){ return '<div class="found-ava" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || '🎮') + '</div>' }).join('');
-  document.getElementById('foundName').textContent = pts.map(function(p){ return p.username || 'Игрок' }).join(', ');
+  document.getElementById('foundAvas').innerHTML = pts.map(function(p){ return '<div class="found-ava" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div>' }).join('');
+  document.getElementById('foundName').textContent = pts.map(function(p){ return participantDisplayName(p) }).join(', ');
   document.getElementById('foundRank').textContent = '🎮 ' + selectedGameId;
   document.getElementById('foundInfo').textContent = 'Матч найден!';
   document.getElementById('foundOverlay').classList.add('show');
@@ -1928,8 +1942,8 @@ function acceptMatch() {
 function startTrialCall(pts) {
   var wrap = document.getElementById('trialParticipants');
   wrap.innerHTML = pts.map(function(p){
-    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || '🎮') + '</div><div class="tp-name">' + (p.username || 'Игрок') + '</div></div>';
-  }).join('') + '<div class="tp-item"><div class="tp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + (currentUser.avatar_emoji || '🎮') + '</div><div class="tp-name">Ты</div></div>';
+    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="tp-name">' + escHtml(participantDisplayName(p)) + '</div></div>';
+  }).join('') + '<div class="tp-item"><div class="tp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="tp-name">Ты</div></div>';
 
   trialSeconds = 120; trialVoted = false; trialMuted = false;
   document.getElementById('trialMuteBtn').textContent = '🎙️';
@@ -1986,11 +2000,11 @@ function toggleTrialMute() {
 function startFullCall(pts) {
   var fcWrap = document.getElementById('fcParticipants');
   fcWrap.innerHTML = pts.map(function(p){
-    var isFriend = false; // TODO: check friends list
-    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || p.avatar_emoji || '🎮') + '</div><div class="fp-name">' + (p.username || 'Игрок') + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + (p.username || '') + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
-  }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + (currentUser.avatar_emoji || '🎮') + '</div><div class="fp-you">Ты</div></div>';
+    var isFriend = participantIsAlreadyFriend(p);
+    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="fp-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
+  }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="fp-you">Ты</div></div>';
 
-  document.getElementById('fcTitle').textContent = pts.length > 1 ? 'Группа · ' + (pts.length + 1) + ' чел.' : (pts[0].username || 'Игрок');
+  document.getElementById('fcTitle').textContent = pts.length > 1 ? 'Группа · ' + (pts.length + 1) + ' чел.' : participantDisplayName(pts[0] || null);
   fcSeconds = 0; fcMuted = false; fcDeafened = false;
   document.getElementById('fcMuteBtn').textContent = '🎙️';
   document.getElementById('fcMuteBtn').classList.remove('muted');
@@ -2062,6 +2076,26 @@ async function addFriendPost(btn, userId, username) {
 
 function closePostCall() { document.getElementById('postCallOverlay').classList.remove('show'); }
 
+async function rateParticipantsAfterCall() {
+  var pts = currentCallParticipants || [];
+  if (!pts.length) { showToast('Нет участников для оценки'); return; }
+  var rated = 0;
+  for (var i = 0; i < pts.length; i++) {
+    var p = pts[i];
+    var matchId = p && p.id ? currentCallMatchIds[p.id] : null;
+    if (!matchId) continue;
+    var raw = window.prompt('Оцени ' + participantDisplayName(p) + ' от 1 до 5', '5');
+    var rating = parseInt(raw, 10);
+    if (!rating || rating < 1 || rating > 5) continue;
+    try {
+      await api('/api/match/' + matchId + '/rate', { method: 'POST', body: JSON.stringify({ rating: rating, comment: '' }) });
+      rated++;
+    } catch (_) {}
+  }
+  showToast(rated ? 'Оценка сохранена для ' + rated + ' игрока(ов)' : 'Оценка не была сохранена');
+  closePostCall();
+}
+
 // ── FRIENDS ───────────────────────────────────────────────────────────────────
 var friendCallStatus = {};   // friendId -> { inCall, roomSize }
 var lastOnlineFriends = [];  // cached for re-render on status push
@@ -2075,6 +2109,7 @@ async function loadFriends() {
     var incoming = all.filter(function(f){ return f.status === 'pending' && f.incoming === true; });
     renderFriendRequests(incoming);
 
+    currentFriendIds = new Set((all || []).filter(function(f){ return f.status === 'accepted'; }).map(function(f){ return String(f.friend && f.friend.id); }).filter(Boolean));
     lastOnlineFriends = all.filter(function(f){ return f.status === 'accepted' && f.friend.status === 'online' });
     renderFriendsList();
 
@@ -2211,6 +2246,10 @@ async function sendFriendRequest() {
   btn.innerHTML = '<span class="loading-spinner"></span>Отправка...';
   try {
     var found = await api('/api/users/search?username=' + encodeURIComponent(username));
+    if (found.user && found.user.id && currentFriendIds.has(String(found.user.id))) {
+      afShowError('Этот пользователь уже у тебя в друзьях');
+      return;
+    }
     await api('/api/friends/request', { method: 'POST', body: JSON.stringify({ targetUserId: found.user.id }) });
     showToast('Запрос отправлен ' + found.user.username + ' ✓');
     closeAddFriend();
@@ -2398,8 +2437,8 @@ function startFriendCall() {
 function startTrialCall(pts) {
   var wrap = document.getElementById('trialParticipants');
   wrap.innerHTML = pts.map(function(p){
-    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || '🎮') + '</div><div class="tp-name">' + (p.username || 'Игрок') + '</div></div>';
-  }).join('') + '<div class="tp-item"><div class="tp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + (currentUser.avatar_emoji || '🎮') + '</div><div class="tp-name">Ты</div></div>';
+    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="tp-name">' + escHtml(participantDisplayName(p)) + '</div></div>';
+  }).join('') + '<div class="tp-item"><div class="tp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="tp-name">Ты</div></div>';
 
   trialSeconds = 120; trialVoted = false; trialMuted = false;
   document.getElementById('trialMuteBtn').textContent = '🎙️';
@@ -2439,11 +2478,11 @@ function toggleTrialMute() {
 function startFullCall(pts) {
   var fcWrap = document.getElementById('fcParticipants');
   fcWrap.innerHTML = pts.map(function(p){
-    var isFriend = false; // TODO: check friends list
-    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || p.avatar_emoji || '🎮') + '</div><div class="fp-name">' + (p.username || 'Игрок') + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + (p.username || '') + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
-  }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + (currentUser.avatar_emoji || '🎮') + '</div><div class="fp-you">Ты</div></div>';
+    var isFriend = participantIsAlreadyFriend(p);
+    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="fp-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
+  }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="fp-you">Ты</div></div>';
 
-  document.getElementById('fcTitle').textContent = pts.length > 1 ? 'Группа · ' + (pts.length + 1) + ' чел.' : (pts[0].username || 'Игрок');
+  document.getElementById('fcTitle').textContent = pts.length > 1 ? 'Группа · ' + (pts.length + 1) + ' чел.' : participantDisplayName(pts[0] || null);
   fcSeconds = 0; fcMuted = false; fcDeafened = false;
   document.getElementById('fcMuteBtn').textContent = '🎙️';
   document.getElementById('fcMuteBtn').classList.remove('muted');
@@ -2490,19 +2529,38 @@ function toggleFCMute() {
 function toggleFCDeaf() {
   fcDeafened = !fcDeafened;
   document.getElementById('fcDeafBtn').textContent = fcDeafened ? '🔕' : '🔊';
+  if (window.toggleVoiceDeafen) {
+    window.toggleVoiceDeafen().catch(function () {
+      showToast('Не удалось переключить звук других участников');
+    });
+  }
 }
-function endFullCall(silent) {
+async function endFullCall(silent) {
   clearInterval(fcInterval);
   if (!silent && socket && currentRoomId) socket.emit('call:end', { roomId: currentRoomId });
   if (window.leaveVoice) window.leaveVoice();
   document.getElementById('fullCallOverlay').classList.remove('show');
+  currentCallMatchIds = {};
+  try {
+    var matches = await recordCallParticipants(currentCallParticipants);
+    currentCallMatchIds = {};
+    matches.forEach(function(match){ if (match && match.participantId) currentCallMatchIds[match.participantId] = match.id; });
+  } catch (_) {}
   showPostCall(currentCallParticipants);
+}
+
+async function recordCallParticipants(pts) {
+  var ids = (pts || []).map(function(p){ return p && p.id; }).filter(Boolean);
+  if (!ids.length) return [];
+  var data = await api('/api/match/record-call', { method: 'POST', body: JSON.stringify({ participants: ids, mode: 'group', gameId: selectedGameId }) });
+  return data.matches || [];
 }
 
 function showPostCall(pts) {
   if (!pts || !pts.length) return;
   document.getElementById('postCallParticipants').innerHTML = pts.map(function(p){
-    return '<div class="pc-item"><div class="pc-ava" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || p.avatar_emoji || '🎮') + '</div><div class="pc-name">' + (p.username || 'Игрок') + '</div><button class="pc-add-btn" onclick="addFriendPost(this,\'' + p.id + '\',\'' + (p.username || '') + '\')">+ Добавить</button></div>';
+    var alreadyFriend = participantIsAlreadyFriend(p);
+    return '<div class="pc-item"><div class="pc-ava" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="pc-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!alreadyFriend ? '<button class="pc-add-btn" onclick="addFriendPost(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Добавить</button>' : '<button class="pc-add-btn added">✓ Уже в друзьях</button>') + '</div>';
   }).join('');
   document.getElementById('postCallOverlay').classList.add('show');
 }
@@ -2608,6 +2666,7 @@ async function openUserProfilePopup(userId) {
     if (u.country) meta.push('🌍 ' + u.country);
     if (u.gender) meta.push(genderLabel(u.gender));
 
+    var alreadyFriend = !!(u.id && currentFriendIds.has(String(u.id)));
     body.innerHTML =
       '<button class="gc-close-btn" style="float:right" onclick="closeUserProfilePopup()">✕</button>' +
       '<div class="up-avatar">' + avatarHtml(u.avatar_emoji, u.avatar_url) + '</div>' +
@@ -2615,7 +2674,7 @@ async function openUserProfilePopup(userId) {
       '<div class="up-meta">' + escHtml(meta.join(' · ') || 'Игрок Chalk') + '</div>' +
       '<div class="up-bio">' + escHtml(u.bio || 'Ищу тиммейтов для совместной игры!') + '</div>' +
       '<div class="up-actions">' +
-        '<button class="auth-btn" id="upAddFriendBtn" onclick="sendFriendRequestFromPopup(\'' + u.id + '\',\'' + escHtml(u.username).replace(/'/g,"\\'") + '\')">+ Добавить в друзья</button>' +
+        '<button class="auth-btn" id="upAddFriendBtn" ' + (alreadyFriend ? 'disabled style="opacity:.6"' : '') + ' onclick="sendFriendRequestFromPopup(\'' + u.id + '\',\'' + escHtml(u.username).replace(/'/g,"\\'") + '\')">' + (alreadyFriend ? '✓ Уже в друзьях' : '+ Добавить в друзья') + '</button>' +
         '<button class="auth-btn" style="background:var(--surface2);color:var(--text)" onclick="callFriend(\'' + u.id + '\',\'' + escHtml(u.username).replace(/'/g,"\\'") + '\',\'' + (u.avatar_emoji || '🎮') + '\',' + !!(friendCallStatus[u.id] && friendCallStatus[u.id].inCall) + ',' + ((friendCallStatus[u.id] && friendCallStatus[u.id].roomSize) || 0) + ')">📞 Позвонить</button>' +
         '<button class="auth-btn" style="background:var(--surface2);color:var(--text)" onclick="closeUserProfilePopup();openDM(\'' + u.id + '\',\'' + escHtml(u.username).replace(/'/g,"\\'") + '\',\'' + (u.avatar_emoji || '🎮') + '\')">💬 Написать</button>' +
       '</div>';
@@ -2629,6 +2688,10 @@ function closeUserProfilePopup() {
 }
 
 async function sendFriendRequestFromPopup(userId, username) {
+  if (userId && currentFriendIds.has(String(userId))) {
+    showToast('✓ Уже в друзьях');
+    return;
+  }
   var btn = document.getElementById('upAddFriendBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Отправка...'; }
   try {

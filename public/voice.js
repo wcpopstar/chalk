@@ -2,11 +2,13 @@ const FALLBACK_APP_ID = "78a6c18e54f34fe5a13aa04b4a2d89f3";
 
 let client = null;
 let microphoneTrack = null;
+let remoteAudioTracks = new Map();
 
 let voiceState = {
   joined: false,
   channel: null,
   muted: false,
+  deafened: false,
   appId: FALLBACK_APP_ID
 };
 
@@ -42,6 +44,14 @@ function toNumericUid(rawUid) {
   return (hash % 2147483647) || 1;
 }
 
+function applyRemoteAudioState() {
+  remoteAudioTracks.forEach((track) => {
+    if (track && typeof track.setEnabled === "function") {
+      track.setEnabled(!voiceState.deafened).catch(() => {});
+    }
+  });
+}
+
 function ensureVoiceClient() {
   if (!client) {
     client = AgoraRTC.createClient({
@@ -54,11 +64,23 @@ function ensureVoiceClient() {
         await client.subscribe(user, mediaType);
 
         if (mediaType === "audio" && user.audioTrack) {
+          remoteAudioTracks.set(String(user.uid), user.audioTrack);
+          if (typeof user.audioTrack.setEnabled === "function") {
+            user.audioTrack.setEnabled(!voiceState.deafened).catch(() => {});
+          }
           user.audioTrack.play();
         }
       } catch (err) {
         console.error("[voice] subscribe error", err);
       }
+    });
+
+    client.on("user-unpublished", async (user) => {
+      if (user && user.uid) remoteAudioTracks.delete(String(user.uid));
+    });
+
+    client.on("user-left", async (user) => {
+      if (user && user.uid) remoteAudioTracks.delete(String(user.uid));
     });
   }
 
@@ -117,6 +139,7 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
       joined: true,
       channel,
       muted: false,
+      deafened: false,
       appId
     };
 
@@ -199,6 +222,24 @@ window.toggleVoiceMute = async function () {
   );
 };
 
+window.toggleVoiceDeafen = async function () {
+  if (!voiceState.joined || !client) return;
+
+  voiceState.deafened = !voiceState.deafened;
+  applyRemoteAudioState();
+
+  window.dispatchEvent(
+    new CustomEvent("voice:status", {
+      detail: {
+        type: "info",
+        message: voiceState.deafened
+          ? "Слушать других отключено"
+          : "Слушать других включено"
+      }
+    })
+  );
+};
+
 /* ---------------- LEAVE ---------------- */
 
 window.leaveVoice = async function () {
@@ -217,10 +258,12 @@ window.leaveVoice = async function () {
     console.warn("[voice] leave error", err);
   }
 
+  remoteAudioTracks.clear();
   voiceState = {
     joined: false,
     channel: null,
     muted: false,
+    deafened: false,
     appId: FALLBACK_APP_ID
   };
 

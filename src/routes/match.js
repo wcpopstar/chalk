@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
 const { supabaseAdmin } = require('../services/supabase');
 
@@ -21,6 +22,45 @@ router.get('/history', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
   res.json({ matches: data || [] });
+});
+
+// ── POST /api/match/record-call ──────────────────────────────────────────
+router.post('/record-call', requireAuth, async (req, res) => {
+  const participants = Array.isArray(req.body?.participants) ? req.body.participants : [];
+  const mode = req.body?.mode || 'group';
+  const gameId = req.body?.gameId || null;
+
+  if (!participants.length) {
+    return res.status(400).json({ error: 'participants required' });
+  }
+
+  const rows = participants
+    .filter(Boolean)
+    .filter(pid => pid !== req.user.id)
+    .map(pid => ({
+      id: uuid(),
+      user_a: req.user.id,
+      user_b: pid,
+      game_id: gameId,
+      mode,
+      created_at: new Date().toISOString(),
+    }));
+
+  if (!rows.length) return res.json({ matches: [] });
+
+  const { data, error } = await supabaseAdmin
+    .from('match_history')
+    .insert(rows)
+    .select('id, user_a, user_b');
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  const matches = (data || []).map(row => ({
+    id: row.id,
+    participantId: row.user_a === req.user.id ? row.user_b : row.user_a,
+  }));
+
+  res.json({ matches });
 });
 
 // ── POST /api/match/:id/rate ───────────────────────────────────────────────

@@ -36,14 +36,17 @@ router.post('/request', requireAuth, async (req, res) => {
 
   if (targetUserId === uid) return res.status(400).json({ error: 'Cannot add yourself' });
 
-  // Check if already exists
-  const { data: existing } = await supabaseAdmin
+  // Check if already exists (accepted or pending)
+  const { data: existingRows } = await supabaseAdmin
     .from('friends')
     .select('id, status')
-    .or(`and(user_a.eq.${uid},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${uid})`)
-    .maybeSingle();
+    .or(`and(user_a.eq.${uid},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${uid})`);
 
+  const existing = (existingRows || [])[0];
   if (existing) {
+    if (existing.status === 'accepted') {
+      return res.status(409).json({ error: 'Already friends', alreadyFriend: true, status: existing.status });
+    }
     return res.status(409).json({ error: 'Friend request already exists', status: existing.status });
   }
 
@@ -105,13 +108,13 @@ router.post('/add-after-call', requireAuth, async (req, res) => {
 
   if (targetUserId === uid) return res.status(400).json({ error: 'Cannot add yourself' });
 
-  const { data: existing } = await supabaseAdmin
+  const { data: existingRows } = await supabaseAdmin
     .from('friends')
-    .select('id')
-    .or(`and(user_a.eq.${uid},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${uid})`)
-    .maybeSingle();
+    .select('id, status')
+    .or(`and(user_a.eq.${uid},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${uid})`);
 
-  if (existing) return res.json({ ok: true, already: true });
+  const existing = (existingRows || [])[0];
+  if (existing) return res.json({ ok: true, already: true, status: existing.status });
 
   const { error } = await supabaseAdmin.from('friends').insert({
     id: uuid(),
