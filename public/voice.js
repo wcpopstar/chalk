@@ -4,6 +4,10 @@ let client = null;
 let microphoneTrack = null;
 let remoteAudioTracks = new Map();
 
+// Per-user volume overrides, keyed by the numeric Agora uid (string).
+// Values are 0-200, where 100 is the normal/default volume.
+let userVolumes = new Map();
+
 let voiceState = {
   joined: false,
   channel: null,
@@ -44,8 +48,18 @@ function toNumericUid(rawUid) {
   return (hash % 2147483647) || 1;
 }
 
-function setRemoteTrackAudioState(track, enabled) {
+function getStoredVolume(uidKey) {
+  return userVolumes.has(uidKey) ? userVolumes.get(uidKey) : 100;
+}
+
+function getEffectiveVolume(uidKey) {
+  if (voiceState.deafened) return 0;
+  return getStoredVolume(uidKey);
+}
+
+function setRemoteTrackAudioState(track, volume) {
   if (!track) return;
+  const enabled = volume > 0;
 
   if (typeof track.setEnabled === "function") {
     try {
@@ -56,7 +70,7 @@ function setRemoteTrackAudioState(track, enabled) {
 
   if (typeof track.setVolume === "function") {
     try {
-      const r = track.setVolume(enabled ? 100 : 0);
+      const r = track.setVolume(enabled ? volume : 0);
       if (r && typeof r.catch === "function") r.catch(() => {});
     } catch (_) {}
   }
@@ -70,9 +84,8 @@ function setRemoteTrackAudioState(track, enabled) {
 }
 
 function applyRemoteAudioState() {
-  const enabled = !voiceState.deafened;
-  remoteAudioTracks.forEach((track) => {
-    setRemoteTrackAudioState(track, enabled);
+  remoteAudioTracks.forEach((track, uidKey) => {
+    setRemoteTrackAudioState(track, getEffectiveVolume(uidKey));
   });
 }
 
@@ -88,8 +101,9 @@ function ensureVoiceClient() {
         await client.subscribe(user, mediaType);
 
         if (mediaType === "audio" && user.audioTrack) {
-          remoteAudioTracks.set(String(user.uid), user.audioTrack);
-          setRemoteTrackAudioState(user.audioTrack, !voiceState.deafened);
+          const uidKey = String(user.uid);
+          remoteAudioTracks.set(uidKey, user.audioTrack);
+          setRemoteTrackAudioState(user.audioTrack, getEffectiveVolume(uidKey));
         }
       } catch (err) {
         console.error("[voice] subscribe error", err);
@@ -189,6 +203,40 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
 
     throw error;
   }
+};
+
+/* ---------------- PER-USER VOLUME ---------------- */
+
+/**
+ * Set the playback volume for a single remote participant during a call.
+ * @param {string|number} rawUid - the app-level user id (e.g. Supabase UUID)
+ * @param {number} volume - 0 (mute) to 200 (boosted), 100 is normal
+ */
+window.setUserVolume = function (rawUid, volume) {
+  const uidKey = String(toNumericUid(rawUid));
+  let v = Number(volume);
+  if (!Number.isFinite(v)) v = 100;
+  v = Math.max(0, Math.min(200, Math.round(v)));
+
+  userVolumes.set(uidKey, v);
+
+  const track = remoteAudioTracks.get(uidKey);
+  if (track) {
+    setRemoteTrackAudioState(track, getEffectiveVolume(uidKey));
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("voice:user-volume", {
+      detail: { uid: rawUid, volume: v }
+    })
+  );
+
+  return v;
+};
+
+window.getUserVolume = function (rawUid) {
+  const uidKey = String(toNumericUid(rawUid));
+  return getStoredVolume(uidKey);
 };
 
 /* ---------------- MIC CONTROL ---------------- */

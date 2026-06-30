@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { v4: uuid } = require('uuid');
 const { enqueue, dequeue, runMatchCycle, queueSize } = require('./matchmaking');
-const { supabaseAdmin } = require('./supabase');
+const { supabaseAdmin } = require('../services/supabase');
+const { addFriendPairInstant } = require('../services/friendsHelper');
 
 /**
  * Active rooms: roomId -> { participants, mode, gameId, trialStart, promoted, votes }
@@ -16,7 +17,59 @@ function roomSize(roomId) {
   return room ? room.participants.length : 0;
 }
 
-// ── Tell a user's friends that their call status changed ──────────────────
+// ── On unanimous trial-call promotion: befriend everyone in the room and
+//    get-or-create the conversation they'll chat in ─────────────────────────
+async function promoteRoomToFriends(participantIds) {
+  const ids = [...new Set(participantIds)];
+
+  // Pairwise befriend everyone in the room (covers group trial calls too).
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      try { await addFriendPairInstant(ids[i], ids[j]); }
+      catch (err) { console.error('[trial:promote] friend insert failed', err.message); }
+    }
+  }
+
+  // Get-or-create the conversation.
+  try {
+    if (ids.length === 2) {
+      const [a, b] = ids;
+      const { data: existing } = await supabaseAdmin.rpc('find_direct_conversation', {
+        user_a: a,
+        user_b: b,
+      });
+      if (existing && existing.length) return existing[0].id;
+
+      const convId = uuid();
+      const { error: convErr } = await supabaseAdmin
+        .from('conversations')
+        .insert({ id: convId, type: 'direct', created_at: new Date().toISOString() });
+      if (convErr) throw convErr;
+
+      await supabaseAdmin.from('conversation_members').insert(
+        ids.map(user_id => ({ conversation_id: convId, user_id }))
+      );
+      return convId;
+    }
+
+    // Group trial call (3+ participants)
+    const convId = uuid();
+    const { error: convErr } = await supabaseAdmin
+      .from('conversations')
+      .insert({ id: convId, type: 'group', name: 'Группа', created_at: new Date().toISOString() });
+    if (convErr) throw convErr;
+
+    await supabaseAdmin.from('conversation_members').insert(
+      ids.map(user_id => ({ conversation_id: convId, user_id }))
+    );
+    return convId;
+  } catch (err) {
+    console.error('[trial:promote] conversation creation failed', err.message);
+    return null;
+  }
+}
+
+
 async function broadcastCallStatus(io, userId) {
   try {
     const { data: friendRows } = await supabaseAdmin
@@ -71,7 +124,7 @@ async function saveMessage({ conversationId, senderId, text }) {
       text,
       created_at: new Date().toISOString(),
     })
-    .select('id, conversation_id, sender_id, text, created_at')
+    .select('id, conversation_id, sender_id, text, created_at, sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )')
     .single();
   if (error) console.error('[saveMessage]', error);
   return data;
@@ -166,7 +219,7 @@ function initSocket(io) {
 
     // ── TRIAL CALL VOTING ──────────────────────────────────────────────────
 
-    socket.on('trial:vote', ({ roomId, vote }) => {
+    socket.on('trial:vote', async ({ roomId, vote }) => {
       const room = rooms.get(roomId);
       if (!room) return;
 
@@ -189,28 +242,15 @@ function initSocket(io) {
 
       if (promote) {
         room.promoted = true;
-        io.to(roomId).emit('call:promoted', { roomId });
+        // Actually persist the friendship(s) + conversation before telling
+        // the clients "you're friends now" — this used to be announced to
+        // the user without ever touching the database.
+        const conversationId = await promoteRoomToFriends(room.participants);
+        io.to(roomId).emit('call:promoted', { roomId, conversationId });
       } else {
         room.participants.forEach(pid => clearUserRoom(io, pid));
         rooms.delete(roomId);
       }
-    });
-
-    // ── WEBRTC SIGNALING ──────────────────────────────────────────────────
-
-    socket.on('signal:offer', ({ roomId, to, offer }) => {
-      const targetSocket = online.get(to);
-      if (targetSocket) io.to(targetSocket).emit('signal:offer', { from: userId, offer, roomId });
-    });
-
-    socket.on('signal:answer', ({ roomId, to, answer }) => {
-      const targetSocket = online.get(to);
-      if (targetSocket) io.to(targetSocket).emit('signal:answer', { from: userId, answer, roomId });
-    });
-
-    socket.on('signal:ice', ({ roomId, to, candidate }) => {
-      const targetSocket = online.get(to);
-      if (targetSocket) io.to(targetSocket).emit('signal:ice', { from: userId, candidate, roomId });
     });
 
     // ── CALL CONTROL ──────────────────────────────────────────────────────

@@ -89,7 +89,7 @@ router.post('/:matchId/rate', requireAuth, async (req, res) => {
     rating,
     comment: comment || null,
     created_at: new Date().toISOString(),
-  });
+  }, { onConflict: 'match_id,rater_user_id' });
 
   if (error) return res.status(500).json({ error: error.message });
 

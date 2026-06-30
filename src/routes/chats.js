@@ -22,15 +22,36 @@ router.get('/', requireAuth, async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // Attach last message and unread count per conversation
+  // For direct (1:1) conversations the client needs to know *who* the other
+  // person is — both to show a real name and to be able to call them.
+  const directConvIds = (data || [])
+    .filter(row => row.conversations?.type === 'direct')
+    .map(row => row.conversation_id);
+
+  const otherUserByConv = {};
+  if (directConvIds.length) {
+    const { data: memberRows } = await supabaseAdmin
+      .from('conversation_members')
+      .select('conversation_id, users ( id, username, avatar_emoji, avatar_url, status )')
+      .in('conversation_id', directConvIds)
+      .neq('user_id', uid);
+
+    (memberRows || []).forEach(row => {
+      otherUserByConv[row.conversation_id] = row.users;
+    });
+  }
+
+  // Attach last message and the other participant (for direct chats)
   const conversations = (data || []).map(row => {
     const conv  = row.conversations;
     const msgs  = conv?.messages || [];
     const last  = msgs[msgs.length - 1] || null;
+    const otherUser = conv?.type === 'direct' ? (otherUserByConv[conv.id] || null) : null;
     return {
       id: conv.id,
       type: conv.type,
-      name: conv.name,
+      name: conv.type === 'direct' ? (otherUser?.username || conv.name) : conv.name,
+      other_user: otherUser,
       last_message: last,
       created_at: conv.created_at,
     };
@@ -144,7 +165,7 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
   let query = supabaseAdmin
     .from('messages')
     .select(`
-      id, text, created_at,
+      id, sender_id, text, created_at,
       sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
     `)
     .eq('conversation_id', convId)

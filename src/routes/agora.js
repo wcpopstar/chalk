@@ -50,10 +50,6 @@ router.get('/token', requireAuth, (req, res) => {
   const channel = req.query.channel || 'chalk';
   const uid     = toNumericUid(req.query.uid);
 
-  if (!channel) {
-    return res.status(400).json({ error: 'channel is required' });
-  }
-
   if (!APP_ID) {
     return res.status(503).json({ error: 'Agora App ID not configured' });
   }

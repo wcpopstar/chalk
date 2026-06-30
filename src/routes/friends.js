@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
 const { supabaseAdmin } = require('../services/supabase');
+const { addFriendPairInstant } = require('../services/friendsHelper');
 
 // ── GET /api/friends ───────────────────────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
@@ -101,31 +102,20 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/friends/add-after-call ──────────────────────────────────────
-// Quick add after a promoted call (no pending state needed)
+// Quick add after a call (no pending state needed)
 router.post('/add-after-call', requireAuth, async (req, res) => {
   const { targetUserId } = req.body;
   const uid = req.user.id;
 
+  if (!targetUserId) return res.status(400).json({ error: 'targetUserId required' });
   if (targetUserId === uid) return res.status(400).json({ error: 'Cannot add yourself' });
 
-  const { data: existingRows } = await supabaseAdmin
-    .from('friends')
-    .select('id, status')
-    .or(`and(user_a.eq.${uid},user_b.eq.${targetUserId}),and(user_a.eq.${targetUserId},user_b.eq.${uid})`);
-
-  const existing = (existingRows || [])[0];
-  if (existing) return res.json({ ok: true, already: true, status: existing.status });
-
-  const { error } = await supabaseAdmin.from('friends').insert({
-    id: uuid(),
-    user_a: uid,
-    user_b: targetUserId,
-    status: 'accepted', // instant after-call add
-    created_at: new Date().toISOString(),
-  });
-
-  if (error) return res.status(500).json({ error: error.message });
-  res.status(201).json({ ok: true });
+  try {
+    const result = await addFriendPairInstant(uid, targetUserId);
+    res.status(result.already ? 200 : 201).json({ ok: true, already: result.already });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 module.exports = router;

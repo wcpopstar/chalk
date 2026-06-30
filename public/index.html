@@ -9,6 +9,7 @@
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap');
   :root{--bg:#080a0e;--surface:#0f1117;--surface2:#161a23;--border:#1c2030;--accent:#c8ff00;--accent-text:#c8ff00;--accent-dim:rgba(200,255,0,0.1);--accent-border:rgba(200,255,0,0.22);--accent2:#7c3aed;--accent3:#10b981;--danger:#ef4444;--text:#e2e8f0;--muted:#4a5568;--online:#22c55e}
   html.light-theme{--bg:#f4f5f8;--surface:#ffffff;--surface2:#eef0f4;--border:#dfe2ea;--accent:#c8ff00;--accent-text:#5d8a00;--accent-dim:rgba(93,138,0,0.1);--accent-border:rgba(93,138,0,0.3);--accent2:#7c3aed;--accent3:#059669;--danger:#dc2626;--text:#1a202c;--muted:#6b7280;--online:#16a34a}
+  html.light-theme .auth-logo,html.light-theme .logo,html.light-theme .match-logo-text{background:linear-gradient(135deg,#7c3aed,#16a34a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#16a34a}
   html.light-theme body,html.light-theme nav,html.light-theme .sidebar,html.light-theme .auth-card{transition:background-color .15s,color .15s,border-color .15s}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column}
@@ -53,8 +54,6 @@
   .profile-btn{display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 16px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
   .profile-btn .tab-icon{font-size:18px;line-height:1}
   .profile-btn:hover{border-color:var(--accent);color:var(--accent-text);background:var(--accent-dim)}
-  .avatar-btn{width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#7c3aed,#c8ff00);display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;border:2px solid var(--border);transition:border-color .15s}
-  .avatar-btn:hover{border-color:var(--accent)}
   .logout-btn{background:transparent;border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--muted);font-size:11px;cursor:pointer;transition:all .12s}
   .logout-btn:hover{border-color:var(--danger);color:var(--danger)}
 
@@ -84,14 +83,28 @@
   .friend-item:hover{background:var(--surface2)}
   .friend-ava{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;position:relative;flex-shrink:0}
   .friend-online .friend-ava::after{content:'';width:8px;height:8px;background:var(--online);border-radius:50%;border:2px solid var(--surface);position:absolute;bottom:-1px;right:-1px}
+  .friend-offline .friend-ava::after{content:'';width:8px;height:8px;background:#6b7280;border-radius:50%;border:2px solid var(--surface);position:absolute;bottom:-1px;right:-1px}
   .friend-incall .friend-ava::after{content:'';width:8px;height:8px;background:#f59e0b;border-radius:50%;border:2px solid var(--surface);position:absolute;bottom:-1px;right:-1px;box-shadow:0 0 5px #f59e0b}
   .friend-action-menu{position:fixed;display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:4px;z-index:999;min-width:190px}
   .fam-item{padding:9px 11px;font-size:12px;font-weight:500;border-radius:6px;cursor:pointer;color:var(--text)}
   .fam-item:hover{background:var(--surface2)}
+  .user-volume-menu{position:fixed;display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.35);padding:12px 14px;z-index:999;min-width:200px}
+  .uvm-name{font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .uvm-row{display:flex;align-items:center;gap:8px}
+  .uvm-icon{font-size:14px;flex-shrink:0;cursor:pointer;user-select:none}
+  .uvm-slider{flex:1;accent-color:var(--accent);height:4px}
+  .uvm-value{font-size:11px;color:var(--muted);width:32px;text-align:right;flex-shrink:0}
+  .uvm-reset{margin-top:8px;font-size:10px;color:var(--accent-text);cursor:pointer;text-align:center}
   .friend-name{font-size:12px;font-weight:500;color:var(--text)}
   .friend-game{font-size:10px;color:var(--muted)}
   .add-friend-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;width:22px;height:22px;line-height:1;color:var(--accent-text);font-size:15px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s}
   .add-friend-btn:hover{border-color:var(--accent);background:var(--accent-dim)}
+  .add-friend-wrap{position:relative;display:inline-flex;flex-shrink:0}
+  .friend-req-badge{position:absolute;top:-7px;right:-9px;background:var(--danger);color:#fff;font-size:10px;font-weight:700;line-height:1;padding:2px 4px;border-radius:8px;min-width:15px;text-align:center;border:2px solid var(--surface);pointer-events:none;align-items:center;justify-content:center}
+  .af-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border)}
+  .af-tab{background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 4px 10px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;position:relative;display:flex;align-items:center;gap:6px;font-family:'Inter',sans-serif}
+  .af-tab.active{color:var(--accent-text);border-bottom-color:var(--accent)}
+  .af-tab-badge{background:var(--danger);color:#fff;font-size:10px;font-weight:700;line-height:1;padding:2px 5px;border-radius:8px}
   .friend-request-item{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:6px}
   .friend-request-actions{display:flex;gap:4px;margin-left:auto}
   .fr-accept-btn{background:var(--accent);border:none;border-radius:6px;width:24px;height:24px;font-size:12px;cursor:pointer;color:#000;font-weight:700}
@@ -99,6 +112,10 @@
   .main{flex:1;overflow-y:auto}
   .page{display:none}
   .page.active{display:block}
+  /* Chat page is a fixed-height messenger layout (sidebar + thread), not a
+     scrolling document like the other tabs — it needs a real height for the
+     inner flex layout (chat-layout/chat-main/chat-messages) to fill. */
+  #page-chat.active{height:100%;display:flex;flex-direction:column}
 
   /* MATCH */
   .match-page-inner{padding:28px;max-width:560px;margin:0 auto}
@@ -135,9 +152,6 @@
   .game-select-item:hover{background:var(--surface2)}
   .game-select-item.selected{background:var(--accent-dim);color:var(--accent-text);font-weight:600}
   .game-select-item-chat{border-top:1px dashed var(--border);margin-top:4px;padding-top:11px}
-  .game-emoji{font-size:32px;margin-bottom:7px}
-  .game-name{font-size:12px;font-weight:600}
-  .game-players{font-size:10px;color:var(--muted);margin-top:2px}
   .match-btn-wrap{text-align:center}
   .match-btn{background:var(--accent);border:none;border-radius:50px;padding:16px 56px;font-family:'Rajdhani',sans-serif;font-size:20px;font-weight:700;letter-spacing:2px;color:#000;cursor:pointer;text-transform:uppercase;transition:all .18s}
   .match-btn:hover{transform:scale(1.04);box-shadow:0 0 28px rgba(200,255,0,.4)}
@@ -299,6 +313,24 @@
   .post-call-actions{display:flex;gap:8px}
   .pc-done{flex:1;background:var(--accent);border:none;border-radius:7px;padding:11px;color:#000;font-weight:700;font-size:13px;cursor:pointer}
   .pc-rate{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:11px;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}
+  .pc-rate:disabled{opacity:.4;cursor:not-allowed}
+
+  /* RATING MODAL */
+  .rating-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:600;align-items:center;justify-content:center}
+  .rating-modal-overlay.show{display:flex;animation:fadeIn .2s ease}
+  .rating-modal-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:300px;text-align:center}
+  .rating-modal-progress{font-size:11px;color:var(--muted);margin-bottom:10px;font-weight:600;letter-spacing:.03em}
+  .rating-modal-ava{width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 10px;border:2px solid var(--border)}
+  .rating-modal-name{font-family:'Rajdhani',sans-serif;font-size:19px;font-weight:700;margin-bottom:4px}
+  .rating-modal-sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+  .rating-stars{display:flex;justify-content:center;gap:6px;margin-bottom:22px}
+  .rating-star{font-size:34px;line-height:1;cursor:pointer;color:var(--border);transition:color .12s,transform .12s;user-select:none}
+  .rating-star:hover{transform:scale(1.12)}
+  .rating-star.active{color:#f59e0b}
+  .rating-modal-actions{display:flex;gap:8px}
+  .rating-modal-skip{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:11px;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}
+  .rating-modal-submit{flex:1;background:var(--accent);border:none;border-radius:7px;padding:11px;color:#000;font-weight:700;font-size:13px;cursor:pointer}
+  .rating-modal-submit:disabled{opacity:.4;cursor:not-allowed}
 
   /* TINDER */
   .tinder-wrap{display:flex;flex-direction:column;align-items:center;padding:22px}
@@ -345,8 +377,7 @@
   .chat-ava-group{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#06b6d4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;color:#fff}
   .chat-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chat-sub{font-size:11.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .chat-unread{background:var(--accent);color:#000;border-radius:50%;min-width:18px;height:18px;padding:0 5px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0}
-  .chat-main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .chat-main{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
   .chat-back-btn{display:none;background:transparent;border:none;color:var(--text);font-size:18px;cursor:pointer;padding:4px 6px 4px 0;flex-shrink:0}
   .chat-header{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
   .chat-header-ava{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px}
@@ -355,7 +386,7 @@
   .chat-header-status{font-size:11px;color:var(--muted)}
   .call-btn-inline{background:var(--accent-dim);border:1px solid var(--accent-border);border-radius:7px;padding:7px 13px;color:var(--accent-text);font-size:12px;font-weight:600;cursor:pointer}
   .call-btn-inline:hover{background:rgba(200,255,0,.18)}
-  .chat-messages{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+  .chat-messages{flex:1;min-height:0;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
   .msg{display:flex;gap:9px;align-items:flex-start}
   .msg-ava{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;overflow:hidden}
   .msg-ava img{width:100%;height:100%;object-fit:cover}
@@ -370,6 +401,10 @@
   .chat-send{background:var(--accent);border:none;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;color:#000;font-size:16px;cursor:pointer}
   .new-group-btn{width:100%;background:transparent;border:1px dashed var(--border);border-radius:8px;padding:10px;color:var(--muted);font-size:12px;cursor:pointer;margin-top:6px}
   .new-group-btn:hover{border-color:var(--accent);color:var(--accent-text)}
+  .cg-friend-item{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:6px;cursor:pointer;font-size:13px}
+  .cg-friend-item:hover{background:rgba(255,255,255,.05)}
+  .cg-friend-item input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
+  .cg-friend-item .cg-friend-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .empty-chat{display:flex;align-items:center;justify-content:center;flex:1;color:var(--muted);font-size:13px;flex-direction:column;gap:8px}
 
   /* GLOBAL CHAT — floating widget bottom-right */
@@ -433,7 +468,7 @@
   .edit-profile-btn:hover{background:rgba(200,255,0,.18)}
 
   /* AVATAR IMAGE (photo overrides emoji avatar) */
-  .profile-ava-big img,.my-avatar img,.avatar-btn img,.friend-ava img,.chat-ava img,.chat-header-ava img,.found-ava img,.tp-ava img,.fp-ava img,.pc-ava img,.tc-banner img,.ob-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+  .profile-ava-big img,.my-avatar img,.friend-ava img,.chat-ava img,.chat-header-ava img,.found-ava img,.tp-ava img,.fp-ava img,.pc-ava img,.tc-banner img,.ob-avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
 
   /* ── ONBOARDING WIZARD ───────────────────────────────────────────────── */
   .onboarding-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:900;align-items:center;justify-content:center}
@@ -793,13 +828,41 @@
 <!-- ADD FRIEND MODAL -->
 <div class="modal-overlay" id="addFriendOverlay">
   <div class="modal-card" style="width:380px">
-    <div class="modal-title">Добавить друга</div>
-    <div class="ob-field-label">Никнейм друга</div>
-    <input class="auth-input" id="afUsername" type="text" placeholder="Введи никнейм" onkeydown="if(event.key==='Enter')sendFriendRequest()">
-    <div class="ob-error" id="afError"></div>
+    <div class="af-tabs">
+      <button class="af-tab active" id="afTabAddBtn" onclick="switchAddFriendTab('add')">Добавить</button>
+      <button class="af-tab" id="afTabReqBtn" onclick="switchAddFriendTab('requests')">Заявки<span class="af-tab-badge" id="afTabBadge" style="display:none">0</span></button>
+    </div>
+    <div id="afPaneAdd">
+      <div class="ob-field-label">Никнейм друга</div>
+      <input class="auth-input" id="afUsername" type="text" placeholder="Введи никнейм" onkeydown="if(event.key==='Enter')sendFriendRequest()">
+      <div class="ob-error" id="afError"></div>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeAddFriend()">Отмена</button>
+        <button class="modal-save" id="afSendBtn" onclick="sendFriendRequest()">Отправить запрос</button>
+      </div>
+    </div>
+    <div id="afPaneRequests" style="display:none">
+      <div id="afRequestsList"><div style="font-size:11px;color:var(--muted);padding:8px 4px">Нет новых заявок</div></div>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeAddFriend()">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="createGroupOverlay">
+  <div class="modal-card" style="width:380px">
+    <div class="modal-title">Новая группа</div>
+    <div class="ob-field-label">Название группы</div>
+    <input class="auth-input" id="cgName" type="text" placeholder="Например: Команда">
+    <div class="ob-field-label" style="margin-top:10px">Участники</div>
+    <div id="cgFriendList" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:4px;margin-top:4px">
+      <div style="font-size:11px;color:var(--muted);padding:8px">Загрузка...</div>
+    </div>
+    <div class="ob-error" id="cgError"></div>
     <div class="modal-actions">
-      <button class="modal-cancel" onclick="closeAddFriend()">Отмена</button>
-      <button class="modal-save" id="afSendBtn" onclick="sendFriendRequest()">Отправить запрос</button>
+      <button class="modal-cancel" onclick="closeCreateGroup()">Отмена</button>
+      <button class="modal-save" id="cgCreateBtn" onclick="createGroupSubmit()">Создать</button>
     </div>
   </div>
 </div>
@@ -846,11 +909,14 @@
     <div class="sidebar-section" style="flex:1">
       <div class="sidebar-label" style="justify-content:space-between;width:100%">
         <span style="display:flex;align-items:center;gap:7px"><span class="tab-icon">🟢</span>Друзья онлайн</span>
-        <button class="add-friend-btn" onclick="openAddFriend()" title="Добавить друга">＋</button>
+        <span class="add-friend-wrap">
+          <button class="add-friend-btn" onclick="openAddFriend()" title="Добавить друга">＋</button>
+          <span class="friend-req-badge" id="friendReqBadge" style="display:none">+1</span>
+        </span>
       </div>
-      <div id="friendRequests"></div>
       <div id="friendsList"><div style="font-size:11px;color:var(--muted)">Загрузка...</div></div>
       <div class="friend-action-menu" id="friendActionMenu"></div>
+      <div class="user-volume-menu" id="userVolumeMenu" onclick="event.stopPropagation()"></div>
     </div>
   </div>
 
@@ -957,7 +1023,7 @@
           <div class="chat-sidebar-section" style="flex:1">
             <div class="sidebar-label"><span class="tab-icon">👥</span>Группы</div>
             <div id="groupList"><div style="font-size:11px;color:var(--muted);padding:4px">Пусто</div></div>
-            <button class="new-group-btn" onclick="showToast('Скоро!')">+ Новая группа</button>
+            <button class="new-group-btn" onclick="openCreateGroup()">+ Новая группа</button>
           </div>
         </div>
         <div class="chat-main">
@@ -1085,7 +1151,28 @@
     <div class="post-call-actions">
       <button class="pc-done" onclick="closePostCall()">Готово</button>
       <button class="pc-rate" onclick="goToChatAfterCall()">💬 В чат</button>
-      <button class="pc-rate" onclick="rateParticipantsAfterCall()">⭐ Оценить</button>
+      <button class="pc-rate" id="pcRateBtn" onclick="rateParticipantsAfterCall()">⭐ Оценить</button>
+    </div>
+  </div>
+</div>
+
+<!-- RATING MODAL -->
+<div class="rating-modal-overlay" id="ratingModalOverlay">
+  <div class="rating-modal-card">
+    <div class="rating-modal-progress" id="ratingModalProgress"></div>
+    <div class="rating-modal-ava" id="ratingModalAva" style="background:linear-gradient(135deg,#7c3aed,#059669)"></div>
+    <div class="rating-modal-name" id="ratingModalName"></div>
+    <div class="rating-modal-sub">Как прошёл созвон?</div>
+    <div class="rating-stars" id="ratingStars">
+      <span class="rating-star" data-star="1" onclick="setRatingStars(1)">★</span>
+      <span class="rating-star" data-star="2" onclick="setRatingStars(2)">★</span>
+      <span class="rating-star" data-star="3" onclick="setRatingStars(3)">★</span>
+      <span class="rating-star" data-star="4" onclick="setRatingStars(4)">★</span>
+      <span class="rating-star" data-star="5" onclick="setRatingStars(5)">★</span>
+    </div>
+    <div class="rating-modal-actions">
+      <button class="rating-modal-skip" onclick="skipCurrentRating()">Пропустить</button>
+      <button class="rating-modal-submit" id="ratingModalSubmitBtn" onclick="submitCurrentRating()" disabled>Оценить</button>
     </div>
   </div>
 </div>
@@ -1188,6 +1275,8 @@ var isSearching = false;
 var currentRoomId = null;
 var currentCallParticipants = [];
 var currentConvId = null;
+var dmPartnersByConv = {};   // convId -> { id, username, avatar_emoji, avatar_url, status }
+var currentConvPartner = null;
 var pendingChatConversationId = null;
 var trialSeconds = 120;
 var trialInterval = null;
@@ -1737,6 +1826,7 @@ function connectSocket() {
   // everyone votes "yes" in the trial call, so the chat is ready right away.
   socket.on('call:promoted', function(data) {
     pendingChatConversationId = data.conversationId || null;
+    loadFriends(); // server just persisted the friendship — refresh currentFriendIds
   });
 
   socket.on('trial:result', function(data) {
@@ -1848,6 +1938,15 @@ function showPage(name, btn) {
   document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active') });
   document.getElementById('page-' + name).classList.add('active');
   btn.classList.add('active');
+
+  var bubble = document.getElementById('globalChatBubble');
+  var panel = document.getElementById('globalChatPanel');
+  if (name === 'match') {
+    bubble.style.display = 'flex';
+  } else {
+    bubble.style.display = 'none';
+    if (panel) panel.style.display = 'none';
+  }
 }
 
 function goToMatchHome() {
@@ -1964,24 +2063,6 @@ function acceptMatch() {
 }
 
 // ── TRIAL CALL ────────────────────────────────────────────────────────────────
-function startTrialCall(pts) {
-  var wrap = document.getElementById('trialParticipants');
-  wrap.innerHTML = pts.map(function(p){
-    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="tp-name">' + escHtml(participantDisplayName(p)) + '</div></div>';
-  }).join('') + '<div class="tp-item"><div class="tp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="tp-name">Ты</div></div>';
-
-  trialSeconds = 120; trialVoted = false; trialMuted = false;
-  document.getElementById('trialMuteBtn').textContent = '🎙️';
-  document.getElementById('trialMuteBtn').classList.remove('muted');
-  document.getElementById('voteSection').classList.remove('show');
-  document.getElementById('trialTimer').classList.remove('warning');
-  document.getElementById('trialStatus').textContent = 'Познакомьтесь и решите, продолжать ли';
-  document.getElementById('trialProgressFill').style.width = '100%';
-  document.getElementById('trialOverlay').classList.add('show');
-  clearInterval(trialInterval);
-  trialInterval = setInterval(tickTrial, 1000);
-}
-
 function tickTrial() {
   trialSeconds--;
   document.getElementById('trialProgressFill').style.width = ((trialSeconds / 120) * 100) + '%';
@@ -2024,49 +2105,7 @@ function voteNo() {
   endTrialCall();
 }
 
-function leaveTrialCall() { clearInterval(trialInterval); endTrialCall(); }
-function endTrialCall() { document.getElementById('trialOverlay').classList.remove('show'); showToast('📝 Звонок завершён'); }
-function toggleTrialMute() {
-  trialMuted = !trialMuted;
-  var btn = document.getElementById('trialMuteBtn');
-  btn.textContent = trialMuted ? '🔇' : '🎙️';
-  btn.classList.toggle('muted', trialMuted);
-}
-
-// ── FULL CALL ─────────────────────────────────────────────────────────────────
-function startFullCall(pts, options) {
-  options = options || {};
-  var fcWrap = document.getElementById('fcParticipants');
-  fcWrap.innerHTML = pts.map(function(p){
-    var isFriend = participantIsAlreadyFriend(p);
-    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="fp-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
-  }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="fp-you">Ты</div></div>';
-
-  document.getElementById('fcTitle').textContent = options.mode === 'trial' ? 'Пробный звонок' : 'Обычный звонок';
-  fcSeconds = 0; fcMuted = false; fcDeafened = false;
-  document.getElementById('fcMuteBtn').textContent = '🎙️';
-  document.getElementById('fcMuteBtn').classList.remove('muted');
-  document.getElementById('fcDeafBtn').textContent = '🔊';
-  document.getElementById('fcTimer').textContent = '00:00';
-  document.getElementById('fullCallOverlay').classList.add('show');
-  clearInterval(fcInterval);
-  fcInterval = setInterval(function(){
-    fcSeconds++;
-    var m = String(Math.floor(fcSeconds / 60)).padStart(2, '0');
-    var s = String(fcSeconds % 60).padStart(2, '0');
-    document.getElementById('fcTimer').textContent = m + ':' + s;
-  }, 1000);
-
-  // Speaking animation
-  var avas = fcWrap.querySelectorAll('.fp-ava');
-  var si = 0;
-  setInterval(function(){
-    avas.forEach(function(a){ a.classList.remove('speaking') });
-    if (avas.length > 1) avas[si % (avas.length - 1)].classList.add('speaking');
-    si++;
-  }, 2000);
-}
-
+// ── FULL CALL ────────────────────────────────────────────────────────────────
 async function addFriendInCall(btn, userId, username) {
   if (btn.classList.contains('added')) return;
   try {
@@ -2075,31 +2114,6 @@ async function addFriendInCall(btn, userId, username) {
     showToast('✓ ' + username + ' добавлен в друзья!');
     loadFriends();
   } catch(e) { showToast('Ошибка: ' + e.message); }
-}
-
-function toggleFCMute() {
-  fcMuted = !fcMuted;
-  var btn = document.getElementById('fcMuteBtn');
-  btn.textContent = fcMuted ? '🔇' : '🎙️';
-  btn.classList.toggle('muted', fcMuted);
-}
-function toggleFCDeaf() {
-  fcDeafened = !fcDeafened;
-  document.getElementById('fcDeafBtn').textContent = fcDeafened ? '🔕' : '🔊';
-}
-function endFullCall(silent) {
-  clearInterval(fcInterval);
-  if (!silent && socket && currentRoomId) socket.emit('call:end', { roomId: currentRoomId });
-  document.getElementById('fullCallOverlay').classList.remove('show');
-  showPostCall(currentCallParticipants);
-}
-
-function showPostCall(pts) {
-  if (!pts || !pts.length) return;
-  document.getElementById('postCallParticipants').innerHTML = pts.map(function(p){
-    return '<div class="pc-item"><div class="pc-ava" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + (p.avatarEmoji || p.avatar_emoji || '🎮') + '</div><div class="pc-name">' + (p.username || 'Игрок') + '</div><button class="pc-add-btn" onclick="addFriendPost(this,\'' + p.id + '\',\'' + (p.username || '') + '\')">+ Добавить</button></div>';
-  }).join('');
-  document.getElementById('postCallOverlay').classList.add('show');
 }
 
 async function addFriendPost(btn, userId, username) {
@@ -2112,26 +2126,78 @@ async function addFriendPost(btn, userId, username) {
   } catch(e) { showToast('Ошибка: ' + e.message); }
 }
 
+
 function closePostCall() { document.getElementById('postCallOverlay').classList.remove('show'); }
 
-async function rateParticipantsAfterCall() {
+// ── RATING MODAL ─────────────────────────────────────────────────────────────
+var ratingQueue = [];        // [{ p, matchId }]
+var ratingQueueIndex = 0;
+var ratingSelectedStars = 0;
+var ratingSubmittedCount = 0;
+
+function rateParticipantsAfterCall() {
   var pts = currentCallParticipants || [];
-  if (!pts.length) { showToast('Нет участников для оценки'); return; }
-  var rated = 0;
-  for (var i = 0; i < pts.length; i++) {
-    var p = pts[i];
-    var pid = getParticipantId(p);
-    var matchId = pid ? currentCallMatchIds[pid] : null;
-    if (!matchId) continue;
-    var raw = window.prompt('Оцени ' + participantDisplayName(p) + ' от 1 до 5', '5');
-    var rating = parseInt(raw, 10);
-    if (!rating || rating < 1 || rating > 5) continue;
-    try {
-      await api('/api/match/' + matchId + '/rate', { method: 'POST', body: JSON.stringify({ rating: rating, comment: '' }) });
-      rated++;
-    } catch (_) {}
+  ratingQueue = pts
+    .filter(function(p){ return !participantIsAlreadyFriend(p); }) // друзей оценивать не нужно
+    .map(function(p){
+      var pid = getParticipantId(p);
+      return { p: p, matchId: pid ? currentCallMatchIds[pid] : null };
+    })
+    .filter(function(item){ return !!item.matchId; });
+
+  if (!ratingQueue.length) {
+    showToast('Все участники уже у вас в друзьях — оценка не нужна');
+    return;
   }
-  showToast(rated ? 'Оценка сохранена для ' + rated + ' игрока(ов)' : 'Оценка не была сохранена');
+
+  ratingQueueIndex = 0;
+  ratingSubmittedCount = 0;
+  document.getElementById('ratingModalOverlay').classList.add('show');
+  renderRatingCandidate();
+}
+
+function renderRatingCandidate() {
+  var item = ratingQueue[ratingQueueIndex];
+  if (!item) { finishRatingFlow(); return; }
+
+  var p = item.p;
+  document.getElementById('ratingModalProgress').textContent = (ratingQueueIndex + 1) + ' из ' + ratingQueue.length;
+  document.getElementById('ratingModalAva').innerHTML = participantAvatarHtml(p);
+  document.getElementById('ratingModalName').textContent = participantDisplayName(p);
+  setRatingStars(0);
+}
+
+function setRatingStars(n) {
+  ratingSelectedStars = n;
+  document.querySelectorAll('#ratingStars .rating-star').forEach(function(star){
+    star.classList.toggle('active', parseInt(star.dataset.star, 10) <= n);
+  });
+  document.getElementById('ratingModalSubmitBtn').disabled = n < 1;
+}
+
+async function submitCurrentRating() {
+  var item = ratingQueue[ratingQueueIndex];
+  if (!item || ratingSelectedStars < 1) return;
+  var btn = document.getElementById('ratingModalSubmitBtn');
+  btn.disabled = true;
+  try {
+    await api('/api/match/' + item.matchId + '/rate', { method: 'POST', body: JSON.stringify({ rating: ratingSelectedStars, comment: '' }) });
+    ratingSubmittedCount++;
+  } catch (e) {
+    showToast('Ошибка сохранения оценки: ' + e.message);
+  }
+  ratingQueueIndex++;
+  renderRatingCandidate();
+}
+
+function skipCurrentRating() {
+  ratingQueueIndex++;
+  renderRatingCandidate();
+}
+
+function finishRatingFlow() {
+  document.getElementById('ratingModalOverlay').classList.remove('show');
+  showToast(ratingSubmittedCount ? 'Оценка сохранена для ' + ratingSubmittedCount + ' игрока(ов)' : 'Оценка не была сохранена');
   closePostCall();
 }
 
@@ -2149,7 +2215,9 @@ async function loadFriends() {
     renderFriendRequests(incoming);
 
     currentFriendIds = new Set((all || []).filter(function(f){ return f.status === 'accepted'; }).map(function(f){ return String(f.friend && f.friend.id); }).filter(Boolean));
-    lastOnlineFriends = all.filter(function(f){ return f.status === 'accepted' && f.friend.status === 'online' });
+    lastOnlineFriends = all
+      .filter(function(f){ return f.status === 'accepted' && f.friend; })
+      .sort(function(a,b){ return (b.friend.status === 'online') - (a.friend.status === 'online'); });
     renderFriendsList();
 
     if (socket) {
@@ -2164,11 +2232,12 @@ async function loadFriends() {
 function renderFriendsList() {
   var el = document.getElementById('friendsList');
   var online = lastOnlineFriends;
-  if (!online.length) { el.innerHTML = '<div style="font-size:11px;color:var(--muted)">Никого онлайн</div>'; return; }
+  if (!online.length) { el.innerHTML = '<div style="font-size:11px;color:var(--muted)">Пока нет друзей</div>'; return; }
   el.innerHTML = online.map(function(f){
-    var cs = friendCallStatus[f.friend.id] || { inCall: false, roomSize: 0 };
-    var statusLine = cs.inCall ? ('🔊 В звонке · ' + cs.roomSize + ' чел.') : '● Онлайн';
-    var rowClass = cs.inCall ? 'friend-item friend-incall' : 'friend-item friend-online';
+    var isOnline = f.friend.status === 'online';
+    var cs = isOnline ? (friendCallStatus[f.friend.id] || { inCall: false, roomSize: 0 }) : { inCall: false, roomSize: 0 };
+    var statusLine = !isOnline ? '○ Оффлайн' : (cs.inCall ? ('🔊 В звонке · ' + cs.roomSize + ' чел.') : '● Онлайн');
+    var rowClass = !isOnline ? 'friend-item friend-offline' : (cs.inCall ? 'friend-item friend-incall' : 'friend-item friend-online');
     var uname = escHtml(f.friend.username).replace(/'/g,"\\'");
     var emoji = (f.friend.avatar_emoji || '🎮');
     return '<div class="' + rowClass + '" onclick="openFriendMenu(event,\'' + f.friend.id + '\',\'' + uname + '\',\'' + emoji + '\',' + !!cs.inCall + ',' + (cs.roomSize||0) + ')"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">' + avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url) + '</div><div><div class="friend-name">' + escHtml(f.friend.username) + '</div><div class="friend-game">' + statusLine + '</div></div></div>';
@@ -2202,7 +2271,69 @@ function openFriendMenu(e, id, username, emoji, inCall, roomSize) {
 document.addEventListener('click', function() {
   var m = document.getElementById('friendActionMenu');
   if (m) m.style.display = 'none';
+  closeUserVolumeMenu();
 });
+
+// ── PER-PARTICIPANT VOLUME (in-call) ───────────────────────────────────────
+var uvmTarget = null;
+
+function callParticipantVolumeOf(userId) {
+  if (window.getUserVolume) {
+    try { return window.getUserVolume(userId); } catch (_) { return 100; }
+  }
+  return 100;
+}
+
+function openUserVolumeMenu(e, userId, username) {
+  e.stopPropagation();
+  if (!userId) return;
+  uvmTarget = { id: userId, username: username || 'Игрок' };
+
+  var current = callParticipantVolumeOf(userId);
+  var menu = document.getElementById('userVolumeMenu');
+  if (!menu) return;
+
+  menu.innerHTML =
+    '<div class="uvm-name">🔊 ' + escHtml(uvmTarget.username) + '</div>' +
+    '<div class="uvm-row">' +
+      '<span class="uvm-icon" onclick="uvmSetVolume(0)" title="Выключить">🔈</span>' +
+      '<input type="range" class="uvm-slider" id="uvmSlider" min="0" max="200" step="5" value="' + current + '" oninput="uvmOnSlide(this.value)">' +
+      '<span class="uvm-icon" onclick="uvmSetVolume(200)" title="Максимум">🔊</span>' +
+    '</div>' +
+    '<div class="uvm-value" id="uvmValue" style="width:auto;text-align:center;margin-top:4px">' + current + '%</div>' +
+    '<div class="uvm-reset" onclick="uvmSetVolume(100)">Сбросить до 100%</div>';
+
+  var rect = e.currentTarget.getBoundingClientRect();
+  menu.style.display = 'block';
+  var top = rect.bottom + 6;
+  var left = rect.left;
+  if (left + 200 > window.innerWidth) left = window.innerWidth - 210;
+  if (top + 130 > window.innerHeight) top = rect.top - 130;
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+}
+
+function closeUserVolumeMenu() {
+  var menu = document.getElementById('userVolumeMenu');
+  if (menu) menu.style.display = 'none';
+  uvmTarget = null;
+}
+
+function uvmOnSlide(val) {
+  uvmSetVolume(val, true);
+}
+
+function uvmSetVolume(val, fromSlider) {
+  if (!uvmTarget) return;
+  var v = Math.max(0, Math.min(200, parseInt(val, 10) || 0));
+  if (window.setUserVolume) window.setUserVolume(uvmTarget.id, v);
+
+  var slider = document.getElementById('uvmSlider');
+  if (slider && !fromSlider) slider.value = v;
+  var label = document.getElementById('uvmValue');
+  if (label) label.textContent = v + '%';
+}
+
 
 function famCall() {
   if (!famTarget) return;
@@ -2234,10 +2365,28 @@ function callFriend(id, username, emoji, inCall, roomSize) {
   }
 }
 
+var pendingFriendRequests = [];
+
 function renderFriendRequests(requests) {
-  var el = document.getElementById('friendRequests');
-  if (!requests.length) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:2px 0 6px">Запросы в друзья</div>' + requests.map(function(f){
+  pendingFriendRequests = requests || [];
+  var count = pendingFriendRequests.length;
+
+  var dotBadge = document.getElementById('friendReqBadge');
+  if (dotBadge) {
+    if (count > 0) { dotBadge.textContent = '+' + count; dotBadge.style.display = 'flex'; }
+    else { dotBadge.style.display = 'none'; }
+  }
+
+  var tabBadge = document.getElementById('afTabBadge');
+  if (tabBadge) {
+    if (count > 0) { tabBadge.textContent = count; tabBadge.style.display = 'inline-block'; }
+    else { tabBadge.style.display = 'none'; }
+  }
+
+  var listEl = document.getElementById('afRequestsList');
+  if (!listEl) return;
+  if (!count) { listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px 4px">Нет новых заявок</div>'; return; }
+  listEl.innerHTML = pendingFriendRequests.map(function(f){
     return '<div class="friend-request-item"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">' + avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url) + '</div><div><div class="friend-name">' + f.friend.username + '</div></div><div class="friend-request-actions"><button class="fr-accept-btn" onclick="acceptFriendRequest(\'' + f.id + '\')" title="Принять">✓</button><button class="fr-decline-btn" onclick="declineFriendRequest(\'' + f.id + '\')" title="Отклонить">✕</button></div></div>';
   }).join('');
 }
@@ -2258,11 +2407,21 @@ async function declineFriendRequest(requestId) {
 }
 
 // ── ADD FRIEND ──────────────────────────────────────────────────────────────
+function switchAddFriendTab(tab) {
+  document.getElementById('afPaneAdd').style.display = tab === 'add' ? '' : 'none';
+  document.getElementById('afPaneRequests').style.display = tab === 'requests' ? '' : 'none';
+  document.getElementById('afTabAddBtn').classList.toggle('active', tab === 'add');
+  document.getElementById('afTabReqBtn').classList.toggle('active', tab === 'requests');
+}
+
 function openAddFriend() {
   document.getElementById('afUsername').value = '';
   document.getElementById('afError').classList.remove('show');
   document.getElementById('addFriendOverlay').classList.add('show');
-  setTimeout(function(){ document.getElementById('afUsername').focus(); }, 50);
+  switchAddFriendTab(pendingFriendRequests.length > 0 ? 'requests' : 'add');
+  if (pendingFriendRequests.length === 0) {
+    setTimeout(function(){ document.getElementById('afUsername').focus(); }, 50);
+  }
 }
 
 function closeAddFriend() {
@@ -2349,18 +2508,91 @@ async function loadChats() {
     var dms = convs.filter(function(c){ return c.type === 'direct' });
     var groups = convs.filter(function(c){ return c.type === 'group' });
 
+    dmPartnersByConv = {};
+    dms.forEach(function(c){ if (c.other_user) dmPartnersByConv[c.id] = c.other_user; });
+
     document.getElementById('dmList').innerHTML = dms.length ? dms.map(function(c){
       var last = c.last_message;
       var sub = last ? escHtml(last.text.slice(0,34)) : 'Нет сообщений';
       var time = last && last.created_at ? formatChatTime(last.created_at) : '';
       var online = c.online ? ' ci-online' : '';
-      return '<div class="chat-item' + online + '" data-convid="' + c.id + '" onclick="openConv(\'' + c.id + '\',\'' + (c.name || 'Диалог').replace(/'/g,"\\'") + '\')"><div class="chat-ava">💬</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">' + (c.name || 'Диалог') + '</div>' + (time ? '<div class="chat-item-time">' + time + '</div>' : '') + '</div><div class="chat-sub">' + sub + '</div></div></div>';
+      var dmName = c.other_user ? (c.other_user.username || 'Пользователь') : (c.name || 'Пользователь');
+      var dmAva = c.other_user ? avatarHtml(c.other_user.avatar_emoji, c.other_user.avatar_url) : '👤';
+      return '<div class="chat-item' + online + '" data-convid="' + c.id + '" onclick="openConv(\'' + c.id + '\',\'' + dmName.replace(/'/g,"\\'") + '\')"><div class="chat-ava">' + dmAva + '</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">' + escHtml(dmName) + '</div>' + (time ? '<div class="chat-item-time">' + time + '</div>' : '') + '</div><div class="chat-sub">' + sub + '</div></div></div>';
     }).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px">Нет диалогов</div>';
 
     document.getElementById('groupList').innerHTML = groups.length ? groups.map(function(c){
       return '<div class="chat-item" data-convid="' + c.id + '" onclick="openConv(\'' + c.id + '\',\'' + (c.name || 'Группа').replace(/'/g,"\\'") + '\')"><div class="chat-ava-group">👥</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">' + (c.name || 'Группа') + '</div></div><div class="chat-sub">Групповой чат</div></div></div>';
     }).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px">Нет групп</div>';
   } catch(e) { console.error(e); }
+}
+
+// ── CREATE GROUP ─────────────────────────────────────────────────────────────
+var cgSelectedIds = new Set();
+
+async function openCreateGroup() {
+  cgSelectedIds = new Set();
+  document.getElementById('cgName').value = '';
+  document.getElementById('cgError').classList.remove('show');
+  document.getElementById('createGroupOverlay').classList.add('show');
+
+  var listEl = document.getElementById('cgFriendList');
+  listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px">Загрузка...</div>';
+
+  try {
+    var data = await api('/api/friends');
+    var accepted = (data.friends || []).filter(function(f){ return f.status === 'accepted' && f.friend; });
+    if (!accepted.length) {
+      listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px">Сначала добавь друзей, чтобы создать с ними группу</div>';
+      return;
+    }
+    listEl.innerHTML = accepted.map(function(f){
+      var fr = f.friend;
+      var uname = escHtml(fr.username);
+      return '<label class="cg-friend-item"><input type="checkbox" onchange="toggleGroupMember(\'' + fr.id + '\',this.checked)"><div class="chat-ava" style="width:28px;height:28px;font-size:13px">' + avatarHtml(fr.avatar_emoji, fr.avatar_url) + '</div><span class="cg-friend-name">' + uname + '</span></label>';
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px">Не удалось загрузить друзей</div>';
+  }
+}
+
+function closeCreateGroup() {
+  document.getElementById('createGroupOverlay').classList.remove('show');
+}
+
+function toggleGroupMember(id, checked) {
+  if (checked) cgSelectedIds.add(id); else cgSelectedIds.delete(id);
+}
+
+function cgShowError(msg) {
+  var el = document.getElementById('cgError');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+async function createGroupSubmit() {
+  var name = document.getElementById('cgName').value.trim();
+  if (!cgSelectedIds.size) return cgShowError('Выбери хотя бы одного участника');
+
+  var btn = document.getElementById('cgCreateBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="loading-spinner"></span>Создание...';
+  try {
+    var data = await api('/api/chats/group', {
+      method: 'POST',
+      body: JSON.stringify({ name: name || null, memberIds: Array.from(cgSelectedIds) })
+    });
+    closeCreateGroup();
+    switchToChatTab();
+    await loadChats();
+    openConv(data.conversation.id, data.conversation.name || 'Группа');
+    showToast('Группа создана ✓');
+  } catch(e) {
+    cgShowError(e.message || 'Не удалось создать группу');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Создать';
+  }
 }
 
 function formatChatTime(iso) {
@@ -2387,6 +2619,9 @@ function switchToChatTab() {
   document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active') });
   document.getElementById('page-chat').classList.add('active');
   document.querySelectorAll('.nav-tab')[2].classList.add('active');
+  document.getElementById('globalChatBubble').style.display = 'none';
+  var panel = document.getElementById('globalChatPanel');
+  if (panel) panel.style.display = 'none';
 }
 
 async function openDM(userId, username, emoji) {
@@ -2426,6 +2661,7 @@ async function goToChatAfterCall() {
 
 async function openConv(convId, name) {
   currentConvId = convId;
+  currentConvPartner = dmPartnersByConv[convId] || null;
   document.querySelectorAll('.chat-item').forEach(function(i){ i.classList.remove('active') });
   var activeItem = document.querySelector('.chat-item[data-convid="' + convId + '"]');
   if (activeItem) activeItem.classList.add('active');
@@ -2434,10 +2670,12 @@ async function openConv(convId, name) {
   if (layout) layout.classList.add('show-chat');
 
   document.getElementById('chatHeader').style.display = 'flex';
-  document.getElementById('chatHeaderName').textContent = name;
-  document.getElementById('chatHeaderStatus').textContent = 'Диалог';
-  document.getElementById('chatHeaderAva').textContent = '💬';
+  document.getElementById('chatHeaderName').textContent = currentConvPartner ? currentConvPartner.username : name;
+  document.getElementById('chatHeaderStatus').textContent = currentConvPartner ? (currentConvPartner.status === 'online' ? 'В сети' : 'Не в сети') : 'Групповой чат';
+  document.getElementById('chatHeaderAva').innerHTML = currentConvPartner ? avatarHtml(currentConvPartner.avatar_emoji, currentConvPartner.avatar_url) : '👥';
   document.getElementById('chatInputRow').style.display = 'flex';
+  var callBtn = document.querySelector('.call-btn-inline');
+  if (callBtn) callBtn.style.display = currentConvPartner ? '' : 'none';
 
   if (socket) {
     socket.emit('chat:join', { conversationId: convId });
@@ -2450,7 +2688,7 @@ async function openConv(convId, name) {
     if (!msgs.length) { el.innerHTML = '<div class="empty-chat"><div style="font-size:32px">💬</div>Начни диалог!</div>'; return; }
     el.innerHTML = msgs.map(function(m){
       var isMe = m.sender_id === currentUser.id;
-      var sender = m.sender || {};
+      var sender = isMe ? currentUser : (m.sender || {});
       return '<div class="msg' + (isMe ? ' me' : '') + '"><div class="msg-ava" style="background:linear-gradient(135deg,#7c3aed,' + (isMe ? '#c8ff00' : '#ec4899') + ')">' + avatarHtml(sender.avatar_emoji, sender.avatar_url) + '</div><div class="msg-body"><div class="msg-name">' + (isMe ? 'Ты' : (sender.username || '?')) + '</div><div class="msg-text">' + escHtml(m.text) + '</div></div></div>';
     }).join('');
     el.scrollTop = el.scrollHeight;
@@ -2459,7 +2697,7 @@ async function openConv(convId, name) {
 
 function appendMessage(msg) {
   var isMe = msg.sender_id === currentUser.id;
-  var sender = msg.sender || {};
+  var sender = isMe ? currentUser : (msg.sender || {});
   var el = document.getElementById('chatMessages');
   var empty = el.querySelector('.empty-chat');
   if (empty) el.innerHTML = '';
@@ -2473,6 +2711,8 @@ function appendMessage(msg) {
 function closeConv() {
   var layout = document.querySelector('.chat-layout');
   if (layout) layout.classList.remove('show-chat');
+  currentConvId = null;
+  currentConvPartner = null;
 }
 
 function sendMsg(e) { if (e.key === 'Enter') sendMsgBtn(); }
@@ -2485,27 +2725,29 @@ function sendMsgBtn() {
 }
 
 function startFriendCall() {
-  const channelName = currentConvId || ('voice-' + (currentUser && currentUser.id ? currentUser.id : 'guest'));
-  if (!channelName) {
-    showToast('Сначала откройте чат');
+  if (!currentConvPartner || !currentConvPartner.id) {
+    showToast('Не удалось определить собеседника для звонка');
     return;
   }
-
-  showToast('Подключаем голосовой чат...');
-  const joinFn = window.joinVoiceAndEnableMic || window.joinVoice;
-  if (joinFn) {
-    joinFn(channelName, currentUser && currentUser.id).catch(function () {
-      showToast('Не удалось подключить голосовой чат');
-    });
-  } else {
-    showToast('Голосовой чат временно недоступен');
+  if (!socket) {
+    showToast('Нет соединения с сервером');
+    return;
   }
+  // Reuse the exact same path as calling a friend from the friends sidebar:
+  // call:invite → call:incoming → call:accept → call:accepted → startFullCall
+  // (or call:request_join if they're already in a call). This rings the
+  // other person and opens the normal full-call UI, instead of silently
+  // joining a voice channel nobody else was told about.
+  var cs = friendCallStatus[currentConvPartner.id] || { inCall: false, roomSize: 0 };
+  callFriend(currentConvPartner.id, currentConvPartner.username, currentConvPartner.avatar_emoji, cs.inCall, cs.roomSize);
 }
 
 function startTrialCall(pts) {
   var wrap = document.getElementById('trialParticipants');
   wrap.innerHTML = pts.map(function(p){
-    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="tp-name">' + escHtml(participantDisplayName(p)) + '</div></div>';
+    var pid = getParticipantId(p);
+    var pname = escHtml(participantDisplayName(p)).replace(/'/g, "\\'");
+    return '<div class="tp-item"><div class="tp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669);cursor:pointer" title="Громкость" onclick="openUserVolumeMenu(event,\'' + pid + '\',\'' + pname + '\')">' + participantAvatarHtml(p) + '</div><div class="tp-name">' + escHtml(participantDisplayName(p)) + '</div></div>';
   }).join('') + '<div class="tp-item"><div class="tp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="tp-name">Ты</div></div>';
 
   trialSeconds = 120; trialVoted = false; trialMuted = false;
@@ -2554,7 +2796,9 @@ function startFullCall(pts) {
   var fcWrap = document.getElementById('fcParticipants');
   fcWrap.innerHTML = pts.map(function(p){
     var isFriend = participantIsAlreadyFriend(p);
-    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="fp-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
+    var pid = getParticipantId(p);
+    var pname = escHtml(participantDisplayName(p)).replace(/'/g, "\\'");
+    return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669);cursor:pointer" title="Громкость" onclick="openUserVolumeMenu(event,\'' + pid + '\',\'' + pname + '\')">' + participantAvatarHtml(p) + '</div><div class="fp-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
   }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="fp-you">Ты</div></div>';
 
   document.getElementById('fcTitle').textContent = pts.length > 1 ? 'Группа · ' + (pts.length + 1) + ' чел.' : participantDisplayName(pts[0] || null);
@@ -2639,6 +2883,15 @@ function showPostCall(pts) {
     var alreadyFriend = participantIsAlreadyFriend(p);
     return '<div class="pc-item"><div class="pc-ava" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="pc-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!alreadyFriend ? '<button class="pc-add-btn" onclick="addFriendPost(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Добавить</button>' : '<button class="pc-add-btn added">✓ Уже в друзьях</button>') + '</div>';
   }).join('');
+
+  // Rating only makes sense for people you're not already friends with.
+  var ratableCount = pts.filter(function(p){ return !participantIsAlreadyFriend(p); }).length;
+  var rateBtn = document.getElementById('pcRateBtn');
+  if (rateBtn) {
+    rateBtn.disabled = ratableCount === 0;
+    rateBtn.textContent = ratableCount === 0 ? '⭐ Вы уже друзья' : '⭐ Оценить';
+  }
+
   document.getElementById('postCallOverlay').classList.add('show');
 }
 
@@ -2694,8 +2947,8 @@ function appendGlobalMessage(msg, skipScroll) {
   var el = document.getElementById('globalChatMessages');
   var empty = el.querySelector('.empty-chat');
   if (empty) el.innerHTML = '';
-  var sender = msg.sender || {};
-  var isMe = currentUser && sender.id === currentUser.id;
+  var isMe = currentUser && msg.sender && msg.sender.id === currentUser.id;
+  var sender = isMe ? currentUser : (msg.sender || {});
   var div = document.createElement('div');
   div.className = 'gc-msg' + (isMe ? ' me' : '');
   div.innerHTML =
