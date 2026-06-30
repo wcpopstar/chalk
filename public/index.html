@@ -494,10 +494,14 @@
   .match-page-inner{padding:14px}
   nav{padding:0 10px;height:60px}
   .app{height:calc(100vh - 60px)}
-  .nav-tabs{left:50%}
+  .nav-left{flex:0 0 auto}
+  .nav-tabs{position:static;transform:none;flex:0 1 auto;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .nav-tabs{gap:2px}
-  .nav-tab{padding:7px 10px;font-size:12px;gap:5px}
-  .nav-tab .tab-icon{font-size:17px}
+  .nav-tab{padding:7px 8px;font-size:11px;gap:4px;white-space:nowrap}
+  .nav-tab .tab-icon{font-size:16px}
+  .nav-right{flex:0 0 auto;gap:6px}
+  .online-counter{font-size:10px;gap:4px}
+  .theme-toggle-btn{width:30px;height:30px;font-size:14px}
   .profile-btn .btn-label{display:none}
   .profile-btn{padding:7px}
   .logo{font-size:20px;letter-spacing:2px}
