@@ -249,10 +249,16 @@
   .vote-yes{flex:1;background:var(--accent3);border:none;border-radius:7px;padding:10px;color:#000;font-weight:700;font-size:13px;cursor:pointer}
   .vote-no{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:10px;color:var(--muted);font-weight:600;font-size:13px;cursor:pointer}
   .trial-controls{display:flex;gap:12px;justify-content:center;margin-top:4px}
-  .tc-btn{width:44px;height:44px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer}
+  .tc-btn{width:44px;height:44px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,background .2s ease}
   .tc-mute{background:var(--surface2);color:var(--text)}
   .tc-mute.muted{background:var(--danger);color:#fff}
   .tc-leave{background:var(--danger);color:#fff}
+  .tc-continue.selected{background:var(--accent3) !important;color:#000 !important;transform:scale(1.18);box-shadow:0 0 0 4px rgba(5,150,105,.35),0 0 0 2px rgba(255,255,255,.5) inset,0 8px 20px rgba(5,150,105,.45) !important;pointer-events:none;animation:tcConfirmPulse 1.4s ease-out infinite}
+  @keyframes tcConfirmPulse{
+    0%{box-shadow:0 0 0 4px rgba(5,150,105,.35),0 0 0 2px rgba(255,255,255,.5) inset,0 8px 20px rgba(5,150,105,.45)}
+    50%{box-shadow:0 0 0 9px rgba(5,150,105,0),0 0 0 2px rgba(255,255,255,.5) inset,0 8px 20px rgba(5,150,105,.45)}
+    100%{box-shadow:0 0 0 4px rgba(5,150,105,.35),0 0 0 2px rgba(255,255,255,.5) inset,0 8px 20px rgba(5,150,105,.45)}
+  }
 
   /* FULL CALL */
   .fullcall-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:400;align-items:center;justify-content:center}
@@ -1048,6 +1054,7 @@
     </div>
     <div class="trial-controls">
       <button class="tc-btn tc-mute" id="trialMuteBtn" onclick="toggleTrialMute()">🎙️</button>
+      <button class="tc-btn tc-continue" id="trialContinueBtn" style="background:linear-gradient(135deg,#c8ff00,#7c3aed);color:#000;font-weight:800;box-shadow:0 0 0 2px rgba(255,255,255,.16),0 8px 20px rgba(0,0,0,.2)" onclick="voteYes()" title="Продолжить">✓</button>
       <button class="tc-btn tc-leave" onclick="leaveTrialCall()">📵</button>
     </div>
   </div>
@@ -1057,7 +1064,7 @@
 <div class="fullcall-overlay" id="fullCallOverlay">
   <div class="fullcall-card">
     <div class="fullcall-header">
-      <div><div class="fullcall-title" id="fcTitle">Голосовой чат</div><div class="fullcall-timer" id="fcTimer">00:00</div></div>
+      <div><div class="fullcall-title" id="fcTitle">Обычный звонок</div><div class="fullcall-timer" id="fcTimer">00:00</div></div>
       <div class="fullcall-dot"></div>
     </div>
     <div class="fullcall-participants" id="fcParticipants"></div>
@@ -1077,6 +1084,7 @@
     <div class="post-call-participants" id="postCallParticipants"></div>
     <div class="post-call-actions">
       <button class="pc-done" onclick="closePostCall()">Готово</button>
+      <button class="pc-rate" onclick="goToChatAfterCall()">💬 В чат</button>
       <button class="pc-rate" onclick="rateParticipantsAfterCall()">⭐ Оценить</button>
     </div>
   </div>
@@ -1180,6 +1188,7 @@ var isSearching = false;
 var currentRoomId = null;
 var currentCallParticipants = [];
 var currentConvId = null;
+var pendingChatConversationId = null;
 var trialSeconds = 120;
 var trialInterval = null;
 var trialVoted = false;
@@ -1391,8 +1400,13 @@ function participantAvatarHtml(p) {
   return avatarHtml(p && (p.avatar_emoji || p.avatarEmoji || null), p && (p.avatar_url || p.avatarUrl || null));
 }
 
+function getParticipantId(p) {
+  return (p && (p.id || p.userId || p.user_id || p.participantId || null)) || null;
+}
+
 function participantIsAlreadyFriend(p) {
-  return !!(p && p.id && currentFriendIds.has(String(p.id)));
+  var pid = getParticipantId(p);
+  return !!(pid && currentFriendIds.has(String(pid)));
 }
 
 function genderLabel(g) { return GENDER_LABELS[g] || 'Не указан'; }
@@ -1706,7 +1720,10 @@ function connectSocket() {
 
   socket.on('match:found', function(data) {
     currentRoomId = data.roomId;
-    currentCallParticipants = (data.participants || []).filter(function(p){ return p.userId !== currentUser.id });
+    pendingChatConversationId = null;
+    currentCallParticipants = (data.participants || [])
+      .filter(function(p){ return p.userId !== currentUser.id })
+      .map(function(p){ return Object.assign({}, p, { id: p.id || p.userId }); });
     showFoundOverlay(data);
   });
 
@@ -1716,14 +1733,22 @@ function connectSocket() {
     }
   });
 
+  // Server auto-adds friendship + creates/opens the conversation as soon as
+  // everyone votes "yes" in the trial call, so the chat is ready right away.
+  socket.on('call:promoted', function(data) {
+    pendingChatConversationId = data.conversationId || null;
+  });
+
   socket.on('trial:result', function(data) {
     if (data.promote) {
       clearInterval(trialInterval);
-      document.getElementById('trialStatus').textContent = '✓ Все готовы! Переходим...';
-      setTimeout(function() {
+      document.getElementById('trialStatus').textContent = '✓ Все готовы! Вы теперь друзья — чат уже доступен.';
+      showToast('💬 Чат открыт, можете писать друг другу в любое время');
+      clearTimeout(window._trialPromoteTimeout);
+      window._trialPromoteTimeout = setTimeout(function() {
         document.getElementById('trialOverlay').classList.remove('show');
-        startFullCall(currentCallParticipants);
-      }, 1000);
+        startFullCall(currentCallParticipants, { mode: 'full', promotedFromTrial: true });
+      }, 2500);
     }
   });
 
@@ -1732,7 +1757,7 @@ function connectSocket() {
       socket.emit('call:accept', { roomId: data.roomId, inviterId: data.from.id });
       currentRoomId = data.roomId;
       currentCallParticipants = [data.from];
-      startFullCall([data.from]);
+      startFullCall([data.from], { mode: 'full' });
     } else {
       socket.emit('call:reject', { roomId: data.roomId, inviterId: data.from.id });
     }
@@ -1749,7 +1774,7 @@ function connectSocket() {
   socket.on('call:accepted', function(data) {
     // We are the inviter — friend accepted our 1:1 call invite
     currentRoomId = data.roomId;
-    startFullCall(currentCallParticipants);
+    startFullCall(currentCallParticipants, { mode: 'full' });
   });
 
   socket.on('call:rejected', function() {
@@ -1771,7 +1796,7 @@ function connectSocket() {
   socket.on('call:join_accepted', function(data) {
     currentRoomId = data.roomId;
     showToast('✅ Вы присоединились к звонку');
-    startFullCall(currentCallParticipants.length ? currentCallParticipants : [{ username: 'Группа', avatar_emoji: '🎮' }]);
+    startFullCall(currentCallParticipants.length ? currentCallParticipants : [{ username: 'Группа', avatar_emoji: '🎮' }], { mode: 'full' });
   });
 
   socket.on('call:join_rejected', function() {
@@ -1976,8 +2001,20 @@ function tickTrial() {
 
 function voteYes() {
   trialVoted = true;
-  socket.emit('trial:vote', { roomId: currentRoomId, vote: 'yes' });
-  document.getElementById('voteSection').innerHTML = '<div style="color:var(--accent3);font-size:13px;font-weight:600">✓ Ждём остальных...</div>';
+  var continueBtn = document.getElementById('trialContinueBtn');
+  if (continueBtn) {
+    continueBtn.textContent = '✓';
+    continueBtn.classList.add('selected');
+    continueBtn.disabled = true;
+    continueBtn.title = 'Подтверждено';
+  }
+  if (socket && currentRoomId) {
+    socket.emit('trial:vote', { roomId: currentRoomId, vote: 'yes' });
+  }
+  var voteEl = document.getElementById('voteSection');
+  if (voteEl) {
+    voteEl.innerHTML = '<div style="color:var(--accent3);font-size:13px;font-weight:600">✓ Ждём остальных...</div>';
+  }
 }
 
 function voteNo() {
@@ -1997,14 +2034,15 @@ function toggleTrialMute() {
 }
 
 // ── FULL CALL ─────────────────────────────────────────────────────────────────
-function startFullCall(pts) {
+function startFullCall(pts, options) {
+  options = options || {};
   var fcWrap = document.getElementById('fcParticipants');
   fcWrap.innerHTML = pts.map(function(p){
     var isFriend = participantIsAlreadyFriend(p);
     return '<div class="fp-item"><div class="fp-ava speaking" style="background:linear-gradient(135deg,#7c3aed,#059669)">' + participantAvatarHtml(p) + '</div><div class="fp-name">' + escHtml(participantDisplayName(p)) + '</div>' + (!isFriend ? '<button class="fp-add" onclick="addFriendInCall(this,\'' + p.id + '\',\'' + escHtml(participantDisplayName(p)).replace(/'/g, "\\'") + '\')">+ Друг</button>' : '<button class="fp-add added">✓ Друг</button>') + '</div>';
   }).join('') + '<div class="fp-item"><div class="fp-ava" style="background:linear-gradient(135deg,#7c3aed,#c8ff00)">' + avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + '</div><div class="fp-you">Ты</div></div>';
 
-  document.getElementById('fcTitle').textContent = pts.length > 1 ? 'Группа · ' + (pts.length + 1) + ' чел.' : participantDisplayName(pts[0] || null);
+  document.getElementById('fcTitle').textContent = options.mode === 'trial' ? 'Пробный звонок' : 'Обычный звонок';
   fcSeconds = 0; fcMuted = false; fcDeafened = false;
   document.getElementById('fcMuteBtn').textContent = '🎙️';
   document.getElementById('fcMuteBtn').classList.remove('muted');
@@ -2082,7 +2120,8 @@ async function rateParticipantsAfterCall() {
   var rated = 0;
   for (var i = 0; i < pts.length; i++) {
     var p = pts[i];
-    var matchId = p && p.id ? currentCallMatchIds[p.id] : null;
+    var pid = getParticipantId(p);
+    var matchId = pid ? currentCallMatchIds[pid] : null;
     if (!matchId) continue;
     var raw = window.prompt('Оцени ' + participantDisplayName(p) + ' от 1 до 5', '5');
     var rating = parseInt(raw, 10);
@@ -2343,16 +2382,45 @@ function filterChatList(q) {
   });
 }
 
+function switchToChatTab() {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active') });
+  document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active') });
+  document.getElementById('page-chat').classList.add('active');
+  document.querySelectorAll('.nav-tab')[2].classList.add('active');
+}
+
 async function openDM(userId, username, emoji) {
   try {
     var data = await api('/api/chats/direct', { method: 'POST', body: JSON.stringify({ targetUserId: userId }) });
-    // Switch to chat tab
-    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active') });
-    document.querySelectorAll('.nav-tab').forEach(function(t){ t.classList.remove('active') });
-    document.getElementById('page-chat').classList.add('active');
-    document.querySelectorAll('.nav-tab')[2].classList.add('active');
+    switchToChatTab();
     await loadChats();
     openConv(data.conversation.id, username);
+  } catch(e) { showToast('Ошибка: ' + e.message); }
+}
+
+// Jump straight into the main chat after a trial/full call. If the server
+// already created the conversation (mutual "yes" vote), reuse it; otherwise
+// fall back to opening/creating a DM with the first participant.
+async function goToChatAfterCall() {
+  try {
+    clearTimeout(window._trialPromoteTimeout);
+    document.getElementById('trialOverlay').classList.remove('show');
+    document.getElementById('fullCallOverlay').classList.remove('show');
+    document.getElementById('postCallOverlay').classList.remove('show');
+
+    var name = currentCallParticipants.length === 1
+      ? participantDisplayName(currentCallParticipants[0])
+      : 'Группа';
+
+    if (pendingChatConversationId) {
+      switchToChatTab();
+      await loadChats();
+      openConv(pendingChatConversationId, name);
+    } else if (currentCallParticipants.length === 1) {
+      await openDM(currentCallParticipants[0].id, name, currentCallParticipants[0].avatar_emoji);
+    } else {
+      showToast('Чат пока недоступен для группы');
+    }
   } catch(e) { showToast('Ошибка: ' + e.message); }
 }
 
@@ -2443,6 +2511,13 @@ function startTrialCall(pts) {
   trialSeconds = 120; trialVoted = false; trialMuted = false;
   document.getElementById('trialMuteBtn').textContent = '🎙️';
   document.getElementById('trialMuteBtn').classList.remove('muted');
+  var continueBtn = document.getElementById('trialContinueBtn');
+  if (continueBtn) {
+    continueBtn.textContent = '✓';
+    continueBtn.classList.remove('selected');
+    continueBtn.disabled = false;
+    continueBtn.title = 'Продолжить';
+  }
   document.getElementById('voteSection').classList.remove('show');
   document.getElementById('trialTimer').classList.remove('warning');
   document.getElementById('trialStatus').textContent = 'Познакомьтесь и решите, продолжать ли';
@@ -2528,7 +2603,9 @@ function toggleFCMute() {
 }
 function toggleFCDeaf() {
   fcDeafened = !fcDeafened;
-  document.getElementById('fcDeafBtn').textContent = fcDeafened ? '🔕' : '🔊';
+  var btn = document.getElementById('fcDeafBtn');
+  if (btn) btn.textContent = fcDeafened ? '🔕' : '🔊';
+  btn && btn.classList.toggle('active', fcDeafened);
   if (window.toggleVoiceDeafen) {
     window.toggleVoiceDeafen().catch(function () {
       showToast('Не удалось переключить звук других участников');
@@ -2550,7 +2627,7 @@ async function endFullCall(silent) {
 }
 
 async function recordCallParticipants(pts) {
-  var ids = (pts || []).map(function(p){ return p && p.id; }).filter(Boolean);
+  var ids = (pts || []).map(function(p){ return getParticipantId(p); }).filter(Boolean);
   if (!ids.length) return [];
   var data = await api('/api/match/record-call', { method: 'POST', body: JSON.stringify({ participants: ids, mode: 'group', gameId: selectedGameId }) });
   return data.matches || [];

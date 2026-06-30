@@ -44,11 +44,35 @@ function toNumericUid(rawUid) {
   return (hash % 2147483647) || 1;
 }
 
+function setRemoteTrackAudioState(track, enabled) {
+  if (!track) return;
+
+  if (typeof track.setEnabled === "function") {
+    try {
+      const r = track.setEnabled(enabled);
+      if (r && typeof r.catch === "function") r.catch(() => {});
+    } catch (_) {}
+  }
+
+  if (typeof track.setVolume === "function") {
+    try {
+      const r = track.setVolume(enabled ? 100 : 0);
+      if (r && typeof r.catch === "function") r.catch(() => {});
+    } catch (_) {}
+  }
+
+  if (enabled && typeof track.play === "function") {
+    try {
+      const r = track.play();
+      if (r && typeof r.catch === "function") r.catch(() => {});
+    } catch (_) {}
+  }
+}
+
 function applyRemoteAudioState() {
+  const enabled = !voiceState.deafened;
   remoteAudioTracks.forEach((track) => {
-    if (track && typeof track.setEnabled === "function") {
-      track.setEnabled(!voiceState.deafened).catch(() => {});
-    }
+    setRemoteTrackAudioState(track, enabled);
   });
 }
 
@@ -65,10 +89,7 @@ function ensureVoiceClient() {
 
         if (mediaType === "audio" && user.audioTrack) {
           remoteAudioTracks.set(String(user.uid), user.audioTrack);
-          if (typeof user.audioTrack.setEnabled === "function") {
-            user.audioTrack.setEnabled(!voiceState.deafened).catch(() => {});
-          }
-          user.audioTrack.play();
+          setRemoteTrackAudioState(user.audioTrack, !voiceState.deafened);
         }
       } catch (err) {
         console.error("[voice] subscribe error", err);
@@ -173,7 +194,11 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
 /* ---------------- MIC CONTROL ---------------- */
 
 window.enableMicrophone = async function () {
-  if (!client) throw new Error("Not connected to voice");
+  if (!voiceState.joined || !client) {
+    await window.joinVoice(voiceState.channel || "chalk-default", null);
+  }
+
+  if (!voiceState.joined || !client) throw new Error("Not connected to voice");
 
   if (microphoneTrack) {
     await microphoneTrack.setEnabled(true);
@@ -204,10 +229,15 @@ window.joinVoiceAndEnableMic = async function (channelName = "chalk-default", ui
 };
 
 window.toggleVoiceMute = async function () {
-  if (!microphoneTrack) return;
+  if (!voiceState.joined || !client) {
+    await window.joinVoice(voiceState.channel || "chalk-default", null);
+  }
+
+  if (!microphoneTrack) {
+    await window.enableMicrophone();
+  }
 
   voiceState.muted = !voiceState.muted;
-
   await microphoneTrack.setEnabled(!voiceState.muted);
 
   window.dispatchEvent(
@@ -223,7 +253,13 @@ window.toggleVoiceMute = async function () {
 };
 
 window.toggleVoiceDeafen = async function () {
-  if (!voiceState.joined || !client) return;
+  if (!voiceState.joined || !client) {
+    try {
+      await window.joinVoice(voiceState.channel || "chalk-default", null);
+    } catch (err) {
+      return;
+    }
+  }
 
   voiceState.deafened = !voiceState.deafened;
   applyRemoteAudioState();
