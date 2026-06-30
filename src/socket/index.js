@@ -39,6 +39,25 @@ async function saveMessage({ conversationId, senderId, text }) {
   return data;
 }
 
+// ── Persist a global (platform-wide) chat message ─────────────────────────
+async function saveGlobalMessage({ senderId, text }) {
+  const { data, error } = await supabaseAdmin
+    .from('global_messages')
+    .insert({
+      id: uuid(),
+      sender_id: senderId,
+      text,
+      created_at: new Date().toISOString(),
+    })
+    .select(`
+      id, text, created_at,
+      sender:users!global_messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
+    `)
+    .single();
+  if (error) console.error('[saveGlobalMessage]', error);
+  return data;
+}
+
 // ── Persist match to history ──────────────────────────────────────────────
 async function saveMatchHistory(participants, gameId, mode) {
   const rows = [];
@@ -72,6 +91,7 @@ function initSocket(io) {
   io.on('connection', (socket) => {
     const { id: userId, username } = socket.user;
     online.set(userId, socket.id);
+    socket.join('global');
 
     console.log(`[socket] ${username} connected (${socket.id})`);
 
@@ -194,6 +214,20 @@ function initSocket(io) {
 
     socket.on('chat:typing', ({ conversationId }) => {
       socket.to(`chat:${conversationId}`).emit('chat:typing', { userId, username });
+    });
+
+    // ── GLOBAL CHAT (platform-wide public room) ─────────────────────────────
+
+    socket.on('global:message', async ({ text }) => {
+      if (!text || !text.trim() || text.length > 500) return;
+
+      // Simple per-socket flood guard: max 1 message per second.
+      const now = Date.now();
+      if (socket._lastGlobalMsg && now - socket._lastGlobalMsg < 1000) return;
+      socket._lastGlobalMsg = now;
+
+      const msg = await saveGlobalMessage({ senderId: userId, text: text.trim() });
+      if (msg) io.to('global').emit('global:message', msg);
     });
 
     // ── SWIPE ─────────────────────────────────────────────────────────────

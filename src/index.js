@@ -14,6 +14,7 @@ const friendRoutes = require('./routes/friends');
 const callRoutes   = require('./routes/calls');
 const chatRoutes   = require('./routes/chats');
 const agoraRoutes  = require('./routes/agora');
+const gameRoutes   = require('./routes/games');
 
 const { initSocket } = require('./socket');
 
@@ -42,6 +43,7 @@ app.use('/api/friends', friendRoutes);
 app.use('/api/calls',   callRoutes);
 app.use('/api/chats',   chatRoutes);
 app.use('/api/agora',   agoraRoutes);
+app.use('/api/games',   gameRoutes);
 
 // Static frontend — must come BEFORE the catch-all
 app.use(express.static(path.join(__dirname, '../public')));

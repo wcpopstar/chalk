@@ -10,8 +10,8 @@ router.get('/', requireAuth, async (req, res) => {
     .from('friends')
     .select(`
       id, status, created_at,
-      user_a_profile:users!friends_user_a_fkey ( id, username, avatar_emoji, avatar_url, status, last_seen ),
-      user_b_profile:users!friends_user_b_fkey ( id, username, avatar_emoji, avatar_url, status, last_seen )
+      user_a_profile:users!friends_user_a_fkey ( id, username, avatar_emoji, avatar_url, status, presence, last_seen ),
+      user_b_profile:users!friends_user_b_fkey ( id, username, avatar_emoji, avatar_url, status, presence, last_seen )
     `)
     .or(`user_a.eq.${uid},user_b.eq.${uid}`)
     .order('created_at', { ascending: false });
@@ -22,7 +22,8 @@ router.get('/', requireAuth, async (req, res) => {
   const friends = (data || []).map(row => {
     const isA   = row.user_a_profile.id === uid;
     const other = isA ? row.user_b_profile : row.user_a_profile;
-    return { id: row.id, status: row.status, friend: other, created_at: row.created_at };
+    // For pending requests: incoming = true means *this* user is the recipient (user_b)
+    return { id: row.id, status: row.status, friend: other, incoming: !isA, created_at: row.created_at };
   });
 
   res.json({ friends });

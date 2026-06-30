@@ -102,6 +102,29 @@ router.post('/group', requireAuth, async (req, res) => {
   res.status(201).json({ conversation: conv });
 });
 
+// ── GET /api/chats/global/messages ─────────────────────────────────────────
+// Platform-wide public chat — every authenticated user can read it,
+// no conversation_members check needed.
+router.get('/global/messages', requireAuth, async (req, res) => {
+  const { limit = 50, before } = req.query;
+
+  let query = supabaseAdmin
+    .from('global_messages')
+    .select(`
+      id, text, created_at,
+      sender:users!global_messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(parseInt(limit));
+
+  if (before) query = query.lt('created_at', before);
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({ messages: (data || []).reverse() });
+});
+
 // ── GET /api/chats/:id/messages ────────────────────────────────────────────
 router.get('/:id/messages', requireAuth, async (req, res) => {
   const { limit = 50, before } = req.query;

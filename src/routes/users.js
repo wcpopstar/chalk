@@ -6,6 +6,7 @@ const { supabaseAdmin } = require('../services/supabase');
 // Otherwise Express matches "me", "me/stats", "discover" as :id
 
 const GENDERS = ['male', 'female', 'other', 'prefer_not_to_say'];
+const PRESENCE_STATES = ['online', 'away', 'busy'];
 
 function validateProfileFields(body) {
   const errors = [];
@@ -17,6 +18,9 @@ function validateProfileFields(body) {
   }
   if (body.gender !== undefined && body.gender !== null && !GENDERS.includes(body.gender)) {
     errors.push('gender must be one of: ' + GENDERS.join(', '));
+  }
+  if (body.presence !== undefined && !PRESENCE_STATES.includes(body.presence)) {
+    errors.push('presence must be one of: ' + PRESENCE_STATES.join(', '));
   }
   if (body.languages !== undefined) {
     if (!Array.isArray(body.languages) || !body.languages.length || !body.languages.every(l => typeof l === 'string')) {
@@ -52,7 +56,7 @@ async function replaceUserGames(userId, games) {
 
 // ── PATCH /api/users/me ────────────────────────────────────────────────────
 router.patch('/me', requireAuth, async (req, res) => {
-  const allowed = ['username', 'country', 'languages', 'avatar_emoji', 'avatar_url', 'bio', 'age', 'gender'];
+  const allowed = ['username', 'country', 'languages', 'avatar_emoji', 'avatar_url', 'bio', 'age', 'gender', 'presence'];
   const updates = {};
   for (const key of allowed) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -84,7 +88,7 @@ router.patch('/me', requireAuth, async (req, res) => {
     .from('users')
     .update(updates)
     .eq('id', req.user.id)
-    .select('id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio')
+    .select('id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, presence')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -126,7 +130,7 @@ router.post('/me/onboarding', requireAuth, async (req, res) => {
     .from('users')
     .update(updates)
     .eq('id', req.user.id)
-    .select('id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, bio')
+    .select('id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, bio, presence')
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
@@ -187,7 +191,7 @@ router.get('/discover', requireAuth, async (req, res) => {
 
   let query = supabaseAdmin
     .from('users')
-    .select(`id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status,
+    .select(`id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence,
              user_games ( rank, games ( id, name, emoji ) )`)
     .eq('status', 'online')
     .not('id', 'in', `(${swipedIds.join(',')})`)
@@ -208,13 +212,32 @@ router.get('/discover', requireAuth, async (req, res) => {
   res.json({ users: users || [] });
 });
 
+// ── GET /api/users/search?username=xxx ─────────────────────────────────────
+// Used by the "add friend" flow to resolve a nickname to a user id.
+// Must stay above /:id so it isn't swallowed by that route.
+router.get('/search', requireAuth, async (req, res) => {
+  const username = (req.query.username || '').trim();
+  if (!username) return res.status(400).json({ error: 'username is required' });
+
+  const { data: user, error } = await supabaseAdmin
+    .from('users')
+    .select('id, username, avatar_emoji, avatar_url, status, presence')
+    .ilike('username', username)
+    .neq('id', req.user.id)
+    .maybeSingle();
+
+  if (error) return res.status(500).json({ error: error.message });
+  if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+  res.json({ user });
+});
+
 // ── GET /api/users/:id ─────────────────────────────────────────────────────
 // Must be LAST so it doesn't swallow /me, /me/stats, /discover
 router.get('/:id', requireAuth, async (req, res) => {
   const { data: user, error } = await supabaseAdmin
     .from('users')
     .select(`
-      id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, last_seen,
+      id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence, last_seen,
       user_games ( game_id, rank, hours_played, games ( name, emoji ) )
     `)
     .eq('id', req.params.id)
