@@ -36,12 +36,22 @@ function ensureVoiceClient() {
 /* ---------------- TOKEN ---------------- */
 
 async function requestVoiceToken(channelName, uid) {
+  const authToken = localStorage.getItem("chalk_token");
+  const headers = {};
+  if (authToken) headers["Authorization"] = "Bearer " + authToken;
+
   const response = await fetch(
-    `/api/agora/token?channel=${encodeURIComponent(channelName)}&uid=${encodeURIComponent(uid || 0)}`
+    `/api/agora/token?channel=${encodeURIComponent(channelName)}&uid=${encodeURIComponent(uid || 0)}`,
+    { headers }
   );
 
   if (!response.ok) {
-    throw new Error("Voice token request failed");
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = body && body.error ? body.error : "";
+    } catch (_) {}
+    throw new Error("Voice token request failed" + (detail ? `: ${detail}` : ""));
   }
 
   return response.json();
@@ -94,7 +104,8 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
       new CustomEvent("voice:status", {
         detail: {
           type: "error",
-          message: "Не удалось подключиться к голосовому чату"
+          message: "Не удалось подключиться к голосовому чату" +
+            (error && error.message ? ` (${error.message})` : "")
         }
       })
     );
