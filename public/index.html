@@ -494,8 +494,9 @@
   .match-page-inner{padding:14px}
   nav{padding:0 10px;height:60px}
   .app{height:calc(100vh - 60px)}
-  .nav-left{flex:0 0 auto}
-  .nav-tabs{position:static;transform:none;flex:0 1 auto;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .nav-left{display:none}
+  #navThemeToggle{display:none}
+  .nav-tabs{position:static;transform:none;flex:1 1 auto;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
   .nav-tabs{gap:2px}
   .nav-tab{padding:7px 8px;font-size:11px;gap:4px;white-space:nowrap}
   .nav-tab .tab-icon{font-size:16px}
@@ -1001,6 +1002,11 @@
           <div class="settings-row"><span class="settings-label">Игры</span><span class="settings-value" id="profileGames">...</span></div>
           <div class="settings-row" style="border:none"><span class="settings-label">Статус</span><span class="settings-value" style="color:var(--online)">● Онлайн</span></div>
         </div>
+        <div class="profile-games" style="margin-top:14px">
+          <div class="section-title">Приложение</div>
+          <button class="edit-profile-btn" id="profileThemeToggle" onclick="toggleTheme()">☀️ Светлая тема</button>
+          <button class="edit-profile-btn" style="margin-left:8px;background:transparent;border-color:var(--border);color:var(--muted)" onclick="logout()">Выйти</button>
+        </div>
       </div>
     </div>
 
@@ -1381,10 +1387,13 @@ function genderLabel(g) { return GENDER_LABELS[g] || 'Не указан'; }
 function applyTheme(theme) {
   document.documentElement.classList.toggle('light-theme', theme === 'light');
   var icon = theme === 'light' ? '🌙' : '☀️';
-  var authBtn = document.getElementById('authThemeToggle');
-  var navBtn  = document.getElementById('navThemeToggle');
+  var label = theme === 'light' ? '🌙 Тёмная тема' : '☀️ Светлая тема';
+  var authBtn    = document.getElementById('authThemeToggle');
+  var navBtn     = document.getElementById('navThemeToggle');
+  var profileBtn = document.getElementById('profileThemeToggle');
   if (authBtn) authBtn.textContent = icon;
   if (navBtn)  navBtn.textContent  = icon;
+  if (profileBtn) profileBtn.textContent = label;
   try { localStorage.setItem('chalk_theme', theme); } catch (_) {}
 }
 
