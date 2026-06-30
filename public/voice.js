@@ -10,6 +10,38 @@ let voiceState = {
   appId: FALLBACK_APP_ID
 };
 
+/**
+ * Agora numeric UIDs must be 32-bit unsigned integers. Our app uses
+ * Supabase UUID strings as user ids, so we deterministically hash any
+ * non-numeric uid into a stable positive integer. The server (src/routes/agora.js)
+ * uses the EXACT same algorithm so the uid embedded in the token always
+ * matches the uid used to join the channel.
+ */
+function toNumericUid(rawUid) {
+  if (rawUid === null || rawUid === undefined || rawUid === "") {
+    return Math.floor(Math.random() * 1000000) + 1;
+  }
+
+  if (typeof rawUid === "number" && Number.isFinite(rawUid)) {
+    return Math.abs(Math.floor(rawUid)) % 2147483647 || 1;
+  }
+
+  const str = String(rawUid);
+
+  // Pure numeric string -> use directly
+  if (/^\d+$/.test(str)) {
+    const n = parseInt(str, 10) % 2147483647;
+    return n || 1;
+  }
+
+  // Deterministic djb2 hash for non-numeric ids (e.g. UUIDs)
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 2147483647) || 1;
+}
+
 function ensureVoiceClient() {
   if (!client) {
     client = AgoraRTC.createClient({
@@ -61,7 +93,7 @@ async function requestVoiceToken(channelName, uid) {
 
 window.joinVoice = async function (channelName = "chalk-default", uid = null) {
   const channel = String(channelName || "chalk-default");
-  const userId = uid ?? Math.floor(Math.random() * 1000000);
+  const userId = toNumericUid(uid);
 
   const c = ensureVoiceClient();
 
@@ -77,8 +109,9 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
   try {
     const data = await requestVoiceToken(channel, userId);
     const appId = data.appId || FALLBACK_APP_ID;
+    const joinUid = (data.uid !== undefined && data.uid !== null) ? data.uid : userId;
 
-    await c.join(appId, channel, data.token || null, userId);
+    await c.join(appId, channel, data.token || null, joinUid);
 
     voiceState = {
       joined: true,

@@ -18,10 +18,37 @@ try {
 const APP_ID          = process.env.AGORA_APP_ID;
 const APP_CERTIFICATE = process.env.AGORA_APP_CERTIFICATE;
 
+/**
+ * Agora numeric UIDs must be 32-bit unsigned integers. Our app uses
+ * Supabase UUID strings as user ids, so we deterministically hash any
+ * non-numeric uid into a stable positive integer. This MUST exactly match
+ * the toNumericUid() logic in public/voice.js, otherwise the uid embedded
+ * in the token won't match the uid the client joins with, and Agora will
+ * reject the token with "invalid token, authorized failed".
+ */
+function toNumericUid(rawUid) {
+  if (rawUid === null || rawUid === undefined || rawUid === '') {
+    return 0;
+  }
+
+  const str = String(rawUid);
+
+  if (/^\d+$/.test(str)) {
+    const n = parseInt(str, 10) % 2147483647;
+    return n || 1;
+  }
+
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 2147483647) || 1;
+}
+
 // GET /api/agora/token?channel=test&uid=0
 router.get('/token', requireAuth, (req, res) => {
   const channel = req.query.channel || 'chalk';
-  const uid     = parseInt(req.query.uid) || 0;
+  const uid     = toNumericUid(req.query.uid);
 
   if (!channel) {
     return res.status(400).json({ error: 'channel is required' });
