@@ -1,9 +1,26 @@
 const jwt = require('jsonwebtoken');
 const { v4: uuid } = require('uuid');
 const { enqueue, dequeue, runMatchCycle, queueSize } = require('./matchmaking');
+
+const socketRateLimiter = new Map();
+
+function applySocketRateLimit(socket, key, windowMs, max) {
+  const now = Date.now();
+  const bucket = socketRateLimiter.get(socket.id + ':' + key);
+  if (!bucket || now - bucket.start > windowMs) {
+    socketRateLimiter.set(socket.id + ':' + key, { start: now, count: 1 });
+    return false;
+  }
+  bucket.count += 1;
+  if (bucket.count > max) {
+    return true;
+  }
+  return false;
+}
 const { supabaseAdmin } = require('../services/supabase');
 const { addFriendPairInstant } = require('../services/friendsHelper');
 const { areUsersBlocked } = require('../services/blockHelper');
+const { isYouTubeUrl, getYouTubePreviewData } = require('../utils/links');
 
 /**
  * Active rooms: roomId -> { participants, mode, gameId, trialStart, promoted, votes }
@@ -20,15 +37,7 @@ const userCurrentRoom = new Map(); // userId -> roomId (whoever is "in a call" r
 // nonstop, or spamming call invites. Returns true when the caller is OVER
 // the limit and should be rejected.
 function isFlooding(socket, key, windowMs, max) {
-  if (!socket._rl) socket._rl = {};
-  const now = Date.now();
-  const bucket = socket._rl[key];
-  if (!bucket || now - bucket.start > windowMs) {
-    socket._rl[key] = { start: now, count: 1 };
-    return false;
-  }
-  bucket.count++;
-  return bucket.count > max;
+  return applySocketRateLimit(socket, key, windowMs, max);
 }
 
 function roomSize(roomId) {
@@ -526,7 +535,34 @@ function initSocket(io) {
           socket.emit('chat:blocked', { conversationId });
           return ack({ error: 'Пользователь заблокирован' });
         }
-        const msg = await saveMessage({ conversationId, senderId: userId, text: text.trim(), type: 'text' });
+
+        const trimmedText = text.trim();
+        const youtubeLink = isYouTubeUrl(trimmedText);
+        const payload = youtubeLink
+          ? {
+              conversationId,
+              senderId: userId,
+              text: trimmedText,
+              type: 'youtube',
+              mediaUrl: null,
+            }
+          : {
+              conversationId,
+              senderId: userId,
+              text: trimmedText,
+              type: 'text',
+            };
+
+        const msg = await saveMessage(payload);
+        if (youtubeLink) {
+          const preview = await getYouTubePreviewData(trimmedText);
+          if (preview) {
+            msg.preview_title = preview.title;
+            msg.preview_url = preview.url;
+            msg.preview_thumbnail = preview.thumbnail;
+            msg.preview_video_id = preview.videoId;
+          }
+        }
         io.to(`chat:${conversationId}`).emit('chat:message', msg);
         ack({ ok: true });
       } catch (err) {
@@ -645,7 +681,22 @@ function initSocket(io) {
         if (!text || !text.trim() || text.length > 500) return ack({ error: 'Пустое сообщение' });
         if (isFlooding(socket, 'global:message', 10_000, 20)) return ack({ error: 'Слишком часто' });
 
-        const msg = await saveGlobalMessage({ senderId: userId, text: text.trim(), type: 'text' });
+        const trimmedText = text.trim();
+        const youtubeLink = isYouTubeUrl(trimmedText);
+        const payload = youtubeLink
+          ? { senderId: userId, text: trimmedText, type: 'youtube', mediaUrl: null }
+          : { senderId: userId, text: trimmedText, type: 'text' };
+
+        const msg = await saveGlobalMessage(payload);
+        if (youtubeLink) {
+          const preview = await getYouTubePreviewData(trimmedText);
+          if (preview) {
+            msg.preview_title = preview.title;
+            msg.preview_url = preview.url;
+            msg.preview_thumbnail = preview.thumbnail;
+            msg.preview_video_id = preview.videoId;
+          }
+        }
         io.to('global').emit('global:message', msg);
         ack({ ok: true });
       } catch (err) {
@@ -768,6 +819,9 @@ function initSocket(io) {
     // ── PRESENCE ──────────────────────────────────────────────────────────
 
     socket.on('disconnect', () => {
+      for (const [key] of socketRateLimiter.entries()) {
+        if (key.startsWith(socket.id + ':')) socketRateLimiter.delete(key);
+      }
       online.delete(userId);
       dequeue(userId);
       clearUserRoom(io, userId);

@@ -482,6 +482,12 @@
   .video-note-preview-wrap{position:relative;width:170px;height:170px;border-radius:50%;overflow:hidden;background:#000;border:2px solid #ef4444}
   .video-note-preview-wrap.done{border-color:var(--accent-border)}
   .video-note-preview{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
+  .msg-youtube-card{max-width:320px;border-radius:14px;overflow:hidden;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14)}
+  .msg-youtube-link{display:block;color:inherit;text-decoration:none}
+  .msg-youtube-thumb{display:block;width:100%;height:140px;object-fit:cover;background:#111}
+  .msg-youtube-meta{padding:10px 12px}
+  .msg-youtube-title{font-weight:700;font-size:14px;line-height:1.3;margin-bottom:4px}
+  .msg-youtube-sub{font-size:12px;opacity:.75}
   .video-note-timer{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:10px;color:#fff;background:rgba(0,0,0,.55);padding:1px 7px;border-radius:8px}
   .video-note-rec-dot{position:absolute;top:8px;left:8px;width:8px;height:8px;border-radius:50%;background:#ef4444;animation:micPulse 1s infinite}
   .video-note-actions{display:flex;gap:10px}
@@ -730,7 +736,10 @@
 
     <!-- REGISTER -->
     <div id="registerForm" style="display:none">
-      <input class="auth-input" id="regUsername" type="text" placeholder="Никнейм" data-i18n-placeholder="placeholder_nickname">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="auth-input" id="regUsername" type="text" placeholder="Никнейм" data-i18n-placeholder="placeholder_nickname" style="flex:1">
+        <button type="button" class="auth-btn" onclick="generateRegUsername()" style="padding:10px 12px;min-width:auto">🎲</button>
+      </div>
       <input class="auth-input" id="regEmail" type="email" placeholder="Email" data-i18n-placeholder="placeholder_email">
       <input class="auth-input" id="regPassword" type="password" placeholder="Пароль (мин. 6 символов)" data-i18n-placeholder="placeholder_password_min6">
       <select class="auth-select" id="regCountry">
@@ -1724,13 +1733,19 @@ async function login() {
   }
 }
 
+function generateRegUsername() {
+  var input = document.getElementById('regUsername');
+  if (!input) return;
+  input.value = 'Player' + Math.floor(1000 + Math.random() * 9000);
+}
+
 async function register() {
   var btn = document.getElementById('registerBtn');
   var username = document.getElementById('regUsername').value.trim();
   var email = document.getElementById('regEmail').value.trim();
   var password = document.getElementById('regPassword').value;
   var country = document.getElementById('regCountry').value;
-  if (!username || !email || !password) return showAuthError(T('auth_err_fill_all_fields'));
+  if (!email || !password) return showAuthError(T('auth_err_fill_all_fields'));
   btn.disabled = true;
   btn.innerHTML = '<span class="loading-spinner"></span>' + T('auth_creating');
   try {
@@ -3342,8 +3357,24 @@ function messageContentHtml(m, meClass) {
   if (m.type === 'video_note') {
     return videoNoteHtml(m);
   }
+  if (m.type === 'youtube') {
+    return youtubePreviewHtml(m);
+  }
   var edited = m.edited_at ? '<span class="msg-edited-tag">(' + T('msg_edited_tag') + ')</span>' : '';
   return '<div class="msg-text" data-rawtext="' + escHtml(m.text || '') + '">' + escHtml(m.text || '') + edited + '</div>';
+}
+
+function youtubePreviewHtml(m) {
+  var videoId = (m.preview_video_id || '');
+  var link = (m.preview_url || m.text || '#');
+  var thumb = (m.preview_thumbnail || (videoId ? 'https://img.youtube.com/vi/' + videoId + '/hqdefault.jpg' : ''));
+  var title = (m.preview_title || 'YouTube video');
+  return '<div class="msg-youtube-card">' +
+    '<a href="' + escHtml(link) + '" target="_blank" rel="noopener noreferrer" class="msg-youtube-link">' +
+    (thumb ? '<img class="msg-youtube-thumb" src="' + escHtml(thumb) + '" alt="youtube preview" loading="lazy">' : '') +
+    '<div class="msg-youtube-meta"><div class="msg-youtube-title">' + escHtml(title) + '</div><div class="msg-youtube-sub">Open on YouTube</div></div>' +
+    '</a>' +
+    '</div>';
 }
 
 // ── Circular video note (records like a Telegram "video kruzhok") ──────────
@@ -3731,6 +3762,7 @@ function globalMessageContentHtml(m) {
   if (m.type === 'voice') return '<div class="msg-voice"><audio controls preload="none" src="' + escHtml(m.media_url) + '"></audio></div>';
   if (m.type === 'gif') return '<img class="msg-gif" src="' + escHtml(m.media_url) + '" alt="gif" loading="lazy">';
   if (m.type === 'video_note') return videoNoteHtml(m);
+  if (m.type === 'youtube') return youtubePreviewHtml(m);
   var edited = m.edited_at ? '<span class="msg-edited-tag">(' + T('msg_edited_tag') + ')</span>' : '';
   return '<div class="gc-msg-text" data-rawtext="' + escHtml(m.text || '') + '">' + escHtml(m.text || '') + edited + '</div>';
 }

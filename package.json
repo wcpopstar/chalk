@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "migrate": "node supabase/migrate.js"
+    "migrate": "node supabase/migrate.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -22,7 +23,8 @@
     "nodemailer": "^6.9.13",
     "socket.io": "^4.6.2",
     "uuid": "^9.0.0",
-    "ws": "^8.21.0"
+    "ws": "^8.21.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

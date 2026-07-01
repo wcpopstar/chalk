@@ -5,12 +5,12 @@
 -- ── conversation messages: allow the new type ────────────────────────────────
 ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_type_check;
 ALTER TABLE messages ADD CONSTRAINT messages_type_check
-  CHECK (type IN ('text', 'voice', 'gif', 'video_note'));
+  CHECK (type IN ('text', 'voice', 'gif', 'video_note', 'youtube'));
 
 -- ── global (platform-wide) messages: allow the new type ──────────────────────
 ALTER TABLE global_messages DROP CONSTRAINT IF EXISTS global_messages_type_check;
 ALTER TABLE global_messages ADD CONSTRAINT global_messages_type_check
-  CHECK (type IN ('text', 'voice', 'gif', 'video_note'));
+  CHECK (type IN ('text', 'voice', 'gif', 'video_note', 'youtube'));
 
 -- ── storage bucket for video notes ───────────────────────────────────────────
 -- Public bucket so playback works via a plain <video src> URL.
