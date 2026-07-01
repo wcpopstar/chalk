@@ -1,0 +1,14 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# OS/editor cruft
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
