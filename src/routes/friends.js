@@ -1,8 +1,14 @@
 const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
+const { userLimiter } = require('../middleware/rateLimit');
 const { supabaseAdmin } = require('../services/supabase');
 const { addFriendPairInstant } = require('../services/friendsHelper');
+const { areUsersBlocked } = require('../services/blockHelper');
+
+// Sending friend requests is a one-click action — cap it so someone can't
+// script-spam requests at every user id on the platform.
+const friendRequestLimiter = userLimiter({ windowMs: 60 * 1000, max: 15, message: 'Слишком много заявок в друзья, подожди немного.' });
 
 // ── GET /api/friends ───────────────────────────────────────────────────────
 router.get('/', requireAuth, async (req, res) => {
@@ -31,11 +37,15 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/friends/request ──────────────────────────────────────────────
-router.post('/request', requireAuth, async (req, res) => {
+router.post('/request', requireAuth, friendRequestLimiter, async (req, res) => {
   const { targetUserId } = req.body;
   const uid = req.user.id;
 
   if (targetUserId === uid) return res.status(400).json({ error: 'Cannot add yourself' });
+
+  if (await areUsersBlocked(uid, targetUserId)) {
+    return res.status(403).json({ error: 'Нельзя добавить в друзья — пользователь заблокирован' });
+  }
 
   // Check if already exists (accepted or pending)
   const { data: existingRows } = await supabaseAdmin
@@ -103,12 +113,16 @@ router.delete('/:id', requireAuth, async (req, res) => {
 
 // ── POST /api/friends/add-after-call ──────────────────────────────────────
 // Quick add after a call (no pending state needed)
-router.post('/add-after-call', requireAuth, async (req, res) => {
+router.post('/add-after-call', requireAuth, friendRequestLimiter, async (req, res) => {
   const { targetUserId } = req.body;
   const uid = req.user.id;
 
   if (!targetUserId) return res.status(400).json({ error: 'targetUserId required' });
   if (targetUserId === uid) return res.status(400).json({ error: 'Cannot add yourself' });
+
+  if (await areUsersBlocked(uid, targetUserId)) {
+    return res.status(403).json({ error: 'Нельзя добавить в друзья — пользователь заблокирован' });
+  }
 
   try {
     const result = await addFriendPairInstant(uid, targetUserId);

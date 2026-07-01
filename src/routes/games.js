@@ -1,10 +1,13 @@
 const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
+const { userLimiter } = require('../middleware/rateLimit');
 const { supabaseAdmin } = require('../services/supabase');
+
+const scoreLimiter = userLimiter({ windowMs: 60 * 1000, max: 20, message: 'Слишком много отправок результата, подожди немного.' });
 
 // ── POST /api/games/tetris/score ───────────────────────────────────────────
 // Submit a score from a finished tetris run. Only the best score is kept.
-router.post('/tetris/score', requireAuth, async (req, res) => {
+router.post('/tetris/score', requireAuth, scoreLimiter, async (req, res) => {
   const score = Number(req.body.score);
   if (!Number.isFinite(score) || score < 0 || score > 1_000_000) {
     return res.status(400).json({ error: 'score must be a non-negative number' });

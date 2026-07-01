@@ -1,7 +1,13 @@
 const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
+const { userLimiter } = require('../middleware/rateLimit');
 const { supabaseAdmin } = require('../services/supabase');
+
+// "Message" buttons get-or-create a DM, so this is hit a lot legitimately —
+// keep it loose. Group creation actually writes new rows, so keep it tighter.
+const dmLimiter    = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Слишком много запросов, подожди немного.' });
+const groupLimiter = userLimiter({ windowMs: 10 * 60 * 1000, max: 10, message: 'Слишком много групп создано, подожди немного.' });
 
 // ── GET /api/chats ─────────────────────────────────────────────────────────
 // All conversations for current user
@@ -14,7 +20,7 @@ router.get('/', requireAuth, async (req, res) => {
       conversation_id,
       conversations (
         id, type, name, created_at,
-        messages ( id, text, sender_id, created_at )
+        messages ( id, text, type, deleted_at, sender_id, created_at )
       )
     `)
     .eq('user_id', uid)
@@ -62,7 +68,7 @@ router.get('/', requireAuth, async (req, res) => {
 
 // ── POST /api/chats/direct ─────────────────────────────────────────────────
 // Get or create a DM conversation with another user
-router.post('/direct', requireAuth, async (req, res) => {
+router.post('/direct', requireAuth, dmLimiter, async (req, res) => {
   const { targetUserId } = req.body;
   const uid = req.user.id;
 
@@ -98,7 +104,7 @@ router.post('/direct', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/chats/group ──────────────────────────────────────────────────
-router.post('/group', requireAuth, async (req, res) => {
+router.post('/group', requireAuth, groupLimiter, async (req, res) => {
   const { name, memberIds } = req.body;
   const uid = req.user.id;
 
@@ -132,7 +138,7 @@ router.get('/global/messages', requireAuth, async (req, res) => {
   let query = supabaseAdmin
     .from('global_messages')
     .select(`
-      id, text, created_at,
+      id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
       sender:users!global_messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
     `)
     .order('created_at', { ascending: false })
@@ -165,7 +171,7 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
   let query = supabaseAdmin
     .from('messages')
     .select(`
-      id, sender_id, text, created_at,
+      id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
       sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
     `)
     .eq('conversation_id', convId)

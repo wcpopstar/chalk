@@ -1,6 +1,16 @@
 const router = require('express').Router();
+const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
+const { userLimiter } = require('../middleware/rateLimit');
 const { supabaseAdmin } = require('../services/supabase');
+const { areUsersBlocked, blockUser, unblockUser } = require('../services/blockHelper');
+
+// Live nickname search fires on nearly every keystroke — generous but capped,
+// so someone can't script a flood of substring queries against the DB.
+const searchLimiter = userLimiter({ windowMs: 10 * 1000, max: 40, message: 'Слишком много запросов поиска, подожди немного.' });
+// Block/report are one-click actions on someone else's profile — cap hard so
+// a mash-click (or script) can't hammer the DB or spam report rows.
+const moderationLimiter = userLimiter({ windowMs: 60 * 1000, max: 20, message: 'Слишком много действий, подожди немного.' });
 
 // ── IMPORTANT: specific routes MUST be declared before /:id ───────────────
 // Otherwise Express matches "me", "me/stats", "discover" as :id
@@ -189,6 +199,14 @@ router.get('/discover', requireAuth, async (req, res) => {
   const swipedIds = (swipes || []).map(s => s.target_user_id);
   swipedIds.push(uid); // exclude self
 
+  const { data: blockRows } = await supabaseAdmin
+    .from('blocks')
+    .select('blocker_id, blocked_id')
+    .or(`blocker_id.eq.${uid},blocked_id.eq.${uid}`);
+  (blockRows || []).forEach(r => {
+    swipedIds.push(r.blocker_id === uid ? r.blocked_id : r.blocker_id);
+  });
+
   let query = supabaseAdmin
     .from('users')
     .select(`id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence,
@@ -215,20 +233,126 @@ router.get('/discover', requireAuth, async (req, res) => {
 // ── GET /api/users/search?username=xxx ─────────────────────────────────────
 // Used by the "add friend" flow to resolve a nickname to a user id.
 // Must stay above /:id so it isn't swallowed by that route.
-router.get('/search', requireAuth, async (req, res) => {
-  const username = (req.query.username || '').trim();
-  if (!username) return res.status(400).json({ error: 'username is required' });
+//
+// Two modes:
+//   ?username=xxx&exact=1  -> exact (case-insensitive) match, returns { user }
+//                             404 if nothing matches (used by "send request").
+//   ?username=xxx          -> live/partial match as the person types, returns
+//                             { users: [...] } sorted by relevance (best match first).
+router.get('/search', requireAuth, searchLimiter, async (req, res) => {
+  const raw = (req.query.username || '').trim();
+  if (!raw) return res.status(400).json({ error: 'username is required' });
 
-  const { data: user, error } = await supabaseAdmin
+  if (req.query.exact) {
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, username, avatar_emoji, avatar_url, status, presence')
+      .ilike('username', raw)
+      .neq('id', req.user.id)
+      .maybeSingle();
+
+    if (error) return res.status(500).json({ error: error.message });
+    if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+    return res.json({ user });
+  }
+
+  // Escape % and _ so they aren't treated as SQL wildcards by the user's input.
+  const escaped = raw.replace(/[%_]/g, ch => '\\' + ch);
+  const limit = Math.min(parseInt(req.query.limit) || 8, 20);
+
+  const { data: users, error } = await supabaseAdmin
     .from('users')
     .select('id, username, avatar_emoji, avatar_url, status, presence')
-    .ilike('username', username)
+    .ilike('username', `%${escaped}%`)
     .neq('id', req.user.id)
-    .maybeSingle();
+    .limit(30);
 
   if (error) return res.status(500).json({ error: error.message });
-  if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-  res.json({ user });
+
+  const q = raw.toLowerCase();
+  const ranked = (users || [])
+    .map(u => {
+      const name = (u.username || '').toLowerCase();
+      let rank = 3; // plain substring match
+      if (name === q) rank = 0;            // exact
+      else if (name.startsWith(q)) rank = 1; // prefix match
+      else if (name.includes(q)) rank = 2;   // word-ish/other substring
+      return { u, rank };
+    })
+    .sort((a, b) => a.rank - b.rank || a.u.username.length - b.u.username.length)
+    .slice(0, limit)
+    .map(r => r.u);
+
+  res.json({ users: ranked });
+});
+
+// ── GET /api/users/me/blocked ──────────────────────────────────────────────
+// Must stay above /:id.
+router.get('/me/blocked', requireAuth, async (req, res) => {
+  const { data, error } = await supabaseAdmin
+    .from('blocks')
+    .select('id, created_at, blocked:users!blocks_blocked_id_fkey ( id, username, avatar_emoji, avatar_url )')
+    .eq('blocker_id', req.user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ blocked: (data || []).filter(r => r.blocked) });
+});
+
+// ── POST /api/users/:id/block ──────────────────────────────────────────────
+router.post('/:id/block', requireAuth, moderationLimiter, async (req, res) => {
+  const targetId = req.params.id;
+  const uid = req.user.id;
+  if (targetId === uid) return res.status(400).json({ error: 'Cannot block yourself' });
+
+  try {
+    await blockUser(uid, targetId);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/users/:id/block ────────────────────────────────────────────
+router.delete('/:id/block', requireAuth, moderationLimiter, async (req, res) => {
+  try {
+    await unblockUser(req.user.id, req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/users/:id/report ─────────────────────────────────────────────
+const REPORT_REASONS = ['harassment', 'hate_speech', 'spam', 'inappropriate_content', 'scam', 'underage', 'other'];
+
+router.post('/:id/report', requireAuth, moderationLimiter, async (req, res) => {
+  const targetId = req.params.id;
+  const uid = req.user.id;
+  const { reason, details, context } = req.body;
+
+  if (targetId === uid) return res.status(400).json({ error: 'Cannot report yourself' });
+  if (!reason || !REPORT_REASONS.includes(reason)) {
+    return res.status(400).json({ error: 'reason must be one of: ' + REPORT_REASONS.join(', ') });
+  }
+  if (details !== undefined && details !== null && String(details).length > 1000) {
+    return res.status(400).json({ error: 'details too long (max 1000 chars)' });
+  }
+
+  const { error } = await supabaseAdmin
+    .from('reports')
+    .insert({
+      id: uuid(),
+      reporter_id: uid,
+      reported_id: targetId,
+      reason,
+      details: details ? String(details).trim().slice(0, 1000) : null,
+      context: context ? String(context).slice(0, 50) : null,
+      created_at: new Date().toISOString(),
+    });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json({ ok: true });
 });
 
 // ── GET /api/users/:id ─────────────────────────────────────────────────────
@@ -244,6 +368,15 @@ router.get('/:id', requireAuth, async (req, res) => {
     .single();
 
   if (error || !user) return res.status(404).json({ error: 'User not found' });
+
+  const { data: blockRows } = await supabaseAdmin
+    .from('blocks')
+    .select('blocker_id, blocked_id')
+    .or(`and(blocker_id.eq.${req.user.id},blocked_id.eq.${req.params.id}),and(blocker_id.eq.${req.params.id},blocked_id.eq.${req.user.id})`);
+
+  user.blocked_by_me = !!(blockRows || []).find(r => r.blocker_id === req.user.id);
+  user.has_blocked_me = !!(blockRows || []).find(r => r.blocker_id === req.params.id);
+
   res.json({ user });
 });
 

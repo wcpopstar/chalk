@@ -3,6 +3,7 @@ const { v4: uuid } = require('uuid');
 const { enqueue, dequeue, runMatchCycle, queueSize } = require('./matchmaking');
 const { supabaseAdmin } = require('../services/supabase');
 const { addFriendPairInstant } = require('../services/friendsHelper');
+const { areUsersBlocked } = require('../services/blockHelper');
 
 /**
  * Active rooms: roomId -> { participants, mode, gameId, trialStart, promoted, votes }
@@ -11,6 +12,24 @@ const { addFriendPairInstant } = require('../services/friendsHelper');
 const rooms  = new Map();
 const online = new Map(); // userId -> socketId
 const userCurrentRoom = new Map(); // userId -> roomId (whoever is "in a call" right now)
+
+// ── Per-socket flood guard ──────────────────────────────────────────────────
+// Fixed-window rate limiter scoped to a single socket connection. Used to stop
+// someone from mashing a button (or scripting an emit loop) and hammering the
+// database / other users' clients — e.g. sending 100 messages/sec, swiping
+// nonstop, or spamming call invites. Returns true when the caller is OVER
+// the limit and should be rejected.
+function isFlooding(socket, key, windowMs, max) {
+  if (!socket._rl) socket._rl = {};
+  const now = Date.now();
+  const bucket = socket._rl[key];
+  if (!bucket || now - bucket.start > windowMs) {
+    socket._rl[key] = { start: now, count: 1 };
+    return false;
+  }
+  bucket.count++;
+  return bucket.count > max;
+}
 
 function roomSize(roomId) {
   const room = rooms.get(roomId);
@@ -113,40 +132,140 @@ function authenticateSocket(socket, next) {
   }
 }
 
+const MESSAGE_SELECT = 'id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at, sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )';
+const GLOBAL_MESSAGE_SELECT = `
+  id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
+  sender:users!global_messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
+`;
+
 // ── Persist chat message to DB ────────────────────────────────────────────
-async function saveMessage({ conversationId, senderId, text }) {
+async function saveMessage({ conversationId, senderId, text, type, mediaUrl, duration }) {
   const { data, error } = await supabaseAdmin
     .from('messages')
     .insert({
       id: uuid(),
       conversation_id: conversationId,
       sender_id: senderId,
-      text,
+      text: text || null,
+      type: type || 'text',
+      media_url: mediaUrl || null,
+      duration_seconds: duration || null,
       created_at: new Date().toISOString(),
     })
-    .select('id, conversation_id, sender_id, text, created_at, sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )')
+    .select(MESSAGE_SELECT)
     .single();
-  if (error) console.error('[saveMessage]', error);
+  if (error) { console.error('[saveMessage]', error); throw new Error(error.message || 'Не удалось отправить сообщение'); }
   return data;
 }
 
 // ── Persist a global (platform-wide) chat message ─────────────────────────
-async function saveGlobalMessage({ senderId, text }) {
+async function saveGlobalMessage({ senderId, text, type, mediaUrl, duration }) {
   const { data, error } = await supabaseAdmin
     .from('global_messages')
     .insert({
       id: uuid(),
       sender_id: senderId,
-      text,
+      text: text || null,
+      type: type || 'text',
+      media_url: mediaUrl || null,
+      duration_seconds: duration || null,
       created_at: new Date().toISOString(),
     })
-    .select(`
-      id, text, created_at,
-      sender:users!global_messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
-    `)
+    .select(GLOBAL_MESSAGE_SELECT)
     .single();
-  if (error) console.error('[saveGlobalMessage]', error);
+  if (error) { console.error('[saveGlobalMessage]', error); throw new Error(error.message || 'Не удалось отправить сообщение'); }
   return data;
+}
+
+// ── Edit / delete (soft) for either message table ─────────────────────────
+async function editMessageRow(table, select, id, senderId, text) {
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .update({ text, edited_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('sender_id', senderId)
+    .eq('type', 'text')
+    .is('deleted_at', null)
+    .select(select)
+    .single();
+  if (error) { console.error(`[edit:${table}]`, error.message); throw new Error(error.message || 'Не удалось отредактировать сообщение'); }
+  if (!data) throw new Error('Сообщение не найдено — возможно, оно уже удалено или это не ваше сообщение');
+  return data;
+}
+
+async function deleteMessageRow(table, id, senderId) {
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .update({ deleted_at: new Date().toISOString(), text: null, media_url: null })
+    .eq('id', id)
+    .eq('sender_id', senderId)
+    .is('deleted_at', null)
+    .select('id')
+    .single();
+  if (error) { console.error(`[delete:${table}]`, error.message); throw new Error(error.message || 'Не удалось удалить сообщение'); }
+  if (!data) throw new Error('Сообщение не найдено — возможно, оно уже удалено или это не ваше сообщение');
+  return data;
+}
+
+// ── Voice notes: upload raw audio bytes to Supabase Storage, return URL ────
+const VOICE_BUCKET = 'voice-notes';
+const MAX_VOICE_BYTES = 4 * 1024 * 1024; // ~4MB (roughly a couple of minutes of compressed audio)
+
+async function uploadVoiceNote(senderId, buffer, mime) {
+  if (!buffer || !buffer.length) throw new Error('Пустая запись');
+  if (buffer.length > MAX_VOICE_BYTES) throw new Error('Голосовое сообщение слишком длинное');
+
+  const ext = mime && mime.includes('ogg') ? 'ogg' : (mime && mime.includes('mp4') ? 'm4a' : 'webm');
+  const path = `${senderId}/${uuid()}.${ext}`;
+
+  const { error: uploadErr } = await supabaseAdmin.storage
+    .from(VOICE_BUCKET)
+    .upload(path, buffer, { contentType: mime || 'audio/webm', upsert: false });
+  if (uploadErr) throw uploadErr;
+
+  const { data } = supabaseAdmin.storage.from(VOICE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ── Video notes ("video kruzhki"): upload raw video bytes to Supabase Storage ─
+const VIDEO_BUCKET = 'video-notes';
+const MAX_VIDEO_BYTES = 8 * 1024 * 1024; // ~8MB — plenty for a ~30s low-bitrate circular clip
+
+async function uploadVideoNote(senderId, buffer, mime) {
+  if (!buffer || !buffer.length) throw new Error('Пустая запись');
+  if (buffer.length > MAX_VIDEO_BYTES) throw new Error('Видеосообщение слишком длинное');
+
+  const ext = mime && mime.includes('mp4') ? 'mp4' : 'webm';
+  const path = `${senderId}/${uuid()}.${ext}`;
+
+  const { error: uploadErr } = await supabaseAdmin.storage
+    .from(VIDEO_BUCKET)
+    .upload(path, buffer, { contentType: mime || 'video/webm', upsert: false });
+  if (uploadErr) throw uploadErr;
+
+  const { data } = supabaseAdmin.storage.from(VIDEO_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// ── Is the *other* member of a direct conversation blocked (either way)? ───
+// Group conversations aren't checked — blocking only affects 1:1 DMs here.
+async function directPartnerBlocked(conversationId, senderId) {
+  const { data: conv } = await supabaseAdmin
+    .from('conversations')
+    .select('type')
+    .eq('id', conversationId)
+    .maybeSingle();
+  if (!conv || conv.type !== 'direct') return false;
+
+  const { data: members } = await supabaseAdmin
+    .from('conversation_members')
+    .select('user_id')
+    .eq('conversation_id', conversationId)
+    .neq('user_id', senderId);
+
+  const otherId = members && members[0] && members[0].user_id;
+  if (!otherId) return false;
+  return areUsersBlocked(senderId, otherId);
 }
 
 // ── Persist match to history ──────────────────────────────────────────────
@@ -198,6 +317,9 @@ function initSocket(io) {
     // ── MATCHMAKING ────────────────────────────────────────────────────────
 
     socket.on('match:join', (data) => {
+      if (isFlooding(socket, 'match:join', 10_000, 8)) {
+        return socket.emit('match:error', { error: 'Слишком часто, подожди немного' });
+      }
       enqueue({
         userId,
         socketId:  socket.id,
@@ -220,6 +342,7 @@ function initSocket(io) {
     // ── TRIAL CALL VOTING ──────────────────────────────────────────────────
 
     socket.on('trial:vote', async ({ roomId, vote }) => {
+      if (isFlooding(socket, 'trial:vote', 10_000, 10)) return;
       const room = rooms.get(roomId);
       if (!room) return;
 
@@ -264,6 +387,12 @@ function initSocket(io) {
     });
 
     socket.on('call:invite', async ({ targetUserId, roomId }) => {
+      if (isFlooding(socket, 'call:invite', 30_000, 8)) {
+        return socket.emit('call:invite_failed', { reason: 'Слишком много звонков подряд, подожди немного' });
+      }
+      if (await areUsersBlocked(userId, targetUserId)) {
+        return socket.emit('call:invite_failed', { reason: 'Невозможно позвонить — пользователь заблокирован' });
+      }
       const targetSocket = online.get(targetUserId);
       if (!targetSocket) {
         return socket.emit('call:invite_failed', { reason: 'Пользователь сейчас офлайн' });
@@ -307,6 +436,9 @@ function initSocket(io) {
     // ── JOIN AN ONGOING CALL (e.g. friend is in a group call already) ──────
 
     socket.on('call:request_join', async ({ targetUserId }) => {
+      if (isFlooding(socket, 'call:request_join', 30_000, 8)) {
+        return socket.emit('call:join_failed', { reason: 'Слишком много запросов подряд, подожди немного' });
+      }
       const targetRoomId = userCurrentRoom.get(targetUserId);
       if (!targetRoomId) {
         return socket.emit('call:join_failed', { reason: 'Пользователь сейчас не в звонке' });
@@ -385,33 +517,230 @@ function initSocket(io) {
     socket.on('chat:join',  ({ conversationId }) => socket.join(`chat:${conversationId}`));
     socket.on('chat:leave', ({ conversationId }) => socket.leave(`chat:${conversationId}`));
 
-    socket.on('chat:message', async ({ conversationId, text }) => {
-      if (!text || !text.trim() || text.length > 2000) return;
-      const msg = await saveMessage({ conversationId, senderId: userId, text: text.trim() });
-      if (msg) io.to(`chat:${conversationId}`).emit('chat:message', msg);
+    socket.on('chat:message', async ({ conversationId, text }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'chat:message', 10_000, 20)) return ack({ error: 'Слишком часто, подожди немного' });
+        if (!text || !text.trim() || text.length > 2000) return ack({ error: 'Пустое сообщение' });
+        if (await directPartnerBlocked(conversationId, userId)) {
+          socket.emit('chat:blocked', { conversationId });
+          return ack({ error: 'Пользователь заблокирован' });
+        }
+        const msg = await saveMessage({ conversationId, senderId: userId, text: text.trim(), type: 'text' });
+        io.to(`chat:${conversationId}`).emit('chat:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[chat:message]', err.message);
+        ack({ error: err.message || 'Не удалось отправить сообщение' });
+      }
+    });
+
+    // ── Send a GIF (client picks the URL from a GIF search, e.g. Giphy/Tenor) ─
+    socket.on('chat:gif', async ({ conversationId, gifUrl }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'chat:gif', 10_000, 12)) return ack({ error: 'Слишком часто, подожди немного' });
+        if (!conversationId || !gifUrl || !/^https:\/\//.test(gifUrl)) return ack({ error: 'Некорректная ссылка на GIF' });
+        if (await directPartnerBlocked(conversationId, userId)) {
+          socket.emit('chat:blocked', { conversationId });
+          return ack({ error: 'Пользователь заблокирован' });
+        }
+        const msg = await saveMessage({ conversationId, senderId: userId, type: 'gif', mediaUrl: gifUrl });
+        io.to(`chat:${conversationId}`).emit('chat:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[chat:gif]', err.message);
+        ack({ error: err.message || 'Не удалось отправить GIF' });
+      }
+    });
+
+    // ── Send a voice note: client streams the recorded audio as raw bytes ────
+    socket.on('chat:voice', async ({ conversationId, audio, mime, duration }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'chat:voice', 30_000, 6)) return ack({ error: 'Слишком часто, подожди немного' });
+        if (!conversationId || !audio) return ack({ error: 'Нет аудио' });
+        if (await directPartnerBlocked(conversationId, userId)) {
+          return ack({ error: 'Нельзя отправить сообщение — пользователь заблокирован' });
+        }
+        const buffer = Buffer.isBuffer(audio) ? audio : Buffer.from(audio);
+        const url = await uploadVoiceNote(userId, buffer, mime);
+        const msg = await saveMessage({
+          conversationId, senderId: userId, type: 'voice',
+          mediaUrl: url, duration: Math.round(duration) || null,
+        });
+        io.to(`chat:${conversationId}`).emit('chat:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[chat:voice]', err.message);
+        ack({ error: err.message || 'Не удалось отправить голосовое сообщение' });
+      }
+    });
+
+    // ── Send a video note ("video kruzhok"): client streams raw video bytes ──
+    socket.on('chat:video_note', async ({ conversationId, video, mime, duration }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'chat:video_note', 30_000, 6)) return ack({ error: 'Слишком часто, подожди немного' });
+        if (!conversationId || !video) return ack({ error: 'Нет видео' });
+        if (await directPartnerBlocked(conversationId, userId)) {
+          return ack({ error: 'Нельзя отправить сообщение — пользователь заблокирован' });
+        }
+        const buffer = Buffer.isBuffer(video) ? video : Buffer.from(video);
+        const url = await uploadVideoNote(userId, buffer, mime);
+        const msg = await saveMessage({
+          conversationId, senderId: userId, type: 'video_note',
+          mediaUrl: url, duration: Math.round(duration) || null,
+        });
+        io.to(`chat:${conversationId}`).emit('chat:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[chat:video_note]', err.message);
+        ack({ error: err.message || 'Не удалось отправить видеосообщение' });
+      }
+    });
+
+    // ── Edit a previously-sent text message (own messages only) ──────────────
+    socket.on('chat:edit', async ({ conversationId, messageId, text }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'chat:edit', 10_000, 15)) return ack({ error: 'Слишком часто, подожди немного' });
+        if (!conversationId || !messageId || !text || !text.trim() || text.length > 2000) {
+          return ack({ error: 'Некорректные данные для редактирования' });
+        }
+        const msg = await editMessageRow('messages', MESSAGE_SELECT, messageId, userId, text.trim());
+        io.to(`chat:${conversationId}`).emit('chat:message:edited', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[chat:edit]', err.message);
+        ack({ error: err.message || 'Не удалось отредактировать сообщение' });
+      }
+    });
+
+    // ── Delete (soft) a message you sent ──────────────────────────────────────
+    socket.on('chat:delete', async ({ conversationId, messageId }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'chat:delete', 10_000, 15)) return ack({ error: 'Слишком часто, подожди немного' });
+        if (!conversationId || !messageId) return ack({ error: 'Некорректные данные для удаления' });
+        await deleteMessageRow('messages', messageId, userId);
+        io.to(`chat:${conversationId}`).emit('chat:message:deleted', { conversationId, messageId });
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[chat:delete]', err.message);
+        ack({ error: err.message || 'Не удалось удалить сообщение' });
+      }
     });
 
     socket.on('chat:typing', ({ conversationId }) => {
+      if (isFlooding(socket, 'chat:typing', 5_000, 15)) return;
       socket.to(`chat:${conversationId}`).emit('chat:typing', { userId, username });
     });
 
     // ── GLOBAL CHAT (platform-wide public room) ─────────────────────────────
 
-    socket.on('global:message', async ({ text }) => {
-      if (!text || !text.trim() || text.length > 500) return;
+    socket.on('global:message', async ({ text }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (!text || !text.trim() || text.length > 500) return ack({ error: 'Пустое сообщение' });
+        if (isFlooding(socket, 'global:message', 10_000, 20)) return ack({ error: 'Слишком часто' });
 
-      // Simple per-socket flood guard: max 1 message per second.
-      const now = Date.now();
-      if (socket._lastGlobalMsg && now - socket._lastGlobalMsg < 1000) return;
-      socket._lastGlobalMsg = now;
+        const msg = await saveGlobalMessage({ senderId: userId, text: text.trim(), type: 'text' });
+        io.to('global').emit('global:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[global:message]', err.message);
+        ack({ error: err.message || 'Не удалось отправить сообщение' });
+      }
+    });
 
-      const msg = await saveGlobalMessage({ senderId: userId, text: text.trim() });
-      if (msg) io.to('global').emit('global:message', msg);
+    socket.on('global:gif', async ({ gifUrl }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (!gifUrl || !/^https:\/\//.test(gifUrl)) return ack({ error: 'Некорректная ссылка на GIF' });
+        if (isFlooding(socket, 'global:gif', 10_000, 12)) return ack({ error: 'Слишком часто' });
+
+        const msg = await saveGlobalMessage({ senderId: userId, type: 'gif', mediaUrl: gifUrl });
+        io.to('global').emit('global:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[global:gif]', err.message);
+        ack({ error: err.message || 'Не удалось отправить GIF' });
+      }
+    });
+
+    socket.on('global:voice', async ({ audio, mime, duration }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (!audio) return ack({ error: 'Нет аудио' });
+        if (isFlooding(socket, 'global:voice', 30_000, 6)) return ack({ error: 'Слишком часто' });
+
+        const buffer = Buffer.isBuffer(audio) ? audio : Buffer.from(audio);
+        const url = await uploadVoiceNote(userId, buffer, mime);
+        const msg = await saveGlobalMessage({
+          senderId: userId, type: 'voice', mediaUrl: url, duration: Math.round(duration) || null,
+        });
+        io.to('global').emit('global:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[global:voice]', err.message);
+        ack({ error: err.message || 'Не удалось отправить голосовое сообщение' });
+      }
+    });
+
+    socket.on('global:video_note', async ({ video, mime, duration }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (!video) return ack({ error: 'Нет видео' });
+        if (isFlooding(socket, 'global:video_note', 30_000, 6)) return ack({ error: 'Слишком часто' });
+
+        const buffer = Buffer.isBuffer(video) ? video : Buffer.from(video);
+        const url = await uploadVideoNote(userId, buffer, mime);
+        const msg = await saveGlobalMessage({
+          senderId: userId, type: 'video_note', mediaUrl: url, duration: Math.round(duration) || null,
+        });
+        io.to('global').emit('global:message', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[global:video_note]', err.message);
+        ack({ error: err.message || 'Не удалось отправить видеосообщение' });
+      }
+    });
+
+    socket.on('global:edit', async ({ messageId, text }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'global:edit', 10_000, 15)) return ack({ error: 'Слишком часто' });
+        if (!messageId || !text || !text.trim() || text.length > 500) return ack({ error: 'Некорректные данные' });
+        const msg = await editMessageRow('global_messages', GLOBAL_MESSAGE_SELECT, messageId, userId, text.trim());
+        io.to('global').emit('global:message:edited', msg);
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[global:edit]', err.message);
+        ack({ error: err.message || 'Не удалось отредактировать сообщение' });
+      }
+    });
+
+    socket.on('global:delete', async ({ messageId }, callback) => {
+      const ack = typeof callback === 'function' ? callback : () => {};
+      try {
+        if (isFlooding(socket, 'global:delete', 10_000, 15)) return ack({ error: 'Слишком часто' });
+        if (!messageId) return ack({ error: 'Некорректные данные' });
+        await deleteMessageRow('global_messages', messageId, userId);
+        io.to('global').emit('global:message:deleted', { messageId });
+        ack({ ok: true });
+      } catch (err) {
+        console.error('[global:delete]', err.message);
+        ack({ error: err.message || 'Не удалось удалить сообщение' });
+      }
     });
 
     // ── SWIPE ─────────────────────────────────────────────────────────────
 
     socket.on('swipe', async ({ targetUserId, direction }) => {
+      if (isFlooding(socket, 'swipe', 10_000, 40)) {
+        return socket.emit('swipe:error', { error: 'Слишком быстро, притормози немного' });
+      }
       await supabaseAdmin.from('swipes').upsert({
         user_id:        userId,
         target_user_id: targetUserId,

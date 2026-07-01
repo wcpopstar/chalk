@@ -25,6 +25,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: process.env.CLIENT_URL || '*', methods: ['GET', 'POST'], credentials: true },
   transports: ['websocket', 'polling'],
+  maxHttpBufferSize: 10 * 1024 * 1024, // allow voice-note / video-note binary payloads (~few MB)
 });
 
 initSocket(io);
