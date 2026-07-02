@@ -3,18 +3,38 @@ const https = require('node:https');
 function isYouTubeUrl(value) {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
-  const patterns = [
-    /https?:\/\/(?:www\.)?(?:youtube\.com|m\.youtube\.com|youtu\.be)\/.*?/i,
-  ];
-  const matched = patterns.some((pattern) => pattern.test(trimmed));
-  if (!matched) return null;
 
-  const url = new URL(trimmed);
+  // Extract just the URL portion instead of assuming the whole string is a URL —
+  // messages often contain extra text/whitespace around a pasted link.
+  const match = trimmed.match(/https?:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\/\S+/i);
+  if (!match) return null;
+
+  // Trim common trailing punctuation a user might have typed after the link.
+  const candidate = match[0].replace(/[)\].,!?'"]+$/, '');
+
+  let url;
+  try {
+    url = new URL(candidate);
+  } catch (_) {
+    return null;
+  }
+
   const videoId = url.searchParams.get('v');
-  if (videoId) return { type: 'youtube', videoId, url: trimmed };
+  if (videoId) return { type: 'youtube', videoId, url: candidate };
 
-  const shortPath = url.pathname.replace(/^\//, '');
-  if (shortPath && !shortPath.includes('/')) return { type: 'youtube', videoId: shortPath, url: trimmed };
+  const pathParts = url.pathname.replace(/^\/+/, '').split('/').filter(Boolean);
+  if (pathParts.length === 0) return null;
+
+  // Shorts and live links look like /shorts/<id> or /live/<id>.
+  if ((pathParts[0] === 'shorts' || pathParts[0] === 'live') && pathParts[1]) {
+    return { type: 'youtube', videoId: pathParts[1], url: candidate };
+  }
+
+  // youtu.be/<id> style short links have just one path segment.
+  if (pathParts.length === 1) {
+    return { type: 'youtube', videoId: pathParts[0], url: candidate };
+  }
+
   return null;
 }
 

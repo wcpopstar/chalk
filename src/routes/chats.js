@@ -139,6 +139,7 @@ router.get('/global/messages', requireAuth, async (req, res) => {
     .from('global_messages')
     .select(`
       id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
+      preview_title, preview_url, preview_thumbnail, preview_video_id,
       sender:users!global_messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
     `)
     .order('created_at', { ascending: false })
@@ -172,6 +173,7 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
     .from('messages')
     .select(`
       id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
+      preview_title, preview_url, preview_thumbnail, preview_video_id,
       sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
     `)
     .eq('conversation_id', convId)
