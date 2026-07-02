@@ -5,6 +5,7 @@ const { userLimiter } = require('../middleware/rateLimit');
 const { supabaseAdmin } = require('../services/supabase');
 const { addFriendPairInstant } = require('../services/friendsHelper');
 const { areUsersBlocked } = require('../services/blockHelper');
+const { wereRecentCallPartners } = require('../socket/state');
 
 // Sending friend requests is a one-click action — cap it so someone can't
 // script-spam requests at every user id on the platform.
@@ -119,6 +120,10 @@ router.post('/add-after-call', requireAuth, friendRequestLimiter, async (req, re
 
   if (!targetUserId) return res.status(400).json({ error: 'targetUserId required' });
   if (targetUserId === uid) return res.status(400).json({ error: 'Cannot add yourself' });
+
+  if (!wereRecentCallPartners(uid, targetUserId)) {
+    return res.status(403).json({ error: 'У вас не было общего звонка с этим пользователем' });
+  }
 
   if (await areUsersBlocked(uid, targetUserId)) {
     return res.status(403).json({ error: 'Нельзя добавить в друзья — пользователь заблокирован' });

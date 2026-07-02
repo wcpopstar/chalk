@@ -190,6 +190,15 @@ router.get('/:id/messages', requireAuth, async (req, res) => {
 
 // ── GET /api/chats/:id/members ─────────────────────────────────────────────
 router.get('/:id/members', requireAuth, async (req, res) => {
+  const { data: member } = await supabaseAdmin
+    .from('conversation_members')
+    .select('user_id')
+    .eq('conversation_id', req.params.id)
+    .eq('user_id', req.user.id)
+    .maybeSingle();
+
+  if (!member) return res.status(403).json({ error: 'Not a member of this conversation' });
+
   const { data, error } = await supabaseAdmin
     .from('conversation_members')
     .select('users ( id, username, avatar_emoji, avatar_url, status )')

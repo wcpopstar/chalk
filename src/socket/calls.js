@@ -1,6 +1,11 @@
 const { supabaseAdmin } = require('../services/supabase');
 const { areUsersBlocked } = require('../services/blockHelper');
-const { rooms, online, userCurrentRoom, roomSize, setUserRoom, clearUserRoom } = require('./state');
+const {
+  rooms, online, userCurrentRoom, roomSize, setUserRoom, clearUserRoom,
+  addPendingInvite, consumePendingInvite,
+  addPendingJoinRequest, consumePendingJoinRequest,
+  markCallPartners,
+} = require('./state');
 const { isFlooding } = require('./rateLimit');
 
 function registerCallHandlers(io, socket, userId, username) {
@@ -29,6 +34,7 @@ function registerCallHandlers(io, socket, userId, username) {
       .select('id, username, avatar_emoji, avatar_url')
       .eq('id', userId)
       .single();
+    addPendingInvite(roomId, targetUserId, userId);
     io.to(targetSocket).emit('call:incoming', {
       roomId,
       from: {
@@ -41,6 +47,9 @@ function registerCallHandlers(io, socket, userId, username) {
   });
 
   socket.on('call:accept', ({ roomId, inviterId }) => {
+    if (!roomId || !inviterId) return;
+    if (!consumePendingInvite(roomId, userId, inviterId)) return;
+
     const inviterSocket = online.get(inviterId);
     if (inviterSocket) io.to(inviterSocket).emit('call:accepted', { roomId, by: userId });
     socket.join(roomId);
@@ -53,9 +62,11 @@ function registerCallHandlers(io, socket, userId, username) {
     }
     setUserRoom(io, inviterId, roomId);
     setUserRoom(io, userId, roomId);
+    markCallPartners([inviterId, userId]);
   });
 
   socket.on('call:reject', ({ roomId, inviterId }) => {
+    consumePendingInvite(roomId, userId, inviterId);
     const inviterSocket = online.get(inviterId);
     if (inviterSocket) io.to(inviterSocket).emit('call:rejected', { roomId, by: userId });
   });
@@ -78,6 +89,7 @@ function registerCallHandlers(io, socket, userId, username) {
       .eq('id', userId)
       .single();
 
+    addPendingJoinRequest(targetRoomId, userId);
     room.participants.forEach(pid => {
       const pSocket = online.get(pid);
       if (pSocket) io.to(pSocket).emit('call:join_requested', {
@@ -94,14 +106,18 @@ function registerCallHandlers(io, socket, userId, username) {
   });
 
   socket.on('call:join_response', ({ roomId, requesterId, accept }) => {
+    if (!roomId || !requesterId) return;
+    const room = rooms.get(roomId);
     const requesterSocket = online.get(requesterId);
-    if (!accept) {
-      if (requesterSocket) io.to(requesterSocket).emit('call:join_rejected', { roomId, by: userId });
+
+    // Only a genuine participant of this room may approve/deny a join
+    // request, and only for a request that was actually made.
+    if (!room || !room.participants.includes(userId) || !consumePendingJoinRequest(roomId, requesterId)) {
       return;
     }
-    const room = rooms.get(roomId);
-    if (!room) {
-      if (requesterSocket) io.to(requesterSocket).emit('call:join_failed', { reason: 'Звонок уже завершён' });
+
+    if (!accept) {
+      if (requesterSocket) io.to(requesterSocket).emit('call:join_rejected', { roomId, by: userId });
       return;
     }
     if (!room.participants.includes(requesterId)) room.participants.push(requesterId);
@@ -110,6 +126,7 @@ function registerCallHandlers(io, socket, userId, username) {
       if (rSock) rSock.join(roomId);
     }
     setUserRoom(io, requesterId, roomId);
+    markCallPartners(room.participants);
     io.to(roomId).emit('call:participant_joined', { roomId, userId: requesterId });
     if (requesterSocket) {
       io.to(requesterSocket).emit('call:join_accepted', { roomId, participants: room.participants });

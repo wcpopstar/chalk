@@ -2,7 +2,7 @@ const { v4: uuid } = require('uuid');
 const { supabaseAdmin } = require('../services/supabase');
 const { addFriendPairInstant } = require('../services/friendsHelper');
 const { enqueue, dequeue, runMatchCycle, queueSize } = require('./matchmaking');
-const { rooms, setUserRoom, clearUserRoom } = require('./state');
+const { rooms, setUserRoom, clearUserRoom, markCallPartners } = require('./state');
 const { isFlooding } = require('./rateLimit');
 
 // ── Persist match to history ──────────────────────────────────────────────
@@ -90,6 +90,7 @@ async function handleMatch(io, participants, mode) {
   });
 
   await saveMatchHistory(participants, gameId, mode);
+  markCallPartners(participants.map(p => p.userId));
 
   const participantIds = participants.map(p => p.userId);
   const { data: profiles } = await supabaseAdmin
@@ -163,6 +164,7 @@ function registerMatchHandlers(io, socket, userId) {
     if (isFlooding(socket, 'trial:vote', 10_000, 10)) return;
     const room = rooms.get(roomId);
     if (!room) return;
+    if (!room.participants.includes(userId)) return;
 
     if (!room.votes) room.votes = {};
     room.votes[userId] = vote; // 'yes' | 'no'

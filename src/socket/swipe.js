@@ -2,11 +2,16 @@ const { supabaseAdmin } = require('../services/supabase');
 const { online } = require('./state');
 const { isFlooding } = require('./rateLimit');
 
+const SWIPE_DIRECTIONS = ['left', 'right', 'super'];
+
 // ── SWIPE ─────────────────────────────────────────────────────────────
 function registerSwipeHandlers(io, socket, userId) {
   socket.on('swipe', async ({ targetUserId, direction }) => {
     if (isFlooding(socket, 'swipe', 10_000, 40)) {
       return socket.emit('swipe:error', { error: 'Слишком быстро, притормози немного' });
+    }
+    if (!targetUserId || !SWIPE_DIRECTIONS.includes(direction)) {
+      return socket.emit('swipe:error', { error: 'Некорректные данные свайпа' });
     }
     await supabaseAdmin.from('swipes').upsert({
       user_id:        userId,

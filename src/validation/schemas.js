@@ -8,7 +8,7 @@ const passwordSchema = z.string().trim().min(8).refine((value) => {
 }, 'Password must be at least 8 characters and include uppercase, lowercase and a number');
 
 const registerSchema = z.object({
-  username: z.string().trim().min(3).max(24).optional(),
+  username: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9 _-]+$/, 'username may only contain letters, numbers, spaces, underscores and hyphens').optional(),
   email: z.string().trim().email(),
   password: passwordSchema,
   country: z.string().trim().max(100).optional(),

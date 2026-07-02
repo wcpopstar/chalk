@@ -8,6 +8,7 @@ const { supabaseAdmin } = require('../services/supabase');
 const { sendPasswordResetEmail } = require('../services/mailer');
 const { registerSchema, loginSchema } = require('../validation/schemas');
 const { generateUsername } = require('../utils/usernames');
+const { requireAuth, optionalAuth } = require('../middleware/auth');
 
 // Strict rate limit for auth endpoints, keyed by IP
 const authLimiter = rateLimit({
@@ -133,34 +134,21 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req, res) => {
 });
 
 // ── POST /api/auth/logout ──────────────────────────────────────────────────
-router.post('/logout', async (req, res) => {
-  const header = req.headers.authorization;
-  if (header && header.startsWith('Bearer ')) {
-    try {
-      const { id } = jwt.verify(header.slice(7), process.env.JWT_SECRET);
-      await supabaseAdmin.from('users').update({ status: 'offline', last_seen: new Date().toISOString() }).eq('id', id);
-    } catch (_) { /* ignore */ }
+router.post('/logout', optionalAuth, async (req, res) => {
+  if (req.user) {
+    await supabaseAdmin.from('users').update({ status: 'offline', last_seen: new Date().toISOString() }).eq('id', req.user.id);
   }
   res.json({ ok: true });
 });
 
 // ── GET /api/auth/me ───────────────────────────────────────────────────────
-router.get('/me', async (req, res) => {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  try {
-    const payload = jwt.verify(header.slice(7), process.env.JWT_SECRET);
-    const { data: user } = await supabaseAdmin
-      .from('users')
-      .select('id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, presence, bio, created_at')
-      .eq('id', payload.id)
-      .single();
-    res.json({ user });
-  } catch (_) {
-    res.status(401).json({ error: 'Invalid token' });
-  }
+router.get('/me', requireAuth, async (req, res) => {
+  const { data: user } = await supabaseAdmin
+    .from('users')
+    .select('id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, presence, bio, created_at')
+    .eq('id', req.user.id)
+    .single();
+  res.json({ user });
 });
 
 // ── POST /api/auth/forgot-password ─────────────────────────────────────────

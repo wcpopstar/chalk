@@ -1,6 +1,7 @@
 const express = require('express');
 const router  = express.Router();
 const { requireAuth } = require('../middleware/auth');
+const { userCurrentRoom } = require('../socket/state');
 
 let RtcTokenBuilder;
 let RtcRole;
@@ -45,10 +46,21 @@ function toNumericUid(rawUid) {
   return (hash % 2147483647) || 1;
 }
 
-// GET /api/agora/token?channel=test&uid=0
+// GET /api/agora/token?channel=voice-<roomId>
 router.get('/token', requireAuth, (req, res) => {
   const channel = req.query.channel || 'chalk';
-  const uid     = toNumericUid(req.query.uid);
+
+  // The caller may only request a token for the voice channel of the call
+  // room they are actually in right now (tracked server-side, not by the
+  // client-supplied channel string).
+  const myRoomId = userCurrentRoom.get(req.user.id);
+  if (channel !== `voice-${myRoomId}`) {
+    return res.status(403).json({ error: 'Not a participant of this call' });
+  }
+
+  // Never trust a client-supplied uid — always identify the caller as
+  // themselves, so tokens can't be requested on behalf of another user.
+  const uid = toNumericUid(req.user.id);
 
   if (!APP_ID) {
     return res.status(503).json({ error: 'Agora App ID not configured' });

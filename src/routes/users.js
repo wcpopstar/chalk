@@ -40,6 +40,8 @@ function validateProfileFields(body) {
   if (body.username !== undefined) {
     if (typeof body.username !== 'string' || body.username.trim().length < 3 || body.username.trim().length > 24) {
       errors.push('username must be 3-24 characters');
+    } else if (!/^[a-zA-Z0-9 _-]+$/.test(body.username.trim())) {
+      errors.push('username may only contain letters, numbers, spaces, underscores and hyphens');
     }
   }
   if (body.avatar_url !== undefined && body.avatar_url !== null) {

@@ -17,7 +17,7 @@ function renderTinderCards() {
   }
   stack.innerHTML = slice.map(function(u, i){
     var bg = ['linear-gradient(135deg,#1a0533,#0f172a)','linear-gradient(135deg,#0c1445,#1e3a5f)','linear-gradient(135deg,#1a1a2e,#16213e)'][i % 3];
-    return '<div class="tinder-card" data-userid="' + u.id + '" data-username="' + u.username + '"><div class="tc-banner" style="background:' + bg + '">' + avatarHtml(u.avatar_emoji, u.avatar_url) + '<div class="tc-badges"><div class="tc-badge">🌍 ' + (u.country || '?') + '</div></div></div><div class="tc-body"><div class="tc-name">' + u.username + (u.age ? ', ' + u.age : '') + '</div><div class="tc-game">\ud83c\udfae ' + T('games_player') + '</div><div class="tc-details"><div class="tc-detail">' + (u.languages || ['ru']).join(', ').toUpperCase() + '</div>' + (u.gender ? '<div class="tc-detail">' + genderLabel(u.gender) + '</div>' : '') + '<div class="tc-detail">\u25cf ' + T('status_online') + '</div></div><div class="tc-bio">' + (u.bio || T('looking_for_teammates_status')) + '</div></div></div>';
+    return '<div class="tinder-card" data-userid="' + u.id + '" data-username="' + escHtml(u.username) + '"><div class="tc-banner" style="background:' + bg + '">' + avatarHtml(u.avatar_emoji, u.avatar_url) + '<div class="tc-badges"><div class="tc-badge">🌍 ' + (u.country || '?') + '</div></div></div><div class="tc-body"><div class="tc-name">' + escHtml(u.username) + (u.age ? ', ' + u.age : '') + '</div><div class="tc-game">\ud83c\udfae ' + T('games_player') + '</div><div class="tc-details"><div class="tc-detail">' + (u.languages || ['ru']).join(', ').toUpperCase() + '</div>' + (u.gender ? '<div class="tc-detail">' + genderLabel(u.gender) + '</div>' : '') + '<div class="tc-detail">\u25cf ' + T('status_online') + '</div></div><div class="tc-bio">' + (u.bio ? escHtml(u.bio) : T('looking_for_teammates_status')) + '</div></div></div>';
   }).join('');
 }
 
@@ -316,7 +316,7 @@ function messageActionsHtml(m, scope) {
 function chatMsgHtml(m) {
   var isMe = m.sender_id === currentUser.id;
   var sender = isMe ? currentUser : (m.sender || {});
-  return '<div class="msg' + (isMe ? ' me' : '') + '" data-msgid="' + m.id + '"><div class="msg-ava" style="background:linear-gradient(135deg,#7c3aed,' + (isMe ? '#c8ff00' : '#ec4899') + ')">' + avatarHtml(sender.avatar_emoji, sender.avatar_url) + '</div><div class="msg-body">' + messageActionsHtml(m, 'conv') + '<div class="msg-name">' + (isMe ? T('status_you') : (sender.username || '?')) + '</div>' + messageContentHtml(m) + '</div></div>';
+  return '<div class="msg' + (isMe ? ' me' : '') + '" data-msgid="' + m.id + '"><div class="msg-ava" style="background:linear-gradient(135deg,#7c3aed,' + (isMe ? '#c8ff00' : '#ec4899') + ')">' + avatarHtml(sender.avatar_emoji, sender.avatar_url) + '</div><div class="msg-body">' + messageActionsHtml(m, 'conv') + '<div class="msg-name">' + (isMe ? T('status_you') : escHtml(sender.username || '?')) + '</div>' + messageContentHtml(m) + '</div></div>';
 }
 
 function appendMessage(msg) {

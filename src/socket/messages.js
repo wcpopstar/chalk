@@ -107,6 +107,18 @@ async function directPartnerBlocked(conversationId, senderId) {
   return areUsersBlocked(senderId, otherId);
 }
 
+// ── Is this user actually a member of this conversation? ──────────────────
+async function isConversationMember(conversationId, userId) {
+  if (!conversationId || !userId) return false;
+  const { data } = await supabaseAdmin
+    .from('conversation_members')
+    .select('user_id')
+    .eq('conversation_id', conversationId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return !!data;
+}
+
 module.exports = {
   MESSAGE_SELECT,
   GLOBAL_MESSAGE_SELECT,
@@ -115,4 +127,5 @@ module.exports = {
   editMessageRow,
   deleteMessageRow,
   directPartnerBlocked,
+  isConversationMember,
 };

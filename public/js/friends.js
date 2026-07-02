@@ -355,7 +355,7 @@ function renderFriendRequests(requests) {
   if (!listEl) return;
   if (!count) { listEl.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px 4px"><span data-i18n="friends_no_new_requests">Нет новых заявок</span></div>'; return; }
   listEl.innerHTML = pendingFriendRequests.map(function(f){
-    return '<div class="friend-request-item"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">' + avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url) + '</div><div><div class="friend-name">' + f.friend.username + '</div></div><div class="friend-request-actions"><button class="fr-accept-btn" onclick="acceptFriendRequest(\'' + f.id + '\')" title="Принять" data-i18n-title="friends_accept">✓</button><button class="fr-decline-btn" onclick="declineFriendRequest(\'' + f.id + '\')" title="Отклонить" data-i18n-title="friends_decline">✕</button></div></div>';
+    return '<div class="friend-request-item"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">' + avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url) + '</div><div><div class="friend-name">' + escHtml(f.friend.username) + '</div></div><div class="friend-request-actions"><button class="fr-accept-btn" onclick="acceptFriendRequest(\'' + f.id + '\')" title="Принять" data-i18n-title="friends_accept">✓</button><button class="fr-decline-btn" onclick="declineFriendRequest(\'' + f.id + '\')" title="Отклонить" data-i18n-title="friends_decline">✕</button></div></div>';
   }).join('');
 }
 
