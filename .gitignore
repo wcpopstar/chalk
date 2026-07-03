@@ -12,3 +12,6 @@ node_modules/
 # Logs
 *.log
 npm-debug.log*
+
+# Husky's internal helper dir, not the hooks themselves
+.husky/_

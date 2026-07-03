@@ -2,10 +2,68 @@
 
 const js = require('@eslint/js');
 const globals = require('globals');
+const nodePlugin = require('eslint-plugin-n');
+const promisePlugin = require('eslint-plugin-promise');
+const prettierConfig = require('eslint-config-prettier');
+
+// -----------------------------------------------------------------------
+// Airbnb-inspired "best practice" ruleset, hand-picked so it works without
+// pulling in eslint-config-airbnb-base (which still targets ESLint 8's
+// eslintrc format and drags in a peer-dependency chain that isn't fully
+// flat-config-ready on ESLint 9). This gives the same spirit — strict,
+// opinionated, catches real bugs — while staying compatible with our
+// ESLint 9 flat config setup.
+//
+// A few rules below (no-shadow, consistent-return, no-use-before-define,
+// prefer-promise-reject-errors, ...) are exactly the kind of thing
+// @typescript-eslint enforces by default; keeping them on gives us most of
+// that "TypeScript strictness" even though this is a plain JS codebase.
+// -----------------------------------------------------------------------
+const airbnbStyleRules = {
+  // Possible problems
+  eqeqeq: ['error', 'always', { null: 'ignore' }],
+  'no-var': 'error',
+  'prefer-const': ['error', { destructuring: 'all' }],
+  'no-shadow': 'error',
+  'no-use-before-define': ['error', { functions: false, classes: true, variables: true }],
+  'no-param-reassign': ['error', { props: true, ignorePropertyModificationsFor: ['req', 'res', 'acc', 'state'] }],
+  'no-nested-ternary': 'error',
+  'no-multi-assign': 'error',
+  'no-return-await': 'error',
+  'no-throw-literal': 'error',
+  'prefer-promise-reject-errors': 'error',
+  'no-async-promise-executor': 'error',
+  'require-await': 'warn',
+  'no-implicit-coercion': 'error',
+  'no-plusplus': ['error', { allowForLoopAfterthoughts: true }],
+  radix: 'error',
+  'default-case': 'error',
+  'default-case-last': 'error',
+  'no-else-return': ['error', { allowElseIf: false }],
+  'no-lonely-if': 'error',
+  'consistent-return': 'error',
+
+  // Stylistic / best practices (non-formatting; formatting is Prettier's job)
+  'object-shorthand': ['error', 'always'],
+  'prefer-template': 'error',
+  'prefer-arrow-callback': 'error',
+  'arrow-body-style': ['error', 'as-needed'],
+  'no-useless-concat': 'error',
+  'no-useless-return': 'error',
+  'no-useless-rename': 'error',
+  'one-var': ['error', 'never'],
+  'prefer-destructuring': ['warn', { array: false, object: true }],
+  yoda: 'error',
+
+  // Complexity / maintainability guardrails
+  complexity: ['warn', 20],
+  'max-depth': ['warn', 4],
+  'max-params': ['warn', 5],
+};
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'supabase/migrations/**', 'public/css/**'],
+    ignores: ['node_modules/**', 'supabase/migrations/**', 'public/css/**', 'coverage/**'],
   },
 
   // Baseline recommended rules everywhere.
@@ -14,6 +72,10 @@ module.exports = [
   // Backend: plain Node.js, CommonJS (require/module.exports).
   {
     files: ['src/**/*.js', 'test/**/*.js', 'supabase/migrate.js', 'eslint.config.js'],
+    plugins: {
+      n: nodePlugin,
+      promise: promisePlugin,
+    },
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'commonjs',
@@ -22,6 +84,8 @@ module.exports = [
       },
     },
     rules: {
+      ...airbnbStyleRules,
+
       // Server deliberately logs to stdout/stderr (see src/index.js
       // unhandledRejection/uncaughtException handlers) — that's the point.
       'no-console': 'off',
@@ -42,6 +106,23 @@ module.exports = [
       // socket/state.js, utils/links.js). Empty *non-catch* blocks are
       // still flagged.
       'no-empty': ['error', { allowEmptyCatch: true }],
+
+      // Node-specific correctness checks (typo'd requires, missing deps,
+      // deprecated Node APIs, process.exit() misuse, etc.)
+      'n/no-missing-require': 'error',
+      'n/no-extraneous-require': 'error',
+      'n/no-unpublished-require': 'off',
+      'n/no-process-exit': 'warn',
+      'n/no-deprecated-api': 'error',
+      'n/handle-callback-err': 'warn',
+
+      // Promise/async correctness — this codebase is async-heavy
+      // (Express handlers, Socket.IO events, Supabase/Redis calls).
+      'promise/param-names': 'error',
+      'promise/no-return-wrap': 'error',
+      'promise/always-return': 'off',
+      'promise/catch-or-return': ['error', { allowFinally: true }],
+      'promise/no-nesting': 'warn',
     },
   },
 
@@ -60,6 +141,7 @@ module.exports = [
       },
     },
     rules: {
+      ...airbnbStyleRules,
       'no-undef': 'off',
       'no-unused-vars': 'off',
       // Same deliberate-ignore idiom as the backend (see e.g.
@@ -85,8 +167,14 @@ module.exports = [
       },
     },
     rules: {
+      ...airbnbStyleRules,
       'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
       'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },
+
+  // Must be last: turns off any core ESLint stylistic rules that would
+  // conflict with Prettier (indentation, quotes, spacing, etc.). Prettier
+  // owns formatting; ESLint owns correctness/best-practices.
+  prettierConfig,
 ];

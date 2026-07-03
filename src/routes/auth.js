@@ -85,7 +85,44 @@ function blacklistCurrentAccessToken(req) {
   }
 }
 
-// ── POST /api/auth/register ────────────────────────────────────────────────
+/**
+ * @openapi
+ * /api/auth/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Create a new account
+ *     description: Registers a new user and immediately returns an authenticated session (access + refresh token). If `username` is omitted, a random one is generated.
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email: { type: string, format: email, example: player@example.com }
+ *               password: { type: string, format: password, minLength: 8, description: 'Min 8 chars, must include uppercase, lowercase and a digit.', example: 'Str0ngPass' }
+ *               username: { type: string, minLength: 3, maxLength: 24, example: ShadowFox_42 }
+ *               country: { type: string, maxLength: 100, example: NL }
+ *               languages: { type: array, items: { type: string }, example: ['en', 'ru'] }
+ *     responses:
+ *       201:
+ *         description: Account created
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/AuthResponse' }
+ *       400:
+ *         description: Validation error (Zod)
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       409:
+ *         description: Email or username already taken
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/register', authLimiter, async (req, res) => {
   try {
     const parsed = registerSchema.parse({ ...req.body, languages: req.body.languages || ['en'] });
@@ -130,14 +167,53 @@ router.post('/register', authLimiter, async (req, res) => {
     res.status(201).json({ user, token, refreshToken, expiresIn });
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ error: 'Invalid request payload', details: error.errors.map(e => e.message) });
+      return res.status(400).json({ error: 'Invalid request payload', details: error.issues.map((e) => e.message) });
     }
     req.log.error({ err: error }, 'Registration failed');
     res.status(500).json({ error: 'Could not create account' });
   }
 });
 
-// ── POST /api/auth/login ───────────────────────────────────────────────────
+/**
+ * @openapi
+ * /api/auth/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Log in with email and password
+ *     description: Returns a fresh access + refresh token pair on success. Rate-limited both by IP and by the email being attempted.
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, password]
+ *             properties:
+ *               email: { type: string, format: email, example: player@example.com }
+ *               password: { type: string, format: password, example: 'Str0ngPass' }
+ *     responses:
+ *       200:
+ *         description: Authenticated
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/AuthResponse' }
+ *       400:
+ *         description: Validation error (Zod)
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       429:
+ *         description: Too many attempts
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/login', authLimiter, loginEmailLimiter, async (req, res) => {
   try {
     const parsed = loginSchema.parse(req.body);
@@ -165,7 +241,7 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req, res) => {
     res.json({ user: safeUser, token, refreshToken, expiresIn });
   } catch (error) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ error: 'Invalid request payload', details: error.errors.map(e => e.message) });
+      return res.status(400).json({ error: 'Invalid request payload', details: error.issues.map((e) => e.message) });
     }
     req.log.error({ err: error }, 'Login failed');
     res.status(500).json({ error: 'Could not log in' });
@@ -178,6 +254,48 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req, res) => {
 // and a new one is issued in its place, even if the caller doesn't end up
 // using the response. Presenting an already-rotated token is treated as
 // theft and revokes every session descended from it (see refreshTokens.js).
+/**
+ * @openapi
+ * /api/auth/refresh:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Exchange a refresh token for a new session
+ *     description: |
+ *       The refresh token is **single-use** (rotation): the one presented here is revoked and a new one
+ *       is issued in its place. Presenting an already-rotated (i.e. stolen/replayed) token is treated as
+ *       theft and revokes every session descended from it — the caller must log in again.
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [refreshToken]
+ *             properties:
+ *               refreshToken: { type: string }
+ *     responses:
+ *       200:
+ *         description: New token pair issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token: { $ref: '#/components/schemas/AuthTokens/properties/token' }
+ *                 refreshToken: { $ref: '#/components/schemas/AuthTokens/properties/refreshToken' }
+ *                 expiresIn: { $ref: '#/components/schemas/AuthTokens/properties/expiresIn' }
+ *       400:
+ *         description: refreshToken missing from body
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ *       401:
+ *         description: "Invalid/expired token, or reuse detected (code: TOKEN_REUSE) — session family revoked"
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/refresh', refreshLimiter, async (req, res) => {
   const { refreshToken } = req.body || {};
   if (!refreshToken || typeof refreshToken !== 'string') {
@@ -215,6 +333,31 @@ router.post('/refresh', refreshLimiter, async (req, res) => {
 // ── POST /api/auth/logout ───────────────────────────────────────────────────
 // Logs out the current device/session: revokes the refresh token it sent (if
 // any) and blacklists whatever access token was still valid.
+/**
+ * @openapi
+ * /api/auth/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Log out the current device/session
+ *     description: Revokes the supplied refresh token (if any) and blacklists the access token that authenticated this request. Works even with an expired/missing access token so a client can always clear its own session.
+ *     security:
+ *       - bearerAuth: []
+ *       - {}
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken: { type: string, description: 'This device''s refresh token, if known.' }
+ *     responses:
+ *       200:
+ *         description: Logged out
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Ok' }
+ */
 router.post('/logout', optionalAuth, async (req, res) => {
   const { refreshToken } = req.body || {};
 
@@ -232,6 +375,25 @@ router.post('/logout', optionalAuth, async (req, res) => {
 // ── POST /api/auth/logout-all ───────────────────────────────────────────────
 // Revokes every refresh token for the account (all devices/sessions) — for
 // "sign out everywhere" or when a user suspects their account is compromised.
+/**
+ * @openapi
+ * /api/auth/logout-all:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Log out every device/session
+ *     description: Revokes every refresh token for the account and blacklists the current access token — use for "sign out everywhere" or a suspected account compromise.
+ *     responses:
+ *       200:
+ *         description: All sessions revoked
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Ok' }
+ *       401:
+ *         description: Missing/invalid access token
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/logout-all', requireAuth, async (req, res) => {
   await revokeAllForUser(req.user.id);
   blacklistCurrentAccessToken(req);
@@ -239,7 +401,27 @@ router.post('/logout-all', requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ── GET /api/auth/me ───────────────────────────────────────────────────────
+/**
+ * @openapi
+ * /api/auth/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Get the currently authenticated user's full profile
+ *     responses:
+ *       200:
+ *         description: Current user
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user: { $ref: '#/components/schemas/User' }
+ *       401:
+ *         description: Missing/invalid access token
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.get('/me', requireAuth, async (req, res) => {
   const { data: user } = await supabaseAdmin
     .from('users')
@@ -250,6 +432,39 @@ router.get('/me', requireAuth, async (req, res) => {
 });
 
 // ── POST /api/auth/forgot-password ─────────────────────────────────────────
+/**
+ * @openapi
+ * /api/auth/forgot-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Request a password reset email
+ *     description: Always responds with the same generic message whether or not the email is registered, to avoid leaking which emails exist. Rate-limited per email address.
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string, format: email }
+ *     responses:
+ *       200:
+ *         description: Generic acknowledgement (does not confirm account existence)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok: { type: boolean, example: true }
+ *                 message: { type: string }
+ *       400:
+ *         description: email missing
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) {
@@ -298,6 +513,36 @@ router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, async (
 });
 
 // ── POST /api/auth/reset-password ──────────────────────────────────────────
+/**
+ * @openapi
+ * /api/auth/reset-password:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Complete a password reset
+ *     description: Consumes a one-time reset token (emailed via /api/auth/forgot-password) and sets a new password. Revokes every existing session for the account afterwards.
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [token, password]
+ *             properties:
+ *               token: { type: string, description: 'Raw token from the reset email link.' }
+ *               password: { type: string, format: password, minLength: 6 }
+ *     responses:
+ *       200:
+ *         description: Password updated, all sessions revoked
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Ok' }
+ *       400:
+ *         description: Missing fields, weak password, or invalid/expired/used token
+ *         content:
+ *           application/json:
+ *             schema: { $ref: '#/components/schemas/Error' }
+ */
 router.post('/reset-password', authLimiter, async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) {

@@ -1,5 +1,5 @@
 const { supabaseAdmin } = require('../services/supabase');
-const { dequeue } = require('./matchmaking');
+const { dequeue } = require('../services/matchmakingRedis');
 const { authenticateSocket } = require('./authenticate');
 const { socketLogger, attachUserContext } = require('./socketLogger');
 const { setOnline, removeOnline, onlineCount, clearUserRoom } = require('./state');
