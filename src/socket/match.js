@@ -134,7 +134,7 @@ async function handleMatch(io, participants, mode) {
 // takes a cluster-wide Redis lock internally, so only one instance actually
 // processes the queues on any given tick — see matchmaking.js.
 function startMatchLoop(io) {
-  setInterval(async () => {
+  const interval = setInterval(async () => {
     try {
       const { soloMatch, groupMatch } = await runMatchCycle();
       if (soloMatch) await handleMatch(io, soloMatch, 'solo');
@@ -144,6 +144,11 @@ function startMatchLoop(io) {
       logger.error({ err }, 'Match cycle failed');
     }
   }, 1000);
+
+  // Returned so callers (graceful shutdown) can stop the tick from firing
+  // again once the process is going down — no point starting a new match
+  // cycle against Redis connections that are themselves being closed.
+  return () => clearInterval(interval);
 }
 
 // ── MATCHMAKING + TRIAL CALL VOTING socket events ───────────────────────────

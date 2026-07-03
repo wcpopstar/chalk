@@ -67,6 +67,19 @@ CMD ["npm", "run", "dev"]
 # runtime files the app needs (no tests, no migrations, no .env, no git).
 # Non-root user, read-only-friendly (no filesystem writes at runtime —
 # the app has no fs.write*/multer/temp-file usage), tini as PID 1.
+#
+# Graceful shutdown: the platform (Railway, Docker, k8s, ...) sends
+# SIGTERM to PID 1 when stopping/redeploying the container. tini is PID 1
+# here specifically so that signal is forwarded correctly to the Node
+# process (Node does not handle being PID 1 well on its own — it won't
+# reap zombies and can miss signals). src/index.js's SIGTERM/SIGINT
+# handler then drains in-flight requests, closes Socket.io connections,
+# and closes Redis/Supabase connections before exiting — see the
+# "Graceful shutdown" section of src/index.js for the exact order.
+# STOPSIGNAL is SIGTERM by default for Docker, spelled out here so the
+# platform's shutdown grace period (must be >= the app's own
+# SHUTDOWN_TIMEOUT_MS, currently 15s) is a deliberate choice, not an
+# accident.
 # -----------------------------------------------------------------------
 FROM base AS production
 
@@ -83,7 +96,15 @@ USER chalk
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+STOPSIGNAL SIGTERM
+
+# timeout is 8s (not the previous 5s) because /health now round-trips to
+# both Redis (PING) and Supabase (a HEAD/count query) instead of just
+# answering immediately — give those two network calls room to finish
+# under normal conditions without the healthcheck itself flapping.
+# A non-200 response (503 while draining, or if either dependency check
+# fails) correctly marks the container unhealthy — see src/index.js.
+HEALTHCHECK --interval=30s --timeout=8s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 ENTRYPOINT ["tini", "--"]

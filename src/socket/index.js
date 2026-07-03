@@ -28,7 +28,7 @@ function initSocket(io) {
   io.use(socketLogger);
   io.use(socketConnectionRateLimiter);
   io.use(authenticateSocket);
-  startMatchLoop(io);
+  const stopMatchLoop = startMatchLoop(io);
 
   io.on('connection', async (socket) => {
     const { id: userId, username } = socket.user;
@@ -66,6 +66,8 @@ function initSocket(io) {
       socket.log.info('Socket disconnected');
     });
   });
+
+  return { stopMatchLoop };
 }
 
 module.exports = { initSocket };
