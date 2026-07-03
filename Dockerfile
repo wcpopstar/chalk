@@ -36,8 +36,7 @@ ENV NODE_ENV=production \
 # -----------------------------------------------------------------------
 FROM base AS dependencies
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
-    npm ci --omit=dev --no-audit
+RUN npm ci --omit=dev --no-audit
 
 # -----------------------------------------------------------------------
 # dev-dependencies — full node_modules (incl. nodemon) for local dev only.
@@ -45,8 +44,7 @@ RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
 # -----------------------------------------------------------------------
 FROM base AS dev-dependencies
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
-    npm ci --no-audit
+RUN npm ci --no-audit
 
 # -----------------------------------------------------------------------
 # development — target used by docker-compose.yml. Source code is NOT
