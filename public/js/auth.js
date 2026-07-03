@@ -176,9 +176,9 @@ async function checkAuth() {
   // before giving up.
   if (!token && refreshToken) {
     var renewed = await refreshSession();
-    if (!renewed) { clearSession(); return; }
+    if (!renewed) { clearSession(); showAuthScreen(); return; }
   }
-  if (!token) return;
+  if (!token) { showAuthScreen(); return; }
 
   try {
     // api() itself transparently refreshes on an expired/revoked access
@@ -189,6 +189,17 @@ async function checkAuth() {
     afterAuth();
   } catch(_) {
     clearSession();
+    showAuthScreen();
   }
+}
+
+// Reveals the login/register screen. Called only once we actually know the
+// user isn't authenticated — kept hidden by default in index.html so a
+// still-logged-in user never sees a flash of the auth form while checkAuth()
+// is in flight (previously it was visible-by-default and only hidden after
+// afterAuth() ran, causing a visible flicker on every page load/F5).
+function showAuthScreen() {
+  var authScreen = document.getElementById('authScreen');
+  if (authScreen) authScreen.classList.remove('hidden');
 }
 
