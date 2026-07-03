@@ -22,7 +22,7 @@ permissions:
 env:
   # Primary Node version used for lint/build; the test job also runs
   # older/newer supported versions via its matrix.
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 jobs:
   # ---------------------------------------------------------------------

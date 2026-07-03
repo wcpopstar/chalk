@@ -13,7 +13,7 @@
 # editing src/ or public/ never invalidates the deps layer.
 # =============================================================================
 
-ARG NODE_VERSION=20-alpine
+ARG NODE_VERSION=22-alpine
 
 # -----------------------------------------------------------------------
 # base — shared foundation for every other stage. Alpine keeps the image
