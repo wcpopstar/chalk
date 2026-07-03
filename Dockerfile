@@ -36,7 +36,7 @@ ENV NODE_ENV=production \
 # -----------------------------------------------------------------------
 FROM base AS dependencies
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
     npm ci --omit=dev --no-audit
 
 # -----------------------------------------------------------------------
@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/root/.npm \
 # -----------------------------------------------------------------------
 FROM base AS dev-dependencies
 COPY package.json package-lock.json ./
-RUN --mount=type=cache,target=/root/.npm \
+RUN --mount=type=cache,target=/root/.npm,id=npm-cache \
     npm ci --no-audit
 
 # -----------------------------------------------------------------------
