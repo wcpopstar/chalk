@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log*
+.git
+.github
+.gitignore
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+test
+README.md
+supabase/migrate.js
+.nvmrc

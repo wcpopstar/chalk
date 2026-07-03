@@ -1,0 +1,85 @@
+# Production stack: Chalk backend (lean, non-root, read-only rootfs) + Redis
+# with persistence. Intended for a single-host / VM deployment (e.g. a
+# Railway alternative, a bare VPS, etc.) — for Railway itself, the CD
+# pipeline deploys the `production` image target directly, this compose
+# file is for anywhere you're running docker compose yourself.
+#
+# Usage:
+#   cp .env.example .env      # fill in real production secrets
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+name: chalk
+
+services:
+  app:
+    build:
+      context: .
+      target: production
+    image: chalk-backend:latest
+    container_name: chalk-app
+    restart: unless-stopped
+    init: true
+    # The app never writes to its own filesystem at runtime (no uploads,
+    # no temp files) — locking the rootfs read-only is free hardening.
+    # /tmp is left writable via tmpfs in case any dependency needs it.
+    read_only: true
+    tmpfs:
+      - /tmp
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Reuses the HEALTHCHECK baked into the image (Dockerfile), no need
+    # to redeclare it — compose will surface `docker compose ps` status
+    # from it automatically.
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    container_name: chalk-redis
+    restart: unless-stopped
+    # AOF persistence so matchmaking/room/session state in Redis survives
+    # a container restart; capped memory with LRU eviction as a safety
+    # net against unbounded growth.
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # No `ports:` mapping here on purpose — Redis is reachable only on
+    # the internal compose network, exactly like a managed Redis would
+    # be. Don't add a host port mapping unless you specifically need
+    # external access (and then put auth + a firewall rule in front of it).
+
+volumes:
+  redis-data:

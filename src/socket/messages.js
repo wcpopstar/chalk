@@ -1,6 +1,7 @@
 const { v4: uuid } = require('uuid');
 const { supabaseAdmin } = require('../services/supabase');
 const { areUsersBlocked } = require('../services/blockHelper');
+const logger = require('../utils/logger').child({ module: 'messages' });
 
 const MESSAGE_SELECT = 'id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at, preview_title, preview_url, preview_thumbnail, preview_video_id, sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )';
 const GLOBAL_MESSAGE_SELECT = `
@@ -29,7 +30,7 @@ async function saveMessage({ conversationId, senderId, text, type, mediaUrl, dur
     })
     .select(MESSAGE_SELECT)
     .single();
-  if (error) { console.error('[saveMessage]', error); throw new Error(error.message || 'Не удалось отправить сообщение'); }
+  if (error) { logger.error({ err: error, conversationId, senderId }, 'Failed to save message'); throw new Error(error.message || 'Не удалось отправить сообщение'); }
   return data;
 }
 
@@ -52,7 +53,7 @@ async function saveGlobalMessage({ senderId, text, type, mediaUrl, duration, pre
     })
     .select(GLOBAL_MESSAGE_SELECT)
     .single();
-  if (error) { console.error('[saveGlobalMessage]', error); throw new Error(error.message || 'Не удалось отправить сообщение'); }
+  if (error) { logger.error({ err: error, senderId }, 'Failed to save global message'); throw new Error(error.message || 'Не удалось отправить сообщение'); }
   return data;
 }
 
@@ -67,7 +68,7 @@ async function editMessageRow(table, select, id, senderId, text) {
     .is('deleted_at', null)
     .select(select)
     .single();
-  if (error) { console.error(`[edit:${table}]`, error.message); throw new Error(error.message || 'Не удалось отредактировать сообщение'); }
+  if (error) { logger.error({ err: error, table, id, senderId }, 'Failed to edit message'); throw new Error(error.message || 'Не удалось отредактировать сообщение'); }
   if (!data) throw new Error('Сообщение не найдено — возможно, оно уже удалено или это не ваше сообщение');
   return data;
 }
@@ -81,7 +82,7 @@ async function deleteMessageRow(table, id, senderId) {
     .is('deleted_at', null)
     .select('id')
     .single();
-  if (error) { console.error(`[delete:${table}]`, error.message); throw new Error(error.message || 'Не удалось удалить сообщение'); }
+  if (error) { logger.error({ err: error, table, id, senderId }, 'Failed to delete message'); throw new Error(error.message || 'Не удалось удалить сообщение'); }
   if (!data) throw new Error('Сообщение не найдено — возможно, оно уже удалено или это не ваше сообщение');
   return data;
 }

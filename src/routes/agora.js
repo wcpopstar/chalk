@@ -1,7 +1,8 @@
 const express = require('express');
 const router  = express.Router();
 const { requireAuth } = require('../middleware/auth');
-const { userCurrentRoom } = require('../socket/state');
+const { getUserCurrentRoom } = require('../socket/state');
+const logger = require('../utils/logger').child({ module: 'agora' });
 
 let RtcTokenBuilder;
 let RtcRole;
@@ -11,7 +12,7 @@ try {
   RtcTokenBuilder = agora.RtcTokenBuilder;
   RtcRole = agora.RtcRole;
 } catch (_) {
-  console.warn('[agora] agora-token not available, voice chat will run in dev fallback mode');
+  logger.warn('agora-token not available, voice chat will run in dev fallback mode');
 }
 
 // NOTE: Never hard-code credentials — always use environment variables.
@@ -47,13 +48,13 @@ function toNumericUid(rawUid) {
 }
 
 // GET /api/agora/token?channel=voice-<roomId>
-router.get('/token', requireAuth, (req, res) => {
+router.get('/token', requireAuth, async (req, res) => {
   const channel = req.query.channel || 'chalk';
 
   // The caller may only request a token for the voice channel of the call
   // room they are actually in right now (tracked server-side, not by the
   // client-supplied channel string).
-  const myRoomId = userCurrentRoom.get(req.user.id);
+  const myRoomId = await getUserCurrentRoom(req.user.id);
   if (channel !== `voice-${myRoomId}`) {
     return res.status(403).json({ error: 'Not a participant of this call' });
   }

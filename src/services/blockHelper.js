@@ -1,5 +1,6 @@
 const { v4: uuid } = require('uuid');
 const { supabaseAdmin } = require('./supabase');
+const logger = require('../utils/logger').child({ module: 'blockHelper' });
 
 /**
  * True if either user has blocked the other (block is one-directional in
@@ -12,7 +13,7 @@ async function areUsersBlocked(userIdA, userIdB) {
     .select('id')
     .or(`and(blocker_id.eq.${userIdA},blocked_id.eq.${userIdB}),and(blocker_id.eq.${userIdB},blocked_id.eq.${userIdA})`)
     .limit(1);
-  if (error) { console.error('[areUsersBlocked]', error.message); return false; }
+  if (error) { logger.error({ err: error, userIdA, userIdB }, 'areUsersBlocked query failed'); return false; }
   return !!(data && data.length);
 }
 

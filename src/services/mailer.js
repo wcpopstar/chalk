@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const logger = require('../utils/logger').child({ module: 'mailer' });
 
 let transporter = null;
 
@@ -10,11 +11,13 @@ function getTransporter() {
     // Useful for local development so the reset link is still visible.
     transporter = {
       sendMail: async (opts) => {
-        console.log('\n📧 [DEV MAIL — no SMTP configured, printing instead]');
-        console.log('To:', opts.to);
-        console.log('Subject:', opts.subject);
-        console.log('Text:', opts.text);
-        console.log('');
+        // Intentionally logged in full (not redacted) — this dev-only
+        // fallback exists specifically so the reset link is visible when
+        // no SMTP server is configured locally.
+        logger.info(
+          { to: opts.to, subject: opts.subject, text: opts.text },
+          '📧 DEV MAIL — no SMTP configured, printing instead'
+        );
         return { messageId: 'dev-console' };
       },
     };

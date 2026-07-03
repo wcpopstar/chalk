@@ -63,9 +63,7 @@ async function login() {
   btn.innerHTML = '<span class="loading-spinner"></span>' + T('auth_logging_in');
   try {
     var data = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    token = data.token;
-    currentUser = data.user;
-    localStorage.setItem('chalk_token', token);
+    setSession(data);
     afterAuth();
   } catch(e) {
     showAuthError(e.message);
@@ -92,9 +90,7 @@ async function register() {
   btn.innerHTML = '<span class="loading-spinner"></span>' + T('auth_creating');
   try {
     var data = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password, country, languages: ['ru'] }) });
-    token = data.token;
-    currentUser = data.user;
-    localStorage.setItem('chalk_token', token);
+    setSession(data);
     afterAuth();
   } catch(e) {
     showAuthError(e.message);
@@ -112,11 +108,26 @@ function showAuthError(msg, isSuccess) {
 }
 
 async function logout() {
-  try { await api('/api/auth/logout', { method: 'POST' }); } catch(_) {}
+  try {
+    await api('/api/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken: refreshToken }) });
+  } catch(_) {}
   if (socket) socket.disconnect();
-  token = null;
-  currentUser = null;
-  localStorage.removeItem('chalk_token');
+  clearSession();
+  document.getElementById('authScreen').classList.remove('hidden');
+  document.getElementById('onboardingOverlay').classList.remove('show');
+  document.getElementById('mainNav').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('globalChatBubble').style.display = 'none';
+  document.getElementById('globalChatPanel').style.display = 'none';
+}
+
+// Signs the account out on every device/session (all refresh tokens
+// revoked server-side), not just this one. Useful for "log out everywhere" /
+// suspected account compromise flows.
+async function logoutAllDevices() {
+  try { await api('/api/auth/logout-all', { method: 'POST' }); } catch(_) {}
+  if (socket) socket.disconnect();
+  clearSession();
   document.getElementById('authScreen').classList.remove('hidden');
   document.getElementById('onboardingOverlay').classList.remove('show');
   document.getElementById('mainNav').style.display = 'none';
@@ -160,14 +171,24 @@ async function bootApp() {
 }
 
 async function checkAuth() {
+  // Access token may have been cleared (e.g. a previous tab lost the race
+  // on a logout) while a still-valid refresh token remains — try to renew
+  // before giving up.
+  if (!token && refreshToken) {
+    var renewed = await refreshSession();
+    if (!renewed) { clearSession(); return; }
+  }
   if (!token) return;
+
   try {
+    // api() itself transparently refreshes on an expired/revoked access
+    // token, so a page reload after the 15-minute access-token TTL just
+    // works without the user noticing.
     var data = await api('/api/auth/me');
     currentUser = data.user;
     afterAuth();
   } catch(_) {
-    localStorage.removeItem('chalk_token');
-    token = null;
+    clearSession();
   }
 }
 

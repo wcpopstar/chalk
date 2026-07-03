@@ -1,7 +1,6 @@
-const router   = require('express').Router();
-const bcrypt   = require('bcryptjs');
-const jwt      = require('jsonwebtoken');
-const crypto   = require('crypto');
+const router    = require('express').Router();
+const bcrypt    = require('bcryptjs');
+const crypto    = require('crypto');
 const { v4: uuid } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const { supabaseAdmin } = require('../services/supabase');
@@ -9,6 +8,19 @@ const { sendPasswordResetEmail } = require('../services/mailer');
 const { registerSchema, loginSchema } = require('../validation/schemas');
 const { generateUsername } = require('../utils/usernames');
 const { requireAuth, optionalAuth } = require('../middleware/auth');
+const { signAccessToken, ACCESS_TOKEN_TTL_SECONDS } = require('../utils/jwt');
+const tokenBlacklist = require('../services/tokenBlacklist');
+const {
+  issueRefreshToken,
+  rotateRefreshToken,
+  revokeRefreshToken,
+  revokeAllForUser,
+  InvalidRefreshTokenError,
+  TokenReuseError,
+} = require('../services/refreshTokens');
+
+const USER_FIELDS =
+  'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, presence, created_at';
 
 // Strict rate limit for auth endpoints, keyed by IP
 const authLimiter = rateLimit({
@@ -38,12 +50,39 @@ const forgotPasswordEmailLimiter = rateLimit({
   message: { error: 'Слишком много запросов на сброс пароля для этого email. Попробуй позже.' },
 });
 
-function signToken(payload) {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
-}
+// Refresh/rotation gets its own generous-but-bounded limit, keyed by IP —
+// it's hit far more often than login but should still be capped against abuse.
+const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many refresh attempts, try again later.' },
+});
 
 function hashToken(rawToken) {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
+}
+
+function requestMeta(req) {
+  return { userAgent: req.headers['user-agent'] || null, ip: req.ip };
+}
+
+// Issues a fresh access + refresh token pair for a user and shapes the
+// standard auth response body.
+async function issueSession(user, req) {
+  const { token, jti } = signAccessToken({ id: user.id, username: user.username });
+  const { raw: refreshToken } = await issueRefreshToken(user.id, requestMeta(req));
+  return { token, refreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS, jti };
+}
+
+// Blacklists whatever access token authenticated the current request, if any
+// — used by /logout and /logout-all so the token that's still "live" for up
+// to 15 more minutes can't keep being used after the user asked to sign out.
+function blacklistCurrentAccessToken(req) {
+  if (req.user?.jti && req.user?.exp) {
+    tokenBlacklist.revoke(req.user.jti, req.user.exp * 1000);
+  }
 }
 
 // ── POST /api/auth/register ────────────────────────────────────────────────
@@ -79,21 +118,21 @@ router.post('/register', authLimiter, async (req, res) => {
         onboarding_completed: false,
         created_at: new Date().toISOString(),
       })
-      .select('id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, presence, created_at')
+      .select(USER_FIELDS)
       .single();
 
     if (error) {
-      console.error('[register]', error);
+      req.log.error({ err: error }, 'Failed to insert new user during registration');
       return res.status(500).json({ error: 'Could not create account' });
     }
 
-    const token = signToken({ id: user.id, username: user.username });
-    res.status(201).json({ user, token });
+    const { token, refreshToken, expiresIn } = await issueSession(user, req);
+    res.status(201).json({ user, token, refreshToken, expiresIn });
   } catch (error) {
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: 'Invalid request payload', details: error.errors.map(e => e.message) });
     }
-    console.error('[register]', error);
+    req.log.error({ err: error }, 'Registration failed');
     res.status(500).json({ error: 'Could not create account' });
   }
 });
@@ -122,22 +161,81 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req, res) => {
     await supabaseAdmin.from('users').update({ status: 'online', last_seen: new Date().toISOString() }).eq('id', user.id);
 
     const { password_hash, ...safeUser } = user;
-    const token = signToken({ id: user.id, username: user.username });
-    res.json({ user: safeUser, token });
+    const { token, refreshToken, expiresIn } = await issueSession(user, req);
+    res.json({ user: safeUser, token, refreshToken, expiresIn });
   } catch (error) {
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: 'Invalid request payload', details: error.errors.map(e => e.message) });
     }
-    console.error('[login]', error);
+    req.log.error({ err: error }, 'Login failed');
     res.status(500).json({ error: 'Could not log in' });
   }
 });
 
-// ── POST /api/auth/logout ──────────────────────────────────────────────────
+// ── POST /api/auth/refresh ──────────────────────────────────────────────────
+// Exchanges a refresh token for a new access + refresh token pair. The
+// refresh token is single-use (rotation): the one presented here is revoked
+// and a new one is issued in its place, even if the caller doesn't end up
+// using the response. Presenting an already-rotated token is treated as
+// theft and revokes every session descended from it (see refreshTokens.js).
+router.post('/refresh', refreshLimiter, async (req, res) => {
+  const { refreshToken } = req.body || {};
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    return res.status(400).json({ error: 'refreshToken is required' });
+  }
+
+  try {
+    const { raw: newRefreshToken, userId } = await rotateRefreshToken(refreshToken, requestMeta(req));
+
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, username')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (error || !user) {
+      return res.status(401).json({ error: 'Account no longer exists' });
+    }
+
+    const { token, expiresIn } = signAccessToken({ id: user.id, username: user.username });
+    res.json({ token, refreshToken: newRefreshToken, expiresIn });
+  } catch (err) {
+    if (err instanceof TokenReuseError) {
+      req.log.warn('Refresh token reuse detected — session family revoked');
+      return res.status(401).json({ error: 'Session invalidated, please log in again', code: 'TOKEN_REUSE' });
+    }
+    if (err instanceof InvalidRefreshTokenError) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+    req.log.error({ err }, 'Token refresh failed');
+    res.status(500).json({ error: 'Could not refresh session' });
+  }
+});
+
+// ── POST /api/auth/logout ───────────────────────────────────────────────────
+// Logs out the current device/session: revokes the refresh token it sent (if
+// any) and blacklists whatever access token was still valid.
 router.post('/logout', optionalAuth, async (req, res) => {
+  const { refreshToken } = req.body || {};
+
+  if (refreshToken && typeof refreshToken === 'string') {
+    await revokeRefreshToken(refreshToken);
+  }
+  blacklistCurrentAccessToken(req);
+
   if (req.user) {
     await supabaseAdmin.from('users').update({ status: 'offline', last_seen: new Date().toISOString() }).eq('id', req.user.id);
   }
+  res.json({ ok: true });
+});
+
+// ── POST /api/auth/logout-all ───────────────────────────────────────────────
+// Revokes every refresh token for the account (all devices/sessions) — for
+// "sign out everywhere" or when a user suspects their account is compromised.
+router.post('/logout-all', requireAuth, async (req, res) => {
+  await revokeAllForUser(req.user.id);
+  blacklistCurrentAccessToken(req);
+  await supabaseAdmin.from('users').update({ status: 'offline', last_seen: new Date().toISOString() }).eq('id', req.user.id);
   res.json({ ok: true });
 });
 
@@ -182,7 +280,7 @@ router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, async (
   });
 
   if (error) {
-    console.error('[forgot-password]', error);
+    req.log.error({ err: error }, 'Failed to create password reset record');
     return res.status(500).json({ error: 'Could not start password reset' });
   }
 
@@ -192,7 +290,7 @@ router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, async (
   try {
     await sendPasswordResetEmail(user.email, resetUrl);
   } catch (e) {
-    console.error('[forgot-password] failed to send email', e);
+    req.log.error({ err: e }, 'Failed to send password reset email');
     // Don't reveal the failure to the client — still respond generically.
   }
 
@@ -229,7 +327,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
     .eq('id', resetRow.user_id);
 
   if (updateError) {
-    console.error('[reset-password]', updateError);
+    req.log.error({ err: updateError }, 'Failed to update password during reset');
     return res.status(500).json({ error: 'Could not reset password' });
   }
 
@@ -237,6 +335,10 @@ router.post('/reset-password', authLimiter, async (req, res) => {
     .from('password_resets')
     .update({ used_at: new Date().toISOString() })
     .eq('id', resetRow.id);
+
+  // A password reset means any credential-holder before this point should be
+  // logged out — revoke every existing session for the account.
+  await revokeAllForUser(resetRow.user_id);
 
   res.json({ ok: true });
 });

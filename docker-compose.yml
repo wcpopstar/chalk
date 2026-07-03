@@ -1,0 +1,66 @@
+# Local development stack: Chalk backend (hot-reload via nodemon) + Redis.
+#
+# Usage:
+#   cp .env.example .env   # fill in Supabase / JWT / Agora keys
+#   docker compose up --build
+#
+# The server is reachable at http://localhost:${PORT:-3000}, Redis at
+# localhost:6379 (exposed on purpose here so you can point a GUI client
+# / redis-cli at it while developing — this port is NOT exposed in prod).
+
+name: chalk
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    image: chalk-backend:dev
+    container_name: chalk-app-dev
+    restart: unless-stopped
+    # Lets tini (PID 1 in the image) receive and forward signals properly
+    # even when compose itself is the one starting the container.
+    init: true
+    ports:
+      - "${PORT:-3000}:3000"
+    env_file:
+      # All app secrets/config come from your local .env (gitignored).
+      # See .env.example for the full list of required keys.
+      - .env
+    environment:
+      NODE_ENV: development
+      # Overrides whatever REDIS_URL is in .env: inside the compose
+      # network, Redis is reachable by its service name, not localhost.
+      REDIS_URL: redis://redis:6379
+    volumes:
+      # Bind-mount the repo for hot-reload: nodemon (via `npm run dev`)
+      # picks up changes to src/ immediately, no rebuild needed.
+      - .:/app
+      # Anonymous volume shadowing /app/node_modules: without this, the
+      # bind mount above would replace the image's already-installed
+      # node_modules with whatever (or nothing) exists on the host,
+      # breaking native deps and losing the Docker-layer cache benefit.
+      - /app/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: npm run dev
+
+  redis:
+    image: redis:7-alpine
+    container_name: chalk-redis-dev
+    restart: unless-stopped
+    # Exposed to the host purely for local debugging convenience.
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-dev-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  redis-dev-data:

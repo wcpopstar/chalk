@@ -1,0 +1,242 @@
+name: CI
+
+# Runs on every push and pull request targeting main/develop.
+# Jobs: lint -> test (matrix) -> build check, plus a non-blocking
+# security audit and a failure notification fan-in.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch: {}
+
+# Cancel superseded runs on the same branch/PR to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Primary Node version used for lint/build; the test job also runs
+  # older/newer supported versions via its matrix.
+  NODE_VERSION: '20'
+
+jobs:
+  # ---------------------------------------------------------------------
+  # Lint — runs only if the project defines a `lint` script, so this
+  # workflow keeps working even before ESLint is wired up. Add one and
+  # this job starts enforcing it automatically.
+  # ---------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint (if configured)
+        run: |
+          if npm run | grep -qE '^\s+lint\b'; then
+            echo "::notice::Running 'npm run lint'"
+            npm run lint
+          else
+            echo "::warning::No 'lint' script found in package.json — skipping lint. Consider adding ESLint for stronger CI guarantees."
+          fi
+
+  # ---------------------------------------------------------------------
+  # Test — runs the Node.js test runner across a version matrix, with a
+  # real Redis service container since src/socket/redisClient.js talks
+  # to Redis. Dummy secrets are injected so validateEnv() in
+  # src/config/env.js does not throw during unit tests.
+  # ---------------------------------------------------------------------
+  test:
+    name: Test (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ['20.x', '22.x', '24.x']
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          PORT: 3000
+          CLIENT_URL: http://localhost:5173
+          REDIS_URL: redis://127.0.0.1:6379
+          SUPABASE_URL: https://ci-placeholder.supabase.co
+          SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_KEY: ci-placeholder-service-key
+          JWT_SECRET: ci-placeholder-jwt-secret-min-32-chars
+          AGORA_APP_ID: ci-placeholder-app-id
+          AGORA_APP_CERTIFICATE: ci-placeholder-app-certificate
+
+  # ---------------------------------------------------------------------
+  # Build check — Chalk ships plain Node.js (no bundler/transpiler), so
+  # "build" means: every source file parses cleanly, the app boots far
+  # enough to prove wiring is correct, and (if present) the Dockerfile
+  # produces a valid image.
+  # ---------------------------------------------------------------------
+  build:
+    name: Build check
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install production dependencies
+        run: npm ci --omit=dev
+
+      - name: Syntax check all source files
+        run: |
+          set -e
+          find src -name '*.js' -print0 | xargs -0 -n1 node --check
+          echo "All source files parse cleanly."
+
+      - name: Boot smoke test
+        run: |
+          set -e
+          timeout 15s node src/index.js &
+          PID=$!
+          for i in $(seq 1 10); do
+            if curl -sf http://localhost:3000/health > /dev/null; then
+              echo "Server booted and /health responded OK."
+              kill $PID 2>/dev/null || true
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::Server did not become healthy within 10s"
+          kill $PID 2>/dev/null || true
+          exit 1
+        env:
+          NODE_ENV: production
+          PORT: 3000
+          CLIENT_URL: http://localhost:5173
+          REDIS_URL: redis://127.0.0.1:6379
+          SUPABASE_URL: https://ci-placeholder.supabase.co
+          SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_KEY: ci-placeholder-service-key
+          JWT_SECRET: ci-placeholder-jwt-secret-min-32-chars
+          AGORA_APP_ID: ci-placeholder-app-id
+          AGORA_APP_CERTIFICATE: ci-placeholder-app-certificate
+
+      - name: Validate Dockerfile build (if present)
+        if: hashFiles('Dockerfile') != ''
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: chalk-backend:ci-check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ---------------------------------------------------------------------
+  # Security audit — informational only, does not block PRs. Surfaces
+  # high/critical vulnerabilities in the Actions summary.
+  # ---------------------------------------------------------------------
+  security-audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: npm audit (high/critical)
+        run: npm audit --audit-level=high
+
+  # ---------------------------------------------------------------------
+  # Notify — fires only on push (not PRs) when any required job fails.
+  # Slack and/or Telegram are used only if their secrets are configured;
+  # missing secrets do not fail the workflow.
+  # ---------------------------------------------------------------------
+  notify-on-failure:
+    name: Notify on failure
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    if: failure() && github.event_name == 'push'
+    steps:
+      - name: Slack notification
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d @- <<EOF
+          {
+            "text": ":x: *CI failed* on \`${{ github.repository }}\` @ \`${{ github.ref_name }}\`\ncommit: ${{ github.sha }}\nby: ${{ github.actor }}\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>"
+          }
+          EOF
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Telegram notification
+        if: ${{ secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_CHAT_ID != '' }}
+        run: |
+          curl -sf -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            -d parse_mode="HTML" \
+            -d text="❌ <b>CI failed</b> on <code>${{ github.repository }}</code> @ <code>${{ github.ref_name }}</code>%0Acommit: ${{ github.sha }}%0Aby: ${{ github.actor }}%0A<a href=\"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\">View run</a>"
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

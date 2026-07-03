@@ -1,8 +1,41 @@
 // ── SOCKET ────────────────────────────────────────────────────────────────────
 function connectSocket() {
-  socket = io(API, { auth: { token: token } });
+  // `auth` as a function (rather than a plain object) is re-evaluated by
+  // socket.io on every (re)connection attempt, so a reconnect automatically
+  // picks up whatever the current `token` is at that moment — including one
+  // we just refreshed a second ago.
+  socket = io(API, { auth: function (cb) { cb({ token: token }); } });
 
   socket.on('connect', function() { console.log('[socket] connected'); });
+
+  // Server proactively warns a connected socket right before it force-
+  // disconnects it for an expired access token, so we can refresh and
+  // reconnect immediately instead of waiting for the drop to surface as a
+  // failure somewhere else in the UI.
+  socket.on('auth:expired', async function() {
+    var renewed = await refreshSession();
+    if (renewed) {
+      socket.connect();
+    } else {
+      forceLogout();
+    }
+  });
+
+  // Covers both the initial handshake and any reconnection attempt failing
+  // because the token socket.io sent was expired/revoked/invalid.
+  socket.on('connect_error', async function(err) {
+    var reason = err && err.message;
+    if (reason === 'TOKEN_EXPIRED' || reason === 'TOKEN_REVOKED') {
+      var renewed = await refreshSession();
+      if (renewed) {
+        socket.connect();
+      } else {
+        forceLogout();
+      }
+    } else {
+      console.warn('[socket] connect_error', reason);
+    }
+  });
 
   socket.on('online:count', function(count) {
     document.getElementById('onlineCount').textContent = count + ' ' + T('unit_online_word');

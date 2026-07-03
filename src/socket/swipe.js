@@ -1,18 +1,17 @@
 const { supabaseAdmin } = require('../services/supabase');
-const { online } = require('./state');
-const { isFlooding } = require('./rateLimit');
-
-const SWIPE_DIRECTIONS = ['left', 'right', 'super'];
+const { getOnlineSocket } = require('./state');
+const { secureOn } = require('./validation');
 
 // ── SWIPE ─────────────────────────────────────────────────────────────
+// Goes through secureOn(): global + per-event rate limiting (see
+// DEFAULT_RATE_LIMITS in socket/validation.js) and Zod validation of
+// { targetUserId, direction } against validation/socketSchemas.js — the
+// manual targetUserId/direction checks that used to open this handler are
+// now centralized there.
 function registerSwipeHandlers(io, socket, userId) {
-  socket.on('swipe', async ({ targetUserId, direction }) => {
-    if (isFlooding(socket, 'swipe', 10_000, 40)) {
-      return socket.emit('swipe:error', { error: 'Слишком быстро, притормози немного' });
-    }
-    if (!targetUserId || !SWIPE_DIRECTIONS.includes(direction)) {
-      return socket.emit('swipe:error', { error: 'Некорректные данные свайпа' });
-    }
+  const emitSwipeError = (sock, ack, error) => sock.emit('swipe:error', { error });
+
+  secureOn(io, socket, userId, 'swipe', async ({ targetUserId, direction }) => {
     await supabaseAdmin.from('swipes').upsert({
       user_id:        userId,
       target_user_id: targetUserId,
@@ -31,11 +30,11 @@ function registerSwipeHandlers(io, socket, userId) {
 
       if (mutual) {
         socket.emit('swipe:match', { with: targetUserId });
-        const targetSocket = online.get(targetUserId);
+        const targetSocket = await getOnlineSocket(targetUserId);
         if (targetSocket) io.to(targetSocket).emit('swipe:match', { with: userId });
       }
     }
-  });
+  }, { onRateLimited: emitSwipeError, onInvalid: emitSwipeError });
 }
 
 module.exports = { registerSwipeHandlers };
