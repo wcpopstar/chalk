@@ -36,17 +36,17 @@ function applyI18n() {
   var nodes = document.querySelectorAll('[data-i18n]');
   for (var i = 0; i < nodes.length; i++) {
     var key = nodes[i].getAttribute('data-i18n');
-    if (dict.hasOwnProperty(key)) nodes[i].textContent = dict[key];
+    if (Object.prototype.hasOwnProperty.call(dict, key)) nodes[i].textContent = dict[key];
   }
   var phNodes = document.querySelectorAll('[data-i18n-placeholder]');
   for (var j = 0; j < phNodes.length; j++) {
     var pkey = phNodes[j].getAttribute('data-i18n-placeholder');
-    if (dict.hasOwnProperty(pkey)) phNodes[j].setAttribute('placeholder', dict[pkey]);
+    if (Object.prototype.hasOwnProperty.call(dict, pkey)) phNodes[j].setAttribute('placeholder', dict[pkey]);
   }
   var titleNodes = document.querySelectorAll('[data-i18n-title]');
   for (var k = 0; k < titleNodes.length; k++) {
     var tkey = titleNodes[k].getAttribute('data-i18n-title');
-    if (dict.hasOwnProperty(tkey)) titleNodes[k].setAttribute('title', dict[tkey]);
+    if (Object.prototype.hasOwnProperty.call(dict, tkey)) titleNodes[k].setAttribute('title', dict[tkey]);
   }
   document.documentElement.setAttribute('lang', currentLang);
   updateLangToggleUI();
@@ -105,7 +105,7 @@ function applyI18nToNode(node) {
   }
   for (var j = 0; j < targets.length; j++) {
     var key = targets[j].getAttribute('data-i18n');
-    if (dict.hasOwnProperty(key)) targets[j].textContent = dict[key];
+    if (Object.prototype.hasOwnProperty.call(dict, key)) targets[j].textContent = dict[key];
   }
   var phTargets = [];
   if (node.hasAttribute && node.hasAttribute('data-i18n-placeholder')) phTargets.push(node);
@@ -115,7 +115,7 @@ function applyI18nToNode(node) {
   }
   for (var m = 0; m < phTargets.length; m++) {
     var pkey = phTargets[m].getAttribute('data-i18n-placeholder');
-    if (dict.hasOwnProperty(pkey)) phTargets[m].setAttribute('placeholder', dict[pkey]);
+    if (Object.prototype.hasOwnProperty.call(dict, pkey)) phTargets[m].setAttribute('placeholder', dict[pkey]);
   }
   var titleTargets = [];
   if (node.hasAttribute && node.hasAttribute('data-i18n-title')) titleTargets.push(node);
@@ -125,7 +125,7 @@ function applyI18nToNode(node) {
   }
   for (var p = 0; p < titleTargets.length; p++) {
     var tkey = titleTargets[p].getAttribute('data-i18n-title');
-    if (dict.hasOwnProperty(tkey)) titleTargets[p].setAttribute('title', dict[tkey]);
+    if (Object.prototype.hasOwnProperty.call(dict, tkey)) titleTargets[p].setAttribute('title', dict[tkey]);
   }
 }
 

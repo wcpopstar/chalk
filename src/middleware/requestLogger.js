@@ -48,11 +48,11 @@ const requestLogger = pinoHttp({
     return 'info';
   },
 
-  customSuccessMessage(req, res) {
+  customSuccessMessage(req, _res) {
     return `${req.method} ${req.url} completed`;
   },
-  customErrorMessage(req, res, err) {
-    return `${req.method} ${req.url} failed`;
+  customErrorMessage(req, _res, err) {
+    return `${req.method} ${req.url} failed: ${err.message}`;
   },
 
   // Trim the noisy default req/res serializers down to what's actually

@@ -3,7 +3,7 @@ const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
 const { userLimiter } = require('../middleware/rateLimit');
 const { supabaseAdmin } = require('../services/supabase');
-const { areUsersBlocked, blockUser, unblockUser } = require('../services/blockHelper');
+const { blockUser, unblockUser } = require('../services/blockHelper');
 
 // Live nickname search fires on nearly every keystroke — generous but capped,
 // so someone can't script a flood of substring queries against the DB.

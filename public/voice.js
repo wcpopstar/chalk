@@ -304,7 +304,7 @@ window.toggleVoiceDeafen = async function () {
   if (!voiceState.joined || !client) {
     try {
       await window.joinVoice(voiceState.channel || "chalk-default", null);
-    } catch (err) {
+    } catch (_err) {
       return;
     }
   }

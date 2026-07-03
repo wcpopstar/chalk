@@ -22,7 +22,7 @@ function detectContainer(buffer) {
 const VOICE_BUCKET = 'voice-notes';
 const MAX_VOICE_BYTES = 4 * 1024 * 1024; // ~4MB (roughly a couple of minutes of compressed audio)
 
-async function uploadVoiceNote(senderId, buffer, mime) {
+async function uploadVoiceNote(senderId, buffer, _mime) {
   if (!buffer || !buffer.length) throw new Error('Пустая запись');
   if (buffer.length > MAX_VOICE_BYTES) throw new Error('Голосовое сообщение слишком длинное');
 
@@ -46,7 +46,7 @@ async function uploadVoiceNote(senderId, buffer, mime) {
 const VIDEO_BUCKET = 'video-notes';
 const MAX_VIDEO_BYTES = 8 * 1024 * 1024; // ~8MB — plenty for a ~30s low-bitrate circular clip
 
-async function uploadVideoNote(senderId, buffer, mime) {
+async function uploadVideoNote(senderId, buffer, _mime) {
   if (!buffer || !buffer.length) throw new Error('Пустая запись');
   if (buffer.length > MAX_VIDEO_BYTES) throw new Error('Видеосообщение слишком длинное');
 
