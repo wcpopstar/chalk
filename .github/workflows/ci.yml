@@ -35,10 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -80,10 +80,10 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
@@ -127,10 +127,10 @@ jobs:
           --health-retries 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -172,9 +172,19 @@ jobs:
           AGORA_APP_ID: ci-placeholder-app-id
           AGORA_APP_CERTIFICATE: ci-placeholder-app-certificate
 
+      - name: Set up Docker Buildx
+        # The default buildx builder on GitHub-hosted runners uses the
+        # "docker" driver, which does NOT support the GHA cache backend
+        # (cache-from/cache-to: type=gha) used below — it silently fails
+        # with "buildx failed with: ... cache-backends". Explicitly
+        # creating a builder with the "docker-container" driver (what
+        # this action sets up by default) fixes that.
+        if: hashFiles('Dockerfile') != ''
+        uses: docker/setup-buildx-action@v4
+
       - name: Validate Dockerfile build (if present)
         if: hashFiles('Dockerfile') != ''
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: false
@@ -192,10 +202,10 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
