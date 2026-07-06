@@ -58,12 +58,12 @@ async function refreshSession() {
 
   _refreshInFlight = (async () => {
     try {
-      var r = await fetch(API + '/api/auth/refresh', {
+      const r = await fetch(`${API  }/api/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: refreshToken }),
+        body: JSON.stringify({ refreshToken }),
       });
-      var data = await r.json().catch(function () { return {}; });
+      const data = await r.json().catch(() => ({}));
       if (!r.ok) return false;
       setSession(data);
       return true;
@@ -82,14 +82,14 @@ async function refreshSession() {
 function forceLogout() {
   clearSession();
   if (typeof socket !== 'undefined' && socket) { try { socket.disconnect(); } catch (_) {} }
-  var authScreen = document.getElementById('authScreen');
+  const authScreen = document.getElementById('authScreen');
   if (authScreen) authScreen.classList.remove('hidden');
-  var mainNav = document.getElementById('mainNav');
-  var mainApp = document.getElementById('mainApp');
+  const mainNav = document.getElementById('mainNav');
+  const mainApp = document.getElementById('mainApp');
   if (mainNav) mainNav.style.display = 'none';
   if (mainApp) mainApp.style.display = 'none';
-  var bubble = document.getElementById('globalChatBubble');
-  var panel = document.getElementById('globalChatPanel');
+  const bubble = document.getElementById('globalChatBubble');
+  const panel = document.getElementById('globalChatPanel');
   if (bubble) bubble.style.display = 'none';
   if (panel) panel.style.display = 'none';
 }
@@ -101,15 +101,15 @@ function forceLogout() {
 async function api(path, opts, _isRetry) {
   opts = opts || {};
   opts.headers = Object.assign({}, opts.headers, { 'Content-Type': 'application/json' });
-  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (token) opts.headers['Authorization'] = `Bearer ${  token}`;
 
-  var r = await fetch(API + path, opts);
-  var data = await r.json().catch(function () { return {}; });
+  const r = await fetch(API + path, opts);
+  const data = await r.json().catch(() => ({}));
 
   if (!r.ok) {
-    var tokenStale = r.status === 401 && (data.code === 'TOKEN_EXPIRED' || data.code === 'TOKEN_REVOKED');
+    const tokenStale = r.status === 401 && (data.code === 'TOKEN_EXPIRED' || data.code === 'TOKEN_REVOKED');
     if (tokenStale && !_isRetry) {
-      var renewed = await refreshSession();
+      const renewed = await refreshSession();
       if (renewed) return api(path, opts, true);
       forceLogout();
     }

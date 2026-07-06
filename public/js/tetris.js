@@ -1,16 +1,16 @@
 // ── TETRIS MINI-GAME (modal, plays while searching for a match) ──────────────
 (function () {
-  var COLS = 9, ROWS = 18, CELL = 20;
-  var canvas, ctx;
-  var board, cur, curX, curY, score, running, paused, gameOver, scoreSaved;
-  var dropTimer = null, holdTimer = null, difficultyTimer = null, lockTimer = null;
-  var LOCK_DELAY_MS = 450;
-  var BASE_DROP_MS = 600, MIN_DROP_MS = 130;
-  var dropMs = BASE_DROP_MS;
-  var level = 1, linesCleared = 0, gameStartTime = 0;
-  var bestScore = Number(localStorage.getItem('chalk_tetris_best') || 0);
+  const COLS = 9; const ROWS = 18; const CELL = 20;
+  let canvas; let ctx;
+  let board; let cur; let curX; let curY; let score; let running; let paused; let gameOver; let scoreSaved;
+  let dropTimer = null; let holdTimer = null; let difficultyTimer = null; let lockTimer = null;
+  const LOCK_DELAY_MS = 450;
+  const BASE_DROP_MS = 600; const MIN_DROP_MS = 130;
+  let dropMs = BASE_DROP_MS;
+  let level = 1; let linesCleared = 0; let gameStartTime = 0;
+  let bestScore = Number(localStorage.getItem('chalk_tetris_best') || 0);
 
-  var SHAPES = {
+  const SHAPES = {
     I: [[1,1,1,1]],
     O: [[1,1],[1,1]],
     T: [[0,1,0],[1,1,1]],
@@ -19,18 +19,18 @@
     J: [[1,0,0],[1,1,1]],
     L: [[0,0,1],[1,1,1]]
   };
-  var COLORS = { I:'#22d3ee', O:'#facc15', T:'#a855f7', S:'#22c55e', Z:'#ef4444', J:'#3b82f6', L:'#f97316' };
+  const COLORS = { I:'#22d3ee', O:'#facc15', T:'#a855f7', S:'#22c55e', Z:'#ef4444', J:'#3b82f6', L:'#f97316' };
 
   function emptyBoard() {
-    var b = [];
-    for (var r = 0; r < ROWS; r++) b.push(new Array(COLS).fill(null));
+    const b = [];
+    for (let r = 0; r < ROWS; r++) b.push(new Array(COLS).fill(null));
     return b;
   }
 
   function newPiece() {
-    var keys = Object.keys(SHAPES);
-    var k = keys[Math.floor(Math.random() * keys.length)];
-    return { shape: SHAPES[k].map(function(row){ return row.slice() }), color: COLORS[k] };
+    const keys = Object.keys(SHAPES);
+    const k = keys[Math.floor(Math.random() * keys.length)];
+    return { shape: SHAPES[k].map((row) =>row.slice()), color: COLORS[k] };
   }
 
   function resetGame() {
@@ -64,10 +64,10 @@
   }
 
   function collides(shape, x, y) {
-    for (var r = 0; r < shape.length; r++) {
-      for (var c = 0; c < shape[r].length; c++) {
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
         if (!shape[r][c]) continue;
-        var nx = x + c, ny = y + r;
+        const nx = x + c; const ny = y + r;
         if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
         if (ny >= 0 && board[ny][nx]) return true;
       }
@@ -76,10 +76,10 @@
   }
 
   function merge() {
-    for (var r = 0; r < cur.shape.length; r++) {
-      for (var c = 0; c < cur.shape[r].length; c++) {
+    for (let r = 0; r < cur.shape.length; r++) {
+      for (let c = 0; c < cur.shape[r].length; c++) {
         if (cur.shape[r][c]) {
-          var ny = curY + r, nx = curX + c;
+          const ny = curY + r; const nx = curX + c;
           if (ny >= 0) board[ny][nx] = cur.color;
         }
       }
@@ -87,9 +87,9 @@
   }
 
   function clearLines() {
-    var cleared = 0;
-    for (var r = ROWS - 1; r >= 0; r--) {
-      if (board[r].every(function(cell){ return cell })) {
+    let cleared = 0;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r].every((cell) =>cell)) {
         board.splice(r, 1);
         board.unshift(new Array(COLS).fill(null));
         cleared++;
@@ -106,15 +106,15 @@
 
   // ── DIFFICULTY: speeds up the longer you survive AND the more lines you clear ─
   function recalcDifficulty() {
-    var elapsedSec = (Date.now() - gameStartTime) / 1000;
-    var timeLevel = Math.floor(elapsedSec / 15);        // +1 level every 15s survived
-    var lineLevel = Math.floor(linesCleared / 4);        // +1 level every 4 lines cleared
-    var newLevel = 1 + timeLevel + lineLevel;
+    const elapsedSec = (Date.now() - gameStartTime) / 1000;
+    const timeLevel = Math.floor(elapsedSec / 15);        // +1 level every 15s survived
+    const lineLevel = Math.floor(linesCleared / 4);        // +1 level every 4 lines cleared
+    const newLevel = 1 + timeLevel + lineLevel;
     if (newLevel !== level) {
       level = newLevel;
       updateScoreUI();
     }
-    var newDropMs = Math.max(MIN_DROP_MS, BASE_DROP_MS - (level - 1) * 35);
+    const newDropMs = Math.max(MIN_DROP_MS, BASE_DROP_MS - (level - 1) * 35);
     if (newDropMs !== dropMs) {
       dropMs = newDropMs;
       if (running && !paused && !gameOver) startLoop();
@@ -134,11 +134,11 @@
   }
 
   function rotateShape(shape) {
-    var rows = shape.length, cols = shape[0].length;
-    var res = [];
-    for (var c = 0; c < cols; c++) {
-      var row = [];
-      for (var r = rows - 1; r >= 0; r--) row.push(shape[r][c]);
+    const rows = shape.length; const cols = shape[0].length;
+    const res = [];
+    for (let c = 0; c < cols; c++) {
+      const row = [];
+      for (let r = rows - 1; r >= 0; r--) row.push(shape[r][c]);
       res.push(row);
     }
     return res;
@@ -170,7 +170,7 @@
 
   function tetrisRotate() {
     if (!running || paused || gameOver) return;
-    var rotated = rotateShape(cur.shape);
+    const rotated = rotateShape(cur.shape);
     if (!collides(rotated, curX, curY)) {
       cur.shape = rotated;
     } else if (!collides(rotated, curX - 1, curY)) {
@@ -222,14 +222,14 @@
   function draw() {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    for (var r = 0; r < ROWS; r++) {
-      for (var c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
         if (board[r][c]) drawCell(c, r, board[r][c]);
       }
     }
     if (!gameOver) {
-      for (var r2 = 0; r2 < cur.shape.length; r2++) {
-        for (var c2 = 0; c2 < cur.shape[r2].length; c2++) {
+      for (let r2 = 0; r2 < cur.shape.length; r2++) {
+        for (let c2 = 0; c2 < cur.shape[r2].length; c2++) {
           if (cur.shape[r2][c2]) drawCell(curX + c2, curY + r2, cur.color);
         }
       }
@@ -242,11 +242,11 @@
   }
 
   function updateScoreUI() {
-    var el = document.getElementById('tetrisScore');
+    const el = document.getElementById('tetrisScore');
     if (el) el.textContent = score;
-    var bestEl = document.getElementById('tetrisBest');
+    const bestEl = document.getElementById('tetrisBest');
     if (bestEl) bestEl.textContent = Math.max(bestScore, score);
-    var lvlEl = document.getElementById('tetrisLevel');
+    const lvlEl = document.getElementById('tetrisLevel');
     if (lvlEl) lvlEl.textContent = level;
   }
 
@@ -259,20 +259,20 @@
   }
 
   function showOverlay(text, btnText) {
-    var ov = document.getElementById('tetrisOverlay');
-    var txt = document.getElementById('tetrisOverlayText');
-    var btn = document.getElementById('tetrisStartBtn');
+    const ov = document.getElementById('tetrisOverlay');
+    const txt = document.getElementById('tetrisOverlayText');
+    const btn = document.getElementById('tetrisStartBtn');
     if (!ov) return;
     txt.textContent = text;
     btn.textContent = btnText;
     ov.classList.remove('hide');
   }
   function hideOverlay() {
-    var ov = document.getElementById('tetrisOverlay');
+    const ov = document.getElementById('tetrisOverlay');
     if (ov) ov.classList.add('hide');
   }
   function hideResult() {
-    var r = document.getElementById('tetrisResult');
+    const r = document.getElementById('tetrisResult');
     if (r) r.classList.add('hide');
   }
 
@@ -282,12 +282,12 @@
       localStorage.setItem('chalk_tetris_best', String(bestScore));
     }
     updateScoreUI();
-    var resEl = document.getElementById('tetrisResult');
-    var scoreEl = document.getElementById('tetrisResultScore');
-    var levelEl = document.getElementById('tetrisResultLevel');
-    var rankEl = document.getElementById('tetrisResultRank');
+    const resEl = document.getElementById('tetrisResult');
+    const scoreEl = document.getElementById('tetrisResultScore');
+    const levelEl = document.getElementById('tetrisResultLevel');
+    const rankEl = document.getElementById('tetrisResultRank');
     if (scoreEl) scoreEl.textContent = score;
-    if (levelEl) levelEl.textContent = T('status_level_reached') + ' ' + level;
+    if (levelEl) levelEl.textContent = `${T('status_level_reached')  } ${  level}`;
     if (rankEl) rankEl.textContent = T('games_saving_result');
     if (resEl) resEl.classList.remove('hide');
     hideOverlay();
@@ -298,10 +298,10 @@
     if (scoreSaved) return;
     scoreSaved = true;
     try {
-      var res = await api('/api/games/tetris/score', { method: 'POST', body: JSON.stringify({ score: finalScore }) });
+      const res = await api('/api/games/tetris/score', { method: 'POST', body: JSON.stringify({ score: finalScore }) });
       if (rankEl) {
-        rankEl.innerHTML = '🏆 ' + T('rating_place_label') + ' #' + res.rank + ' ' + T('unit_from') + ' ' + res.totalPlayers +
-          '<div class="tetris-result-best">' + T('games_record_colon') + ' ' + res.bestScore + '</div>';
+        rankEl.innerHTML = `🏆 ${  T('rating_place_label')  } #${  res.rank  } ${  T('unit_from')  } ${  res.totalPlayers 
+          }<div class="tetris-result-best">${  T('games_record_colon')  } ${  res.bestScore  }</div>`;
       }
     } catch (e) {
       if (rankEl) rankEl.textContent = T('games_err_save_result');
@@ -310,23 +310,23 @@
   }
 
   async function loadLeaderboard() {
-    var list = document.getElementById('tetrisLeaderboardList');
-    var myRankEl = document.getElementById('tetrisMyRank');
+    const list = document.getElementById('tetrisLeaderboardList');
+    const myRankEl = document.getElementById('tetrisMyRank');
     if (!list) return;
     try {
-      var res = await api('/api/games/tetris/leaderboard?limit=10');
-      var rows = (res.top || []).map(function (row) {
-        var isMe = currentUser && row.userId === currentUser.id;
-        return '<div class="tetris-lb-row' + (isMe ? ' me' : '') + '">' +
-          '<span class="tetris-lb-rank">' + row.rank + '</span>' +
-          '<span class="tetris-lb-ava">' + (row.avatarEmoji || '🎮') + '</span>' +
-          '<span class="tetris-lb-name">' + row.username + '</span>' +
-          '<span class="tetris-lb-score">' + row.bestScore + '</span>' +
-          '</div>';
+      const res = await api('/api/games/tetris/leaderboard?limit=10');
+      const rows = (res.top || []).map((row) => {
+        const isMe = currentUser && row.userId === currentUser.id;
+        return `<div class="tetris-lb-row${  isMe ? ' me' : ''  }">` +
+          `<span class="tetris-lb-rank">${  row.rank  }</span>` +
+          `<span class="tetris-lb-ava">${  row.avatarEmoji || '🎮'  }</span>` +
+          `<span class="tetris-lb-name">${  row.username  }</span>` +
+          `<span class="tetris-lb-score">${  row.bestScore  }</span>` +
+          `</div>`;
       });
-      list.innerHTML = rows.length ? rows.join('') : '<div style="font-size:11px;color:var(--muted);padding:6px 2px">' + T('games_none_played') + ' — ' + T('msg_be_first_excl') + '</div>';
+      list.innerHTML = rows.length ? rows.join('') : `<div style="font-size:11px;color:var(--muted);padding:6px 2px">${  T('games_none_played')  } — ${  T('msg_be_first_excl')  }</div>`;
       if (myRankEl) {
-        myRankEl.textContent = res.me ? (T('rating_your_place') + ' #' + res.me.rank + ' (' + res.me.bestScore + ' ' + T('unit_points_dot') + ')') : '';
+        myRankEl.textContent = res.me ? (`${T('rating_your_place')  } #${  res.me.rank  } (${  res.me.bestScore  } ${  T('unit_points_dot')  })`) : '';
       }
     } catch (e) {
       list.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:6px 2px"><span data-i18n="rating_err_load">Не удалось загрузить рейтинг</span></div>';
@@ -359,10 +359,10 @@
   };
 
   window.openTetrisModal = function () {
-    var modal = document.getElementById('tetrisModal');
+    const modal = document.getElementById('tetrisModal');
     if (!modal) return;
     modal.classList.add('show');
-    var pill = document.getElementById('tetrisModalSearchPill');
+    const pill = document.getElementById('tetrisModalSearchPill');
     if (pill) pill.style.display = isSearching ? 'inline-flex' : 'none';
     if (!canvas) {
       canvas = document.getElementById('tetrisCanvas');
@@ -378,7 +378,7 @@
   };
 
   window.closeTetrisModal = function () {
-    var modal = document.getElementById('tetrisModal');
+    const modal = document.getElementById('tetrisModal');
     if (modal) modal.classList.remove('show');
     tetrisPause();
   };
@@ -388,7 +388,7 @@
   // ── Touch / mouse hold-to-repeat (side buttons) ───────────────────────────
   window.tetrisHold = function (dir) {
     if (!running || paused || gameOver) return;
-    var fn = dir === 'left' ? function(){ move(-1) } : dir === 'right' ? function(){ move(1) } : function(){ softDrop() };
+    const fn = dir === 'left' ? function(){ move(-1) } : dir === 'right' ? function(){ move(1) } : function(){ softDrop() };
     fn();
     clearInterval(holdTimer);
     holdTimer = setInterval(fn, 110);
@@ -399,10 +399,10 @@
   };
 
   // ── Keyboard hold-to-repeat (arrow keys keep moving while held down) ─────
-  var keyHoldTimer = null;
-  var activeKey = null;
-  document.addEventListener('keydown', function (e) {
-    var modal = document.getElementById('tetrisModal');
+  let keyHoldTimer = null;
+  let activeKey = null;
+  document.addEventListener('keydown', (e) => {
+    const modal = document.getElementById('tetrisModal');
     if (!modal || !modal.classList.contains('show')) return;
     if (e.key === 'Escape') { closeTetrisModal(); return; }
     if (!running || paused || gameOver) return;
@@ -412,19 +412,19 @@
     if (e.key === 'ArrowUp') { tetrisRotate(); return; }
     if (activeKey === e.key) return;
     activeKey = e.key;
-    var fn = e.key === 'ArrowLeft' ? function(){ move(-1) } : e.key === 'ArrowRight' ? function(){ move(1) } : function(){ softDrop() };
+    const fn = e.key === 'ArrowLeft' ? function(){ move(-1) } : e.key === 'ArrowRight' ? function(){ move(1) } : function(){ softDrop() };
     fn();
     clearInterval(keyHoldTimer);
     keyHoldTimer = setInterval(fn, 110);
   });
-  document.addEventListener('keyup', function (e) {
+  document.addEventListener('keyup', (e) => {
     if (e.key === activeKey) {
       clearInterval(keyHoldTimer);
       keyHoldTimer = null;
       activeKey = null;
     }
   });
-  window.addEventListener('blur', function () {
+  window.addEventListener('blur', () => {
     clearInterval(keyHoldTimer);
     keyHoldTimer = null;
     activeKey = null;

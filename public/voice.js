@@ -2,11 +2,11 @@ const FALLBACK_APP_ID = "78a6c18e54f34fe5a13aa04b4a2d89f3";
 
 let client = null;
 let microphoneTrack = null;
-let remoteAudioTracks = new Map();
+const remoteAudioTracks = new Map();
 
 // Per-user volume overrides, keyed by the numeric Agora uid (string).
 // Values are 0-200, where 100 is the normal/default volume.
-let userVolumes = new Map();
+const userVolumes = new Map();
 
 let voiceState = {
   joined: false,
@@ -127,7 +127,7 @@ function ensureVoiceClient() {
 async function requestVoiceToken(channelName, uid) {
   const authToken = localStorage.getItem("chalk_token");
   const headers = {};
-  if (authToken) headers["Authorization"] = "Bearer " + authToken;
+  if (authToken) headers["Authorization"] = `Bearer ${  authToken}`;
 
   const response = await fetch(
     `/api/agora/token?channel=${encodeURIComponent(channelName)}&uid=${encodeURIComponent(uid || 0)}`,
@@ -140,7 +140,7 @@ async function requestVoiceToken(channelName, uid) {
       const body = await response.json();
       detail = body && body.error ? body.error : "";
     } catch (_) {}
-    throw new Error("Voice token request failed" + (detail ? `: ${detail}` : ""));
+    throw new Error(`Voice token request failed${  detail ? `: ${detail}` : ""}`);
   }
 
   return response.json();
@@ -195,8 +195,8 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
       new CustomEvent("voice:status", {
         detail: {
           type: "error",
-          message: "Не удалось подключиться к голосовому чату" +
-            (error && error.message ? ` (${error.message})` : "")
+          message: `Не удалось подключиться к голосовому чату${ 
+            error && error.message ? ` (${error.message})` : ""}`
         }
       })
     );

@@ -10,16 +10,16 @@ function switchAddFriendTab(tab) {
 }
 
 async function loadBlockedUsers() {
-  var el = document.getElementById('afBlockedList');
+  const el = document.getElementById('afBlockedList');
   el.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px 4px"><span data-i18n="status_loading">Загрузка...</span></div>';
   try {
-    var data = await api('/api/users/me/blocked');
-    var rows = data.blocked || [];
+    const data = await api('/api/users/me/blocked');
+    const rows = data.blocked || [];
     if (!rows.length) { el.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px 4px"><span data-i18n="blocked_none">Нет заблокированных пользователей</span></div>'; return; }
-    el.innerHTML = rows.map(function(r){
-      var b = r.blocked;
-      var uname = escHtml(b.username).replace(/'/g,"\\'");
-      return '<div class="blocked-list-item"><div class="friend-ava" style="width:30px;height:30px;font-size:13px;background:linear-gradient(135deg,#7c3aed,#ec4899)">' + avatarHtml(b.avatar_emoji, b.avatar_url) + '</div><span class="friend-name">' + escHtml(b.username) + '</span><button class="blocked-unblock-btn" onclick="unblockUserAction(\'' + b.id + '\',\'' + uname + '\')"><span data-i18n="blocked_unblock_btn">Разблокировать</span></button></div>';
+    el.innerHTML = rows.map((r) =>{
+      const b = r.blocked;
+      const uname = escHtml(b.username).replace(/'/g,"\\'");
+      return `<div class="blocked-list-item"><div class="friend-ava" style="width:30px;height:30px;font-size:13px;background:linear-gradient(135deg,#7c3aed,#ec4899)">${  avatarHtml(b.avatar_emoji, b.avatar_url)  }</div><span class="friend-name">${  escHtml(b.username)  }</span><button class="blocked-unblock-btn" onclick="unblockUserAction('${  b.id  }','${  uname  }')"><span data-i18n="blocked_unblock_btn">Разблокировать</span></button></div>`;
     }).join('');
   } catch(e) {
     el.innerHTML = '<div style="font-size:11px;color:var(--muted);padding:8px 4px"><span data-i18n="blocked_err_load">Не удалось загрузить список</span></div>';
@@ -40,7 +40,7 @@ function openAddFriend() {
   afSelectedUser = null;
   switchAddFriendTab(pendingFriendRequests.length > 0 ? 'requests' : 'add');
   if (pendingFriendRequests.length === 0) {
-    setTimeout(function(){ document.getElementById('afUsername').focus(); }, 50);
+    setTimeout(() =>{ document.getElementById('afUsername').focus(); }, 50);
   }
 }
 
@@ -50,13 +50,13 @@ function closeAddFriend() {
 }
 
 function afShowError(msg) {
-  var el = document.getElementById('afError');
+  const el = document.getElementById('afError');
   el.textContent = msg;
   el.classList.add('show');
 }
 
 function afCloseSearchDropdown() {
-  var dd = document.getElementById('afSearchDropdown');
+  const dd = document.getElementById('afSearchDropdown');
   dd.classList.remove('open');
   dd.innerHTML = '';
   afSearchResults = [];
@@ -70,16 +70,16 @@ function afOnUsernameInput(value) {
   if (afSelectedUser && value.trim().toLowerCase() !== afSelectedUser.username.toLowerCase()) {
     afSelectedUser = null;
   }
-  var q = value.trim();
+  const q = value.trim();
   clearTimeout(afSearchTimer);
   if (q.length < 1) { afCloseSearchDropdown(); return; }
-  afSearchTimer = setTimeout(function(){ afRunSearch(q); }, 220);
+  afSearchTimer = setTimeout(() =>{ afRunSearch(q); }, 220);
 }
 
 async function afRunSearch(q) {
-  var seq = ++afSearchSeq;
+  const seq = ++afSearchSeq;
   try {
-    var data = await api('/api/users/search?username=' + encodeURIComponent(q) + '&limit=8');
+    const data = await api(`/api/users/search?username=${  encodeURIComponent(q)  }&limit=8`);
     if (seq !== afSearchSeq) return; // a newer keystroke already superseded this request
     afSearchResults = data.users || [];
     afRenderSearchDropdown();
@@ -89,27 +89,27 @@ async function afRunSearch(q) {
 }
 
 function afRenderSearchDropdown() {
-  var dd = document.getElementById('afSearchDropdown');
+  const dd = document.getElementById('afSearchDropdown');
   afSearchActiveIndex = -1;
   if (!afSearchResults.length) {
-    dd.innerHTML = '<div class="af-search-empty">' + T('user_not_found') + '</div>';
+    dd.innerHTML = `<div class="af-search-empty">${  T('user_not_found')  }</div>`;
     dd.classList.add('open');
     return;
   }
-  dd.innerHTML = afSearchResults.map(function(u, i){
-    var already = currentFriendIds.has(String(u.id));
-    var uname = escHtml(u.username).replace(/'/g,"\\'");
-    return '<div class="af-search-item" data-idx="' + i + '" onclick="afSelectUser(\'' + u.id + '\',\'' + uname + '\')">'
-      + '<div class="friend-ava" style="width:28px;height:28px;font-size:12px">' + avatarHtml(u.avatar_emoji, u.avatar_url) + '</div>'
-      + '<div class="af-search-item-name">' + escHtml(u.username) + '</div>'
-      + (already ? '<div class="af-search-item-tag">' + T('friends_already') + '</div>' : '')
-      + '</div>';
+  dd.innerHTML = afSearchResults.map((u, i) =>{
+    const already = currentFriendIds.has(String(u.id));
+    const uname = escHtml(u.username).replace(/'/g,"\\'");
+    return `<div class="af-search-item" data-idx="${  i  }" onclick="afSelectUser('${  u.id  }','${  uname  }')">`
+      + `<div class="friend-ava" style="width:28px;height:28px;font-size:12px">${  avatarHtml(u.avatar_emoji, u.avatar_url)  }</div>`
+      + `<div class="af-search-item-name">${  escHtml(u.username)  }</div>${
+       already ? `<div class="af-search-item-tag">${  T('friends_already')  }</div>` : ''
+       }</div>`;
   }).join('');
   dd.classList.add('open');
 }
 
 function afSelectUser(id, username) {
-  afSelectedUser = { id: id, username: username };
+  afSelectedUser = { id, username };
   document.getElementById('afUsername').value = username;
   afCloseSearchDropdown();
 }
@@ -118,7 +118,7 @@ function afUsernameKeydown(event) {
   if (event.key === 'Enter') {
     event.preventDefault();
     if (afSearchActiveIndex >= 0 && afSearchResults[afSearchActiveIndex]) {
-      var u = afSearchResults[afSearchActiveIndex];
+      const u = afSearchResults[afSearchActiveIndex];
       afSelectUser(u.id, u.username);
     } else {
       sendFriendRequest();
@@ -128,36 +128,36 @@ function afUsernameKeydown(event) {
   if (!afSearchResults.length) return;
   if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
     event.preventDefault();
-    var items = document.querySelectorAll('#afSearchDropdown .af-search-item');
+    const items = document.querySelectorAll('#afSearchDropdown .af-search-item');
     afSearchActiveIndex += event.key === 'ArrowDown' ? 1 : -1;
     if (afSearchActiveIndex < 0) afSearchActiveIndex = items.length - 1;
     if (afSearchActiveIndex >= items.length) afSearchActiveIndex = 0;
-    items.forEach(function(el, i){ el.classList.toggle('active', i === afSearchActiveIndex); });
+    items.forEach((el, i) =>{ el.classList.toggle('active', i === afSearchActiveIndex); });
   } else if (event.key === 'Escape') {
     afCloseSearchDropdown();
   }
 }
 
-document.addEventListener('click', function(e){
-  var wrap = document.querySelector('.af-search-wrap');
+document.addEventListener('click', (e) =>{
+  const wrap = document.querySelector('.af-search-wrap');
   if (wrap && !wrap.contains(e.target)) afCloseSearchDropdown();
 });
 
 async function sendFriendRequest() {
-  var username = document.getElementById('afUsername').value.trim();
+  const username = document.getElementById('afUsername').value.trim();
   if (!username) return afShowError(T('friends_enter_nickname'));
   if (username.toLowerCase() === (currentUser.username || '').toLowerCase()) return afShowError(T('friends_this_is_you'));
 
-  var btn = document.getElementById('afSendBtn');
+  const btn = document.getElementById('afSendBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="loading-spinner"></span>' + T('auth_sending');
+  btn.innerHTML = `<span class="loading-spinner"></span>${  T('auth_sending')}`;
   try {
-    var targetId, targetUsername;
+    let targetId; let targetUsername;
     if (afSelectedUser && afSelectedUser.username.toLowerCase() === username.toLowerCase()) {
       targetId = afSelectedUser.id;
       targetUsername = afSelectedUser.username;
     } else {
-      var found = await api('/api/users/search?username=' + encodeURIComponent(username) + '&exact=1');
+      const found = await api(`/api/users/search?username=${  encodeURIComponent(username)  }&exact=1`);
       targetId = found.user.id;
       targetUsername = found.user.username;
     }
@@ -166,7 +166,7 @@ async function sendFriendRequest() {
       return;
     }
     await api('/api/friends/request', { method: 'POST', body: JSON.stringify({ targetUserId: targetId }) });
-    showToast(T('friends_request_sent') + ' ' + targetUsername + ' \u2713');
+    showToast(`${T('friends_request_sent')  } ${  targetUsername  } \u2713`);
     closeAddFriend();
     loadFriends();
   } catch(e) {

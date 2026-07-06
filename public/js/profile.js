@@ -5,7 +5,7 @@ function langLabel(l) { return LANG_LABELS[l] || l.toUpperCase(); }
 var GAME_LABELS = { valorant: 'Valorant', cs2: 'CS2', apex: 'Apex Legends', lol: 'League of Legends', fortnite: 'Fortnite', dota2: 'Dota 2', overwatch: 'Overwatch 2', pubg: 'PUBG', minecraft: 'Minecraft', genshin: 'Genshin Impact', roblox: 'Roblox', gta5: 'GTA V', amongus: 'Among Us', r6siege: 'Rainbow Six Siege', wow: 'World of Warcraft', mlbb: 'Mobile Legends', chat: T('match_simple_chat') };
 
 function avatarHtml(emoji, url) {
-  if (url) return '<img src="' + url + '" alt="">';
+  if (url) return `<img src="${  url  }" alt="">`;
   return escHtml(emoji || '🎮');
 }
 
@@ -22,8 +22,8 @@ function getParticipantId(p) {
 }
 
 function participantIsAlreadyFriend(p) {
-  var pid = getParticipantId(p);
-  return !!(pid && currentFriendIds.has(String(pid)));
+  const pid = getParticipantId(p);
+  return Boolean(pid && currentFriendIds.has(String(pid)));
 }
 
 function genderLabel(g) { return GENDER_LABELS[g] || T('profile_not_specified'); }
@@ -31,11 +31,11 @@ function genderLabel(g) { return GENDER_LABELS[g] || T('profile_not_specified');
 // ── THEME (light / dark) ────────────────────────────────────────────────────
 function applyTheme(theme) {
   document.documentElement.classList.toggle('light-theme', theme === 'light');
-  var icon = theme === 'light' ? '🌙' : '☀️';
-  var label = theme === 'light' ? '🌙 ' + T('theme_dark') : '☀️ ' + T('theme_light');
-  var authBtn    = document.getElementById('authThemeToggle');
-  var navBtn     = document.getElementById('navThemeToggle');
-  var profileBtn = document.getElementById('profileThemeToggle');
+  const icon = theme === 'light' ? '🌙' : '☀️';
+  const label = theme === 'light' ? `🌙 ${  T('theme_dark')}` : `☀️ ${  T('theme_light')}`;
+  const authBtn    = document.getElementById('authThemeToggle');
+  const navBtn     = document.getElementById('navThemeToggle');
+  const profileBtn = document.getElementById('profileThemeToggle');
   if (authBtn) authBtn.textContent = icon;
   if (navBtn)  navBtn.textContent  = icon;
   if (profileBtn) profileBtn.textContent = label;
@@ -43,7 +43,7 @@ function applyTheme(theme) {
 }
 
 function toggleTheme() {
-  var isLight = document.documentElement.classList.contains('light-theme');
+  const isLight = document.documentElement.classList.contains('light-theme');
   applyTheme(isLight ? 'dark' : 'light');
 }
 
@@ -51,19 +51,19 @@ function toggleTheme() {
 applyTheme(document.documentElement.classList.contains('light-theme') ? 'light' : 'dark');
 
 // ── PRESENCE STATUS (online / away / busy) ─────────────────────────────────
-function PRESENCE_LABELS() { return { online: '🟢 ' + T('status_online'), away: '🌙 ' + T('call_away'), busy: '⛔ ' + T('call_busy') }; }
+function PRESENCE_LABELS() { return { online: `🟢 ${  T('status_online')}`, away: `🌙 ${  T('call_away')}`, busy: `⛔ ${  T('call_busy')}` }; }
 
 function onlineDotHtml() {
-  var p = (currentUser && currentUser.presence) || 'online';
-  return '<div class="online-dot presence-' + p + '" id="sidebarOnlineDot"></div>';
+  const p = (currentUser && currentUser.presence) || 'online';
+  return `<div class="online-dot presence-${  p  }" id="sidebarOnlineDot"></div>`;
 }
 
 function updatePresenceUI() {
-  var p = (currentUser && currentUser.presence) || 'online';
-  var label = document.getElementById('statusLabel');
-  if (label) { var __pl = PRESENCE_LABELS(); label.textContent = __pl[p] || __pl.online; }
-  var dot = document.getElementById('sidebarOnlineDot');
-  if (dot) dot.className = 'online-dot presence-' + p;
+  const p = (currentUser && currentUser.presence) || 'online';
+  const label = document.getElementById('statusLabel');
+  if (label) { const __pl = PRESENCE_LABELS(); label.textContent = __pl[p] || __pl.online; }
+  const dot = document.getElementById('sidebarOnlineDot');
+  if (dot) dot.className = `online-dot presence-${  p}`;
 }
 
 function toggleStatusMenu(event) {
@@ -71,8 +71,8 @@ function toggleStatusMenu(event) {
   document.getElementById('statusMenu').classList.toggle('show');
 }
 
-document.addEventListener('click', function() {
-  var menu = document.getElementById('statusMenu');
+document.addEventListener('click', () => {
+  const menu = document.getElementById('statusMenu');
   if (menu) menu.classList.remove('show');
 });
 
@@ -84,7 +84,7 @@ function setMyPresence(p) {
   if (socket && socket.connected) {
     socket.emit('presence:set', { presence: p });
   } else {
-    api('/api/users/me', { method: 'PATCH', body: JSON.stringify({ presence: p }) }).catch(function(){});
+    api('/api/users/me', { method: 'PATCH', body: JSON.stringify({ presence: p }) }).catch(() =>{});
   }
 }
 
@@ -93,10 +93,10 @@ function setMyPresence(p) {
 // GIFs are the one exception: canvas would flatten them to a single frame,
 // so animated GIFs are embedded as-is (still capped in size) to keep the animation.
 function handleAvatarFile(event, previewElId) {
-  var file = event.target.files && event.target.files[0];
+  const file = event.target.files && event.target.files[0];
   if (!file) return;
   if (!file.type.startsWith('image/')) { showToast(T('profile_choose_image_file')); return; }
-  if (file.size > 8 * 1024 * 1024) { showToast(T('profile_file_too_large') + ' (' + T('unit_max_dot') + ' 8 ' + T('unit_mb') + ')'); return; }
+  if (file.size > 8 * 1024 * 1024) { showToast(`${T('profile_file_too_large')  } (${  T('unit_max_dot')  } 8 ${  T('unit_mb')  })`); return; }
 
   if (file.type === 'image/gif') {
     // Base64 inflates size ~33%, and the server caps avatar_url at 1.5M chars —
@@ -105,11 +105,11 @@ function handleAvatarFile(event, previewElId) {
       showToast('GIF слишком большой для аватарки (макс. 1 МБ)');
       return;
     }
-    var gifReader = new FileReader();
+    const gifReader = new FileReader();
     gifReader.onload = function() {
-      var dataUrl = gifReader.result;
-      var preview = document.getElementById(previewElId);
-      preview.innerHTML = '<img src="' + dataUrl + '" alt="">';
+      const dataUrl = gifReader.result;
+      const preview = document.getElementById(previewElId);
+      preview.innerHTML = `<img src="${  dataUrl  }" alt="">`;
       if (previewElId === 'obAvatarPreview') obData.avatar_url = dataUrl;
       if (previewElId === 'epAvatarPreview') epData.avatar_url = dataUrl;
     };
@@ -117,20 +117,20 @@ function handleAvatarFile(event, previewElId) {
     return;
   }
 
-  var reader = new FileReader();
+  const reader = new FileReader();
   reader.onload = function() {
-    var img = new Image();
+    const img = new Image();
     img.onload = function() {
-      var size = 256;
-      var canvas = document.createElement('canvas');
+      const size = 256;
+      const canvas = document.createElement('canvas');
       canvas.width = size; canvas.height = size;
-      var ctx = canvas.getContext('2d');
-      var side = Math.min(img.width, img.height);
-      var sx = (img.width - side) / 2, sy = (img.height - side) / 2;
+      const ctx = canvas.getContext('2d');
+      const side = Math.min(img.width, img.height);
+      const sx = (img.width - side) / 2; const sy = (img.height - side) / 2;
       ctx.drawImage(img, sx, sy, side, side, 0, 0, size, size);
-      var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      var preview = document.getElementById(previewElId);
-      preview.innerHTML = '<img src="' + dataUrl + '" alt="">';
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const preview = document.getElementById(previewElId);
+      preview.innerHTML = `<img src="${  dataUrl  }" alt="">`;
       if (previewElId === 'obAvatarPreview') obData.avatar_url = dataUrl;
       if (previewElId === 'epAvatarPreview') epData.avatar_url = dataUrl;
     };
@@ -141,9 +141,9 @@ function handleAvatarFile(event, previewElId) {
 
 // Generic single/multi-select chip toggler shared by onboarding + edit modal
 function selectChip(el, groupId, singleSelect) {
-  var group = document.getElementById(groupId);
+  const group = document.getElementById(groupId);
   if (singleSelect) {
-    group.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('selected') });
+    group.querySelectorAll('.chip').forEach((c) =>{ c.classList.remove('selected') });
     el.classList.add('selected');
   } else {
     el.classList.toggle('selected');
@@ -151,13 +151,13 @@ function selectChip(el, groupId, singleSelect) {
 }
 
 function getSelectedChipValues(groupId) {
-  var group = document.getElementById(groupId);
-  return Array.prototype.map.call(group.querySelectorAll('.chip.selected'), function(c){ return c.dataset.value; });
+  const group = document.getElementById(groupId);
+  return Array.prototype.map.call(group.querySelectorAll('.chip.selected'), (c) =>c.dataset.value);
 }
 
 function setSelectedChipValues(groupId, values) {
   values = values || [];
-  document.getElementById(groupId).querySelectorAll('.chip').forEach(function(c){
+  document.getElementById(groupId).querySelectorAll('.chip').forEach((c) =>{
     c.classList.toggle('selected', values.indexOf(c.dataset.value) !== -1);
   });
 }
@@ -181,10 +181,10 @@ function startOnboarding() {
 }
 
 function renderObStep() {
-  document.querySelectorAll('.ob-step').forEach(function(s){ s.classList.remove('active') });
-  document.getElementById('obStep' + obStep).classList.add('active');
-  document.querySelectorAll('.ob-dot').forEach(function(d){
-    var n = parseInt(d.dataset.step);
+  document.querySelectorAll('.ob-step').forEach((s) =>{ s.classList.remove('active') });
+  document.getElementById(`obStep${  obStep}`).classList.add('active');
+  document.querySelectorAll('.ob-dot').forEach((d) =>{
+    const n = parseInt(d.dataset.step, 10);
     d.classList.toggle('active', n === obStep);
     d.classList.toggle('done', n < obStep);
   });
@@ -195,7 +195,7 @@ function renderObStep() {
 }
 
 function obShowError(msg) {
-  var el = document.getElementById('obError');
+  const el = document.getElementById('obError');
   el.textContent = msg;
   el.classList.add('show');
 }
@@ -206,27 +206,27 @@ function obBack() {
 
 async function obNext() {
   if (obStep === 1) {
-    var nickname = document.getElementById('obNickname').value.trim();
+    const nickname = document.getElementById('obNickname').value.trim();
     if (nickname.length < 3) return obShowError(T('auth_err_nickname_min3'));
     obData.username = nickname;
     obStep = 2; renderObStep(); return;
   }
   if (obStep === 2) {
-    var age = parseInt(document.getElementById('obAge').value, 10);
-    var gender = getSelectedChipValues('obGenderChips')[0];
-    if (!age || age < 13 || age > 100) return obShowError(T('ob_err_specify_real_age') + ' (13\u201300)');
+    const age = parseInt(document.getElementById('obAge').value, 10);
+    const gender = getSelectedChipValues('obGenderChips')[0];
+    if (!age || age < 13 || age > 100) return obShowError(`${T('ob_err_specify_real_age')  } (13\u201300)`);
     if (!gender) return obShowError(T('err_choose_gender'));
     obData.age = age; obData.gender = gender;
     obStep = 3; renderObStep(); return;
   }
   if (obStep === 3) {
-    var langs = getSelectedChipValues('obLangChips');
+    const langs = getSelectedChipValues('obLangChips');
     if (!langs.length) return obShowError(T('ob_choose_at_least_one_lang'));
     obData.languages = langs;
     obStep = 4; renderObStep(); return;
   }
   if (obStep === 4) {
-    obData.games = getSelectedChipValues('obGameChips').map(function(id){ return { game_id: id }; });
+    obData.games = getSelectedChipValues('obGameChips').map((id) =>({ game_id: id }));
     await finishOnboarding();
   }
 }
@@ -236,24 +236,24 @@ async function obSkip() {
   // makes sense, but lets the player jump straight past games/avatar.
   if (obStep < 2) { obStep = 2; renderObStep(); return; }
   if (obStep === 2) {
-    var age = parseInt(document.getElementById('obAge').value, 10);
-    var gender = getSelectedChipValues('obGenderChips')[0];
+    const age = parseInt(document.getElementById('obAge').value, 10);
+    const gender = getSelectedChipValues('obGenderChips')[0];
     if (!age || age < 13 || age > 100 || !gender) return obShowError(T('ob_err_age_gender_required'));
     obData.age = age; obData.gender = gender;
   }
   if (!obData.languages) obData.languages = getSelectedChipValues('obLangChips').length ? getSelectedChipValues('obLangChips') : ['ru'];
-  obData.games = getSelectedChipValues('obGameChips').map(function(id){ return { game_id: id }; });
+  obData.games = getSelectedChipValues('obGameChips').map((id) =>({ game_id: id }));
   await finishOnboarding();
 }
 
 async function finishOnboarding() {
-  var btn = document.getElementById('obNextBtn');
+  const btn = document.getElementById('obNextBtn');
   btn.disabled = true;
   try {
-    var data = await api('/api/users/me/onboarding', { method: 'POST', body: JSON.stringify(obData) });
+    const data = await api('/api/users/me/onboarding', { method: 'POST', body: JSON.stringify(obData) });
     currentUser = Object.assign({}, currentUser, data.user);
     bootApp();
-    showToast(T('profile_ready') + ' \ud83c\udf89');
+    showToast(`${T('profile_ready')  } \ud83c\udf89`);
   } catch(e) {
     obShowError(e.message);
   } finally {
@@ -268,7 +268,7 @@ async function openEditProfile() {
   epData = { avatar_url: currentUser.avatar_url || null };
   document.getElementById('epNickname').value = currentUser.username || '';
   document.getElementById('epBio').value = currentUser.bio || '';
-  document.getElementById('epBioCount').textContent = (currentUser.bio || '').length + '/200';
+  document.getElementById('epBioCount').textContent = `${(currentUser.bio || '').length  }/200`;
   document.getElementById('epAge').value = currentUser.age || '';
   document.getElementById('epAvatarPreview').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
   setSelectedChipValues('epGenderChips', currentUser.gender ? [currentUser.gender] : []);
@@ -277,8 +277,8 @@ async function openEditProfile() {
 
   // Pre-fill currently selected games
   try {
-    var data = await api('/api/users/' + currentUser.id);
-    var gameIds = (data.user.user_games || []).map(function(g){ return g.game_id; });
+    const data = await api(`/api/users/${  currentUser.id}`);
+    const gameIds = (data.user.user_games || []).map((g) =>g.game_id);
     setSelectedChipValues('epGameChips', gameIds);
   } catch(_) {
     setSelectedChipValues('epGameChips', []);
@@ -292,34 +292,34 @@ function closeEditProfile() {
 }
 
 async function saveEditProfile() {
-  var nickname = document.getElementById('epNickname').value.trim();
-  var bio = document.getElementById('epBio').value.trim();
-  var age = parseInt(document.getElementById('epAge').value, 10);
-  var gender = getSelectedChipValues('epGenderChips')[0];
-  var langs = getSelectedChipValues('epLangChips');
-  var gameIds = getSelectedChipValues('epGameChips');
+  const nickname = document.getElementById('epNickname').value.trim();
+  const bio = document.getElementById('epBio').value.trim();
+  const age = parseInt(document.getElementById('epAge').value, 10);
+  const gender = getSelectedChipValues('epGenderChips')[0];
+  const langs = getSelectedChipValues('epLangChips');
+  const gameIds = getSelectedChipValues('epGameChips');
 
   if (nickname.length < 3) return epShowError(T('auth_err_nickname_min3'));
-  if (!age || age < 13 || age > 100) return epShowError(T('ob_err_specify_real_age') + ' (13\u201300)');
+  if (!age || age < 13 || age > 100) return epShowError(`${T('ob_err_specify_real_age')  } (13\u201300)`);
   if (!gender) return epShowError(T('err_choose_gender'));
   if (!langs.length) return epShowError(T('ob_choose_at_least_one_lang'));
 
-  var btn = document.getElementById('epSaveBtn');
+  const btn = document.getElementById('epSaveBtn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="loading-spinner"></span>' + T('profile_saving');
+  btn.innerHTML = `<span class="loading-spinner"></span>${  T('profile_saving')}`;
   try {
-    var profileUpdate = { username: nickname, age: age, gender: gender, languages: langs, bio: bio };
+    const profileUpdate = { username: nickname, age, gender, languages: langs, bio };
     if (epData.avatar_url) profileUpdate.avatar_url = epData.avatar_url;
 
-    var data = await api('/api/users/me', { method: 'PATCH', body: JSON.stringify(profileUpdate) });
-    await api('/api/users/me/games', { method: 'PUT', body: JSON.stringify({ games: gameIds.map(function(id){ return { game_id: id }; }) }) });
+    const data = await api('/api/users/me', { method: 'PATCH', body: JSON.stringify(profileUpdate) });
+    await api('/api/users/me/games', { method: 'PUT', body: JSON.stringify({ games: gameIds.map((id) =>({ game_id: id })) }) });
 
     currentUser = Object.assign({}, currentUser, data.user);
     closeEditProfile();
     document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + onlineDotHtml();
     document.getElementById('sidebarName').textContent = currentUser.username;
     loadProfile();
-    showToast(T('profile_updated') + ' \u2713');
+    showToast(`${T('profile_updated')  } \u2713`);
   } catch(e) {
     epShowError(e.message);
   } finally {
@@ -329,7 +329,7 @@ async function saveEditProfile() {
 }
 
 function epShowError(msg) {
-  var el = document.getElementById('epError');
+  const el = document.getElementById('epError');
   el.textContent = msg;
   el.classList.add('show');
 }

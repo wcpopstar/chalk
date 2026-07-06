@@ -7,7 +7,7 @@ var featureFlags = {};
 
 async function loadFeatureFlags() {
   try {
-    var data = await api('/api/flags');
+    const data = await api('/api/flags');
     featureFlags = data.flags || {};
   } catch (e) {
     // If this fails, leave every feature visible — the server-side
@@ -24,9 +24,9 @@ function isFeatureEnabled(key) {
 }
 
 function applyFeatureFlagsToUI() {
-  var discoverTab = document.getElementById('navTabDiscover');
+  const discoverTab = document.getElementById('navTabDiscover');
   if (discoverTab) discoverTab.style.display = isFeatureEnabled('discovery.enabled') ? '' : 'none';
 
-  var tetrisBtn = document.getElementById('tetrisLaunchBtn');
+  const tetrisBtn = document.getElementById('tetrisLaunchBtn');
   if (tetrisBtn) tetrisBtn.style.display = isFeatureEnabled('games.tetris.enabled') ? '' : 'none';
 }
