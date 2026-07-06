@@ -1,7 +1,8 @@
 export {};
+import type { TypedServer, TypedSocket } from './types';
 const { supabaseAdmin } = require('../services/supabase');
 const { getOnlineSocket } = require('./state');
-const { secureOn } = require('./validation');
+import { secureOn } from './validation';
 
 // ── SWIPE ─────────────────────────────────────────────────────────────
 // Goes through secureOn(): global + per-event rate limiting (see
@@ -9,10 +10,10 @@ const { secureOn } = require('./validation');
 // { targetUserId, direction } against validation/socketSchemas.js — the
 // manual targetUserId/direction checks that used to open this handler are
 // now centralized there.
-function registerSwipeHandlers(io: any, socket: any, userId: any) {
-  const emitSwipeError = (sock: any, ack: any, error: any) => sock.emit('swipe:error', { error });
+function registerSwipeHandlers(io: TypedServer, socket: TypedSocket, userId: string) {
+  const emitSwipeError = (sock: TypedSocket, ack: (response: any) => void, error: string) => sock.emit('swipe:error', { error });
 
-  secureOn(io, socket, userId, 'swipe', async ({ targetUserId, direction }: any) => {
+  secureOn(io, socket, userId, 'swipe', async ({ targetUserId, direction }) => {
     await supabaseAdmin.from('swipes').upsert({
       user_id:        userId,
       target_user_id: targetUserId,

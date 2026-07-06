@@ -1,10 +1,11 @@
 export {};
+import type { TypedServer, TypedSocket } from './types';
 const { v4: uuid } = require('uuid');
 const { supabaseAdmin } = require('../services/supabase');
 const { addFriendPairInstant } = require('../services/friendsHelper');
 const { enqueue, dequeue, runMatchCycle, queueSize } = require('./matchmaking');
 const { saveRoom, deleteRoom, updateRoom, setUserRoom, clearUserRoom, markCallPartners } = require('./state');
-const { secureOn } = require('./validation');
+import { secureOn } from './validation';
 const logger = require('../utils/logger').child({ module: 'match' });
 
 // ── Persist match to history ──────────────────────────────────────────────
@@ -78,7 +79,7 @@ async function promoteRoomToFriends(participantIds: any) {
 }
 
 // ── Emit a match to the matched players ──────────────────────────────────
-async function handleMatch(io: any, participants: any, mode: any) {
+async function handleMatch(io: TypedServer, participants: any, mode: 'solo' | 'group') {
   const roomId = uuid();
   const gameId = participants[0].gameId;
 
@@ -134,7 +135,7 @@ async function handleMatch(io: any, participants: any, mode: any) {
 // NOTE: this interval fires on every server instance, but runMatchCycle()
 // takes a cluster-wide Redis lock internally, so only one instance actually
 // processes the queues on any given tick — see matchmaking.js.
-function startMatchLoop(io: any) {
+function startMatchLoop(io: TypedServer) {
   const interval = setInterval(async () => {
     try {
       const { soloMatch, groupMatch } = await runMatchCycle();
@@ -160,12 +161,12 @@ function startMatchLoop(io: any) {
 // have it land in the queue. The 'match:error' shape on rate-limit/invalid-
 // payload is preserved via options.onRateLimited/onInvalid so existing
 // client listeners still work.
-function registerMatchHandlers(io: any, socket: any, userId: any) {
-  const emitMatchError = (sock: any, ack: any, error: any) => {
+function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: string) {
+  const emitMatchError = (sock: TypedSocket, ack: (response: any) => void, error: string) => {
     ack({ error });
     sock.emit('match:error', { error });
   };
-  secureOn(io, socket, userId, 'match:join', async (data: any) => {
+  secureOn(io, socket, userId, 'match:join', async (data) => {
     await enqueue({
       userId,
       socketId:  socket.id,
@@ -185,7 +186,7 @@ function registerMatchHandlers(io: any, socket: any, userId: any) {
     socket.emit('match:cancelled');
   });
 
-  secureOn(io, socket, userId, 'trial:vote', async ({ roomId, vote }: any) => {
+  secureOn(io, socket, userId, 'trial:vote', async ({ roomId, vote }) => {
     // Record this vote atomically — concurrent voters (each hitting a
     // different server instance, potentially) must not clobber each other's
     // votes.votes[otherUserId] via a naive read-modify-write.

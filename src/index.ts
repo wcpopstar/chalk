@@ -30,6 +30,7 @@ const chatRoutes = require('./routes/chats');
 const agoraRoutes = require('./routes/agora');
 const gameRoutes = require('./routes/games');
 const featureFlagRoutes = require('./routes/featureFlags');
+const gifRoutes = require('./routes/gifs');
 const { initSocket } = require('./socket');
 const { startWorkers, closeWorkers } = require('./workers');
 const { closeQueues } = require('./queues');
@@ -221,6 +222,7 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/agora', agoraRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/flags', featureFlagRoutes);
+app.use('/api/gifs', gifRoutes);
 
 app.use(express.static(path.join(__dirname, '../public')));
 

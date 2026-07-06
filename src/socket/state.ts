@@ -1,4 +1,5 @@
 export {};
+import type { TypedServer } from './types';
 const { supabaseAdmin } = require('../services/supabase');
 const { redis } = require('./redisClient');
 const { safeAsync } = require('../utils/safeAsync');
@@ -166,7 +167,7 @@ async function getUserCurrentRoom(userId: any) {
 
 // ── Tell online friends whether this user just entered/left a call ─────────
 // Best-effort, same reasoning as presence.ts's notifyFriendsPresence.
-async function broadcastCallStatus(io: any, userId: any) {
+async function broadcastCallStatus(io: TypedServer, userId: string) {
   await safeAsync(async () => {
     const { data: friendRows } = await supabaseAdmin
       .from('friends')
@@ -186,12 +187,12 @@ async function broadcastCallStatus(io: any, userId: any) {
   }, { label: 'broadcast call status to friends', context: { userId } });
 }
 
-async function setUserRoom(io: any, userId: any, roomId: any) {
+async function setUserRoom(io: TypedServer, userId: any, roomId: any) {
   await redis.hset(KEY_USER_ROOM, userId, roomId);
   await broadcastCallStatus(io, userId);
 }
 
-async function clearUserRoom(io: any, userId: any) {
+async function clearUserRoom(io: TypedServer, userId: any) {
   const removed = await redis.hdel(KEY_USER_ROOM, userId);
   if (!removed) return;
   await broadcastCallStatus(io, userId);

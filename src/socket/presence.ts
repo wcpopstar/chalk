@@ -1,4 +1,5 @@
 export {};
+import type { TypedServer } from './types';
 const { supabaseAdmin } = require('../services/supabase');
 const { getOnlineSocket } = require('./state');
 const { safeAsync } = require('../utils/safeAsync');
@@ -7,7 +8,7 @@ const { safeAsync } = require('../utils/safeAsync');
 // Best-effort: a friend not finding out someone came online/offline isn't
 // worth failing anything over, but the failure itself must still be
 // visible — see safeAsync.ts for why this replaced a silent `catch (_) {}`.
-async function notifyFriendsPresence(io: any, userId: any, status: any) {
+async function notifyFriendsPresence(io: TypedServer, userId: string, status: 'online' | 'offline') {
   await safeAsync(async () => {
     const { data: friendRows } = await supabaseAdmin
       .from('friends')

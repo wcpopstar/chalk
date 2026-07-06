@@ -1,4 +1,5 @@
 export {};
+import type { TypedServer, TypedSocket } from './types';
 const { supabaseAdmin } = require('../services/supabase');
 const { areUsersBlocked } = require('../services/blockHelper');
 const {
@@ -9,7 +10,7 @@ const {
   addPendingJoinRequest, consumePendingJoinRequest,
   markCallPartners,
 } = require('./state');
-const { secureOn } = require('./validation');
+import { secureOn } from './validation';
 
 // All handlers below go through secureOn() — see chat.js/globalChat.js for
 // what that centralizes (global + per-event rate limiting, Zod payload
@@ -19,9 +20,9 @@ const { secureOn } = require('./validation');
 //
 // Room/presence state lives in Redis (see state.js) so it's shared across
 // every server instance — every read/write below is async.
-function registerCallHandlers(io: any, socket: any, userId: any, username: any) {
+function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: string, username: string) {
   // ── CALL CONTROL ──────────────────────────────────────────────────────
-  secureOn(io, socket, userId, 'call:end', async ({ roomId }: any) => {
+  secureOn(io, socket, userId, 'call:end', async ({ roomId }) => {
     const room = await getRoom(roomId);
     if (!room) return;
     io.to(roomId).emit('call:ended', { by: userId });
@@ -29,14 +30,16 @@ function registerCallHandlers(io: any, socket: any, userId: any, username: any) 
     await deleteRoom(roomId);
   });
 
-  const emitInviteFailed = (sock: any, ack: any, error: any) => sock.emit('call:invite_failed', { reason: error });
-  secureOn(io, socket, userId, 'call:invite', async ({ targetUserId, roomId }: any) => {
+  const emitInviteFailed = (sock: TypedSocket, ack: (response: any) => void, error: string) => sock.emit('call:invite_failed', { reason: error });
+  secureOn(io, socket, userId, 'call:invite', async ({ targetUserId, roomId }) => {
     if (await areUsersBlocked(userId, targetUserId)) {
-      return socket.emit('call:invite_failed', { reason: 'Невозможно позвонить — пользователь заблокирован' });
+      socket.emit('call:invite_failed', { reason: 'Невозможно позвонить — пользователь заблокирован' });
+      return;
     }
     const targetSocket = await getOnlineSocket(targetUserId);
     if (!targetSocket) {
-      return socket.emit('call:invite_failed', { reason: 'Пользователь сейчас офлайн' });
+      socket.emit('call:invite_failed', { reason: 'Пользователь сейчас офлайн' });
+      return;
     }
     const { data: profile } = await supabaseAdmin
       .from('users')
@@ -55,7 +58,7 @@ function registerCallHandlers(io: any, socket: any, userId: any, username: any) 
     });
   }, { onRateLimited: emitInviteFailed, onInvalid: emitInviteFailed });
 
-  secureOn(io, socket, userId, 'call:accept', async ({ roomId, inviterId }: any) => {
+  secureOn(io, socket, userId, 'call:accept', async ({ roomId, inviterId }) => {
     if (!(await consumePendingInvite(roomId, userId, inviterId))) return;
 
     const inviterSocket = await getOnlineSocket(inviterId);
@@ -72,21 +75,25 @@ function registerCallHandlers(io: any, socket: any, userId: any, username: any) 
     await markCallPartners([inviterId, userId]);
   });
 
-  secureOn(io, socket, userId, 'call:reject', async ({ roomId, inviterId }: any) => {
+  secureOn(io, socket, userId, 'call:reject', async ({ roomId, inviterId }) => {
     await consumePendingInvite(roomId, userId, inviterId);
     const inviterSocket = await getOnlineSocket(inviterId);
     if (inviterSocket) io.to(inviterSocket).emit('call:rejected', { roomId, by: userId });
   });
 
   // ── JOIN AN ONGOING CALL (e.g. friend is in a group call already) ──────
-  const emitJoinFailed = (sock: any, ack: any, error: any) => sock.emit('call:join_failed', { reason: error });
-  secureOn(io, socket, userId, 'call:request_join', async ({ targetUserId }: any) => {
+  const emitJoinFailed = (sock: TypedSocket, ack: (response: any) => void, error: string) => sock.emit('call:join_failed', { reason: error });
+  secureOn(io, socket, userId, 'call:request_join', async ({ targetUserId }) => {
     const targetRoomId = await getUserCurrentRoom(targetUserId);
     if (!targetRoomId) {
-      return socket.emit('call:join_failed', { reason: 'Пользователь сейчас не в звонке' });
+      socket.emit('call:join_failed', { reason: 'Пользователь сейчас не в звонке' });
+      return;
     }
     const room = await getRoom(targetRoomId);
-    if (!room) return socket.emit('call:join_failed', { reason: 'Звонок уже завершён' });
+    if (!room) {
+      socket.emit('call:join_failed', { reason: 'Звонок уже завершён' });
+      return;
+    }
 
     const { data: profile } = await supabaseAdmin
       .from('users')
@@ -110,7 +117,7 @@ function registerCallHandlers(io: any, socket: any, userId: any, username: any) 
     socket.emit('call:join_request_sent', { roomId: targetRoomId });
   }, { onRateLimited: emitJoinFailed, onInvalid: emitJoinFailed });
 
-  secureOn(io, socket, userId, 'call:join_response', async ({ roomId, requesterId, accept }: any) => {
+  secureOn(io, socket, userId, 'call:join_response', async ({ roomId, requesterId, accept }) => {
     const room = await getRoom(roomId);
     const requesterSocket = await getOnlineSocket(requesterId);
 
@@ -150,7 +157,7 @@ function registerCallHandlers(io: any, socket: any, userId: any, username: any) 
   });
 
   // ── FRIENDS' CURRENT CALL STATUS (one-shot request with ack) ───────────
-  secureOn(io, socket, userId, 'friends:call_status', async (_payload: any, ack: any) => {
+  secureOn(io, socket, userId, 'friends:call_status', async (_payload, ack) => {
     // No local try/catch here on purpose: secureOn() (see socket/validation.ts)
     // already wraps every handler with centralized error handling — log +
     // Sentry + socket_errors_total — and acks { error } to the client. A

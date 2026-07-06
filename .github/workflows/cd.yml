@@ -40,6 +40,7 @@ jobs:
   verify:
     name: Verify before release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     services:
       redis:
         image: redis:7-alpine
@@ -70,6 +71,7 @@ jobs:
     name: Build & push image
     runs-on: ubuntu-latest
     needs: verify
+    timeout-minutes: 15
     outputs:
       image: ${{ steps.meta.outputs.tags }}
     steps:
@@ -115,6 +117,7 @@ jobs:
     name: Deploy to Railway
     runs-on: ubuntu-latest
     needs: build-and-push
+    timeout-minutes: 10
     environment:
       name: production
       url: ${{ vars.RAILWAY_PUBLIC_URL }}
@@ -155,6 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-push, deploy-railway]
     if: always()
+    timeout-minutes: 5
     steps:
       - name: Compute status
         id: status

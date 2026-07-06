@@ -11,6 +11,7 @@ const { stubModule } = require('../helpers/stubModule');
 const { createSupabaseMock } = require('../helpers/mockSupabase');
 const { buildTestApp } = require('../helpers/buildTestApp');
 const { signAccessToken } = require('../../src/utils/jwt');
+const { FakeRedis } = require('../helpers/fakeRedis');
 
 const supaMock = createSupabaseMock();
 stubModule(require.resolve('../../src/services/supabase'), {
@@ -18,26 +19,29 @@ stubModule(require.resolve('../../src/services/supabase'), {
   supabase: {},
 });
 
+// routes/games.ts caches the leaderboard response via utils/cache.ts, which
+// does `require('../socket/redisClient')` for its `redis` client — and
+// redisClient.ts opens THREE real ioredis connections at require time (see
+// that file's header comment). In an environment where Redis actually is
+// reachable (e.g. this repo's GitHub Actions `test` job, which runs a real
+// redis:7-alpine service container), those connections succeed and are
+// never closed — a live socket handle that keeps the process alive
+// forever, so `node --test` never exits for this file and the CI job just
+// hangs. Stub the whole module out with an in-memory fake before games.js
+// is ever required, exactly like the socket/*.test.ts files do.
+const fakeRedis = new FakeRedis();
+stubModule(require.resolve('../../src/socket/redisClient'), {
+  redis: fakeRedis,
+  pubClient: fakeRedis,
+  subClient: fakeRedis,
+  waitForRedisReady: async () => {},
+  REDIS_URL: 'redis://fake',
+});
+
 const gamesRouter = require('../../src/routes/games');
 
-// routes/games.ts caches the leaderboard response (utils/cache.ts, backed
-// by src/socket/redisClient.ts's `redis` client) — normally a real Redis
-// instance, but there almost certainly isn't one reachable in this test
-// process, so cached()'s try/catch already makes every call fall straight
-// through to the mocked supabaseAdmin (see that file's header comment on
-// fail-open behavior). This best-effort delete is just a safety net for
-// environments where a real Redis DOES happen to be reachable — without
-// it, a cached response from an earlier test could survive into a later
-// one within the 15s TTL and consume a different test's enqueued mock data.
-let redisAvailable = true;
 async function clearLeaderboardCache() {
-  if (!redisAvailable) return;
-  try {
-    const { redis } = require('../../src/socket/redisClient');
-    await redis.del('leaderboard:tetris:top50');
-  } catch (_) {
-    redisAvailable = false; // stop trying for the rest of this run
-  }
+  await fakeRedis.del('leaderboard:tetris:top50');
 }
 
 describe('Games routes (/api/games)', () => {

@@ -11,6 +11,7 @@ const { stubModule } = require('../helpers/stubModule');
 const { createSupabaseMock } = require('../helpers/mockSupabase');
 const { buildTestApp } = require('../helpers/buildTestApp');
 const { signAccessToken } = require('../../src/utils/jwt');
+const { FakeRedis } = require('../helpers/fakeRedis');
 
 // src/routes/users.js requires services/blockHelper, which itself only
 // requires services/supabase (already stubbed below) — so we let the real
@@ -22,25 +23,29 @@ stubModule(require.resolve('../../src/services/supabase'), {
   supabase: {},
 });
 
+// routes/users/publicProfile.ts caches GET /api/users/:id via utils/cache.ts,
+// which does `require('../socket/redisClient')` for its `redis` client —
+// and redisClient.ts opens THREE real ioredis connections at require time
+// (see that file's header comment). In an environment where Redis actually
+// is reachable (e.g. this repo's GitHub Actions `test` job, which runs a
+// real redis:7-alpine service container), those connections succeed and
+// are never closed — a live socket handle that keeps the process alive
+// forever, so `node --test` never exits for this file and the CI job just
+// hangs. Stub the whole module out with an in-memory fake before users.js
+// is ever required, exactly like the socket/*.test.ts files do.
+const fakeRedis = new FakeRedis();
+stubModule(require.resolve('../../src/socket/redisClient'), {
+  redis: fakeRedis,
+  pubClient: fakeRedis,
+  subClient: fakeRedis,
+  waitForRedisReady: async () => {},
+  REDIS_URL: 'redis://fake',
+});
+
 const usersRouter = require('../../src/routes/users');
 
-// routes/users/publicProfile.ts caches GET /api/users/:id (utils/cache.ts,
-// backed by src/socket/redisClient.ts's `redis` client). Almost certainly
-// unreachable in this test process, in which case cached() already falls
-// straight through to the mock on every call (see that file's fail-open
-// behavior) — this best-effort clear is only a safety net for environments
-// where a real Redis happens to be reachable, so an entry cached by an
-// earlier run/test can't leak into "returns the profile with
-// block-relationship flags" below and swallow its enqueued mock data.
-let redisAvailable = true;
 async function clearProfileCache(id: any) {
-  if (!redisAvailable) return;
-  try {
-    const { redis } = require('../../src/socket/redisClient');
-    await redis.del(`user_profile:${id}`);
-  } catch (_) {
-    redisAvailable = false;
-  }
+  await fakeRedis.del(`user_profile:${id}`);
 }
 
 describe('Users routes (/api/users)', () => {

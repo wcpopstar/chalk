@@ -1,4 +1,5 @@
 export {};
+import type { TypedSocket } from './types';
 const { checkSlidingWindow } = require('./rateLimiter');
 
 /**
@@ -26,7 +27,7 @@ const { checkSlidingWindow } = require('./rateLimiter');
 // ── Tier 1: legacy granular checks (soft — reject the one action) ─────────
 
 // Scoped to a single socket connection.
-async function isFlooding(socket: any, key: any, windowMs: any, max: any) {
+async function isFlooding(socket: TypedSocket, key: string, windowMs: number, max: number) {
   const res = await checkSlidingWindow(`socket:${socket.id}:${key}`, windowMs, max);
   return !res.allowed;
 }
@@ -51,7 +52,7 @@ async function isFloodingGlobal(userId: any) {
 // Kept for backward compatibility with index.ts's disconnect handler. A
 // no-op now: Redis keys expire on their own via PEXPIRE, there's no
 // in-process Map left to sweep.
-function clearRateLimitsFor(_socket: any) {}
+function clearRateLimitsFor(_socket: TypedSocket) {}
 
 // ── Tier 2: hard limits (disconnect on breach, warn at 80%) ───────────────
 
@@ -67,7 +68,7 @@ const CONNECTION_BUDGET = {
   max: Number(process.env.RATE_LIMIT_CONNECTION_MAX) || 90, // within the required 80–100 range
 };
 
-async function checkConnectionBudget(socket: any) {
+async function checkConnectionBudget(socket: TypedSocket) {
   return checkSlidingWindow(`conn:${socket.id}`, CONNECTION_BUDGET.windowMs, CONNECTION_BUDGET.max, 0.8);
 }
 

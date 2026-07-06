@@ -1,4 +1,5 @@
 export {};
+import type { TypedServer, TypedSocket } from './types';
 const { supabaseAdmin } = require('../services/supabase');
 const { dequeue } = require('../services/matchmakingRedis');
 const { authenticateSocket } = require('./authenticate');
@@ -23,7 +24,7 @@ const { safeAsync } = require('../utils/safeAsync');
 // NOTE: online/rooms/userCurrentRoom now live in Redis (see state.js), so
 // this server instance is stateless w.r.t. presence/call data — any
 // instance behind the load balancer can serve any user.
-function initSocket(io: any) {
+function initSocket(io: TypedServer) {
   // Attach a correlation id + child logger to every socket first (so even
   // handshakes rejected by the checks below are traceable), then the cheap
   // IP-based flood check (rejects handshake spam before we ever touch a
@@ -33,13 +34,13 @@ function initSocket(io: any) {
   io.use(authenticateSocket);
   const stopMatchLoop = startMatchLoop(io);
 
-  io.on('connection', async (socket: any) => {
-    const { id: userId, username } = socket.user;
-    attachUserContext(socket, socket.user);
+  io.on('connection', async (socket: TypedSocket) => {
+    const { id: userId, username } = socket.data.user!;
+    attachUserContext(socket, socket.data.user!);
     await setOnline(userId, socket.id);
     socket.join('global');
 
-    socket.log.info('Socket connected');
+    socket.data.log.info('Socket connected');
     metrics.socketActiveConnections.inc();
 
     // ── Overall per-connection event budget (80–100 events / 10s) ────────
@@ -110,7 +111,7 @@ function initSocket(io: any) {
       );
       notifyFriendsPresence(io, userId, 'offline');
       io.emit('online:count', await onlineCount());
-      socket.log.info('Socket disconnected');
+      socket.data.log.info('Socket disconnected');
     });
   });
 

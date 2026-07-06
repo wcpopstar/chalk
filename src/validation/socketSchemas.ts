@@ -1,5 +1,13 @@
 export {};
-const { z } = require('zod');
+// NOTE: this is a real (typed) `import`, not `const { z } = require('zod')`,
+// specifically so the `z.infer<typeof schema>` types at the bottom of this
+// file actually resolve to real object shapes instead of `any`. TypeScript
+// compiles this down to a plain `require('zod')` under the hood (same as
+// every other file in this codebase, since tsconfig.json has
+// "module": "commonjs") — there is no behavioral difference at runtime, and
+// the `module.exports = { ... }` assignment below still works exactly as
+// before for every existing `require('./socketSchemas')` call site.
+import { z } from 'zod';
 
 // ── Shared primitives ───────────────────────────────────────────────────────
 // Every id in this app (rooms, conversations, messages) is generated with
@@ -123,3 +131,77 @@ const socketEventSchemas = {
 };
 
 module.exports = { socketEventSchemas, GAME_IDS };
+
+// ── Inferred payload types ──────────────────────────────────────────────
+// These are derived straight from the Zod schemas above via z.infer<>, so
+// the schema and the TypeScript type can never drift apart — change a
+// schema here and every handler's payload type updates automatically.
+// socket/types.ts imports these (as `import type`, fully erased at compile
+// time) to build the ClientToServerEvents interface used by secureOn() and
+// every register*Handlers(io, socket, ...) function.
+export type ChatJoinPayload = z.infer<typeof chatJoin>;
+export type ChatLeavePayload = z.infer<typeof chatLeave>;
+export type ChatMessagePayload = z.infer<typeof chatMessage>;
+export type ChatGifPayload = z.infer<typeof chatGif>;
+export type ChatVoicePayload = z.infer<typeof chatVoice>;
+export type ChatVideoNotePayload = z.infer<typeof chatVideoNote>;
+export type ChatEditPayload = z.infer<typeof chatEdit>;
+export type ChatDeletePayload = z.infer<typeof chatDelete>;
+export type ChatTypingPayload = z.infer<typeof chatTyping>;
+
+export type GlobalMessagePayload = z.infer<typeof globalMessage>;
+export type GlobalGifPayload = z.infer<typeof globalGif>;
+export type GlobalVoicePayload = z.infer<typeof globalVoice>;
+export type GlobalVideoNotePayload = z.infer<typeof globalVideoNote>;
+export type GlobalEditPayload = z.infer<typeof globalEdit>;
+export type GlobalDeletePayload = z.infer<typeof globalDelete>;
+
+export type MatchJoinPayload = z.infer<typeof matchJoin>;
+export type MatchLeavePayload = z.infer<typeof matchLeave>;
+export type TrialVotePayload = z.infer<typeof trialVote>;
+
+export type SwipePayload = z.infer<typeof swipe>;
+
+export type CallEndPayload = z.infer<typeof callEnd>;
+export type CallInvitePayload = z.infer<typeof callInvite>;
+export type CallAcceptPayload = z.infer<typeof callAccept>;
+export type CallRejectPayload = z.infer<typeof callReject>;
+export type CallRequestJoinPayload = z.infer<typeof callRequestJoin>;
+export type CallJoinResponsePayload = z.infer<typeof callJoinResponse>;
+export type FriendsCallStatusPayload = z.infer<typeof friendsCallStatus>;
+
+// Event name -> inferred payload type, keyed identically to
+// `socketEventSchemas` above. `keyof ClientToServerPayloadMap` is the
+// authoritative list of every Zod-validated client->server event name.
+export type ClientToServerPayloadMap = {
+  'chat:join': ChatJoinPayload;
+  'chat:leave': ChatLeavePayload;
+  'chat:message': ChatMessagePayload;
+  'chat:gif': ChatGifPayload;
+  'chat:voice': ChatVoicePayload;
+  'chat:video_note': ChatVideoNotePayload;
+  'chat:edit': ChatEditPayload;
+  'chat:delete': ChatDeletePayload;
+  'chat:typing': ChatTypingPayload;
+
+  'global:message': GlobalMessagePayload;
+  'global:gif': GlobalGifPayload;
+  'global:voice': GlobalVoicePayload;
+  'global:video_note': GlobalVideoNotePayload;
+  'global:edit': GlobalEditPayload;
+  'global:delete': GlobalDeletePayload;
+
+  'match:join': MatchJoinPayload;
+  'match:leave': MatchLeavePayload;
+  'trial:vote': TrialVotePayload;
+
+  swipe: SwipePayload;
+
+  'call:end': CallEndPayload;
+  'call:invite': CallInvitePayload;
+  'call:accept': CallAcceptPayload;
+  'call:reject': CallRejectPayload;
+  'call:request_join': CallRequestJoinPayload;
+  'call:join_response': CallJoinResponsePayload;
+  'friends:call_status': FriendsCallStatusPayload;
+};

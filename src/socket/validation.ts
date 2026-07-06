@@ -1,4 +1,5 @@
 export {};
+import type { TypedServer, TypedSocket, ClientToServerEvents, SecuredEventName } from './types';
 const { socketEventSchemas } = require('../validation/socketSchemas');
 const {
   isFlooding,
@@ -9,6 +10,29 @@ const {
 const fallbackLogger = require('../utils/logger').child({ module: 'socket-validation' });
 const Sentry = require('../utils/sentry');
 const metrics = require('../utils/metrics');
+
+// ── secureOn() handler/options types ─────────────────────────────────────
+// `E` is the event name; the handler's `data`/`ack` parameter types are
+// derived from ClientToServerEvents[E] (which itself comes straight from
+// the Zod schema for that event — see validation/socketSchemas.ts), so a
+// handler registered for e.g. 'chat:message' gets `data: { conversationId:
+// string; text: string }` with no manual annotation needed at the call
+// site, and a typo'd event name (one not in ClientToServerEvents) is a
+// compile error.
+type EventData<E extends SecuredEventName> = Parameters<ClientToServerEvents[E]>[0];
+type EventAck<E extends SecuredEventName> = Parameters<ClientToServerEvents[E]>[1];
+
+type SecureOnHandler<E extends SecuredEventName> = (
+  data: EventData<E>,
+  ack: EventAck<E>,
+  socket: TypedSocket
+) => void | Promise<void>;
+
+interface SecureOnOptions<E extends SecuredEventName> {
+  rateLimit?: { windowMs: number; max: number };
+  onRateLimited?: (socket: TypedSocket, ack: EventAck<E>, message: string) => void;
+  onInvalid?: (socket: TypedSocket, ack: EventAck<E>, error: string) => void;
+}
 
 // ── Per-event rate limits (soft — rejects just the one action) ─────────────
 // These mirror the isFlooding(...) calls that used to be hand-written inline
@@ -55,8 +79,8 @@ const DEFAULT_RATE_LIMITS: any = {
 // Unknown events (not in the registry) are rejected by default — every
 // event this server accepts must have an explicit schema, so a typo'd or
 // newly-added event can't silently skip validation.
-function validateSocketEvent(eventName: any, payload: any) {
-  const schema = socketEventSchemas[eventName];
+function validateSocketEvent<E extends SecuredEventName>(eventName: E, payload: unknown) {
+  const schema = (socketEventSchemas as Record<string, any>)[eventName as string];
   if (!schema) {
     return { ok: false, error: `Unknown event: ${eventName} (no schema registered)` };
   }
@@ -96,32 +120,46 @@ function validateSocketEvent(eventName: any, payload: any) {
 // configurable per-call the way `rl` above is; they disconnect the socket
 // on breach regardless of which handler triggered them, so letting
 // individual handlers opt out would defeat the point.
-function secureOn(io: any, socket: any, userId: any, eventName: any, handler: any, options: any = {}) {
-  const rl = options.rateLimit || DEFAULT_RATE_LIMITS[eventName] || { windowMs: 10_000, max: 20 };
+export function secureOn<E extends SecuredEventName>(
+  io: TypedServer,
+  socket: TypedSocket,
+  userId: string,
+  eventName: E,
+  handler: SecureOnHandler<E>,
+  options: SecureOnOptions<E> = {}
+): void {
+  const rl = options.rateLimit || DEFAULT_RATE_LIMITS[eventName as string] || { windowMs: 10_000, max: 20 };
 
-  const defaultReject = (sock: any, ackFn: any, message: any) => {
-    ackFn({ error: message });
+  const defaultReject = (sock: TypedSocket, ackFn: EventAck<E>, message: string) => {
+    ackFn({ error: message } as Parameters<EventAck<E>>[0]);
     // Best-effort compatibility with the ad-hoc `${event}:error` /
     // `${event}_failed`-style events handlers used to emit manually. We
     // can't guess every handler's exact event name, so we emit one
     // consistent, additive event any client can opt into listening for,
     // without removing/breaking the handler-specific ones already in place.
-    socket.emit('socket:error', { event: eventName, error: message });
+    socket.emit('socket:error', { event: eventName as string, error: message });
   };
 
-  socket.on(eventName, async (rawPayload: any, rawCallback: any) => {
-    const ack = typeof rawCallback === 'function' ? rawCallback : () => {};
+  // The cast on the listener itself is the one deliberate escape hatch in
+  // this file: Socket.IO's own `.on()` overload needs a listener whose type
+  // matches `ClientToServerEvents[E]` exactly for a *generic* E, which
+  // TypeScript can't verify structurally inside a generic function body.
+  // Every caller of secureOn(), and the `handler`/`options` parameters
+  // above, stay fully and correctly typed — this cast only affects the
+  // internal wiring, not the public API.
+  socket.on(eventName, (async (rawPayload: unknown, rawCallback: unknown) => {
+    const ack = (typeof rawCallback === 'function' ? rawCallback : () => {}) as EventAck<E>;
 
     // 1) HARD named-family limit (match:join / chat:message / signal:* aka
     //    call:*) — 80% warns, breach disconnects the socket entirely. This
     //    runs before anything else so a client already over its budget for
     //    this event family can't still slip a validated action through.
-    const named = await checkNamedLimit(userId, eventName);
+    const named = await checkNamedLimit(userId, eventName as string);
     if (named) {
       if (named.warn) {
         socket.emit('warning:rate_limit_approaching', {
           scope: named.limitKey,
-          event: eventName,
+          event: eventName as string,
           limit: named.limit,
           remaining: named.remaining,
           windowMs: named.windowMs,
@@ -130,7 +168,7 @@ function secureOn(io: any, socket: any, userId: any, eventName: any, handler: an
       if (!named.allowed) {
         return disconnectForRateLimit(socket, {
           scope: named.limitKey,
-          event: eventName,
+          event: eventName as string,
           limit: named.limit,
           windowMs: named.windowMs,
           message: `Превышен лимит для "${named.limitKey}" (${named.limit}/${Math.round(named.windowMs / 1000)}с), соединение закрыто`,
@@ -147,31 +185,31 @@ function secureOn(io: any, socket: any, userId: any, eventName: any, handler: an
     // 3) Per-event limit (soft), checked both per-socket (fast, catches a
     //    single connection mashing) and per-user (survives reconnects).
     const [socketFlooded, userFlooded] = await Promise.all([
-      isFlooding(socket, eventName, rl.windowMs, rl.max),
-      isFloodingUser(userId, eventName, rl.windowMs, rl.max),
+      isFlooding(socket, eventName as string, rl.windowMs, rl.max),
+      isFloodingUser(userId, eventName as string, rl.windowMs, rl.max),
     ]);
     if (socketFlooded || userFlooded) {
       return (options.onRateLimited || defaultReject)(socket, ack, 'Слишком часто, подожди немного');
     }
 
     // 4) Schema validation.
-    const { ok, data, error } = validateSocketEvent(eventName, rawPayload || {});
+    const { ok, data, error } = validateSocketEvent(eventName, rawPayload ?? {});
     if (!ok) {
-      return (options.onInvalid || defaultReject)(socket, ack, error);
+      return (options.onInvalid || defaultReject)(socket, ack, error as string);
     }
 
     try {
-      await handler(data, ack, socket);
+      await handler(data as EventData<E>, ack, socket);
     } catch (err: any) {
-      // socket.log is a child logger tagged with connectionId/socketId/
+      // socket.data.log is a child logger tagged with connectionId/socketId/
       // userId (see socketLogger.ts) — no need to repeat those here.
-      (socket.log || fallbackLogger).error({ err, event: eventName }, 'Socket event handler threw');
-      Sentry.captureException(err, { tags: { event: eventName, userId } });
+      (socket.data?.log || fallbackLogger).error({ err, event: eventName as string }, 'Socket event handler threw');
+      Sentry.captureException(err, { tags: { event: eventName as string, userId } });
       metrics.appErrorsTotal.inc({ source: 'socket' });
-      metrics.socketErrorsTotal.inc({ event: eventName });
-      ack({ error: err.message || 'Внутренняя ошибка' });
+      metrics.socketErrorsTotal.inc({ event: eventName as string });
+      ack({ error: err.message || 'Внутренняя ошибка' } as Parameters<EventAck<E>>[0]);
     }
-  });
+  }) as any);
 }
 
 // ── disconnectForRateLimit ──────────────────────────────────────────────
@@ -184,9 +222,12 @@ function secureOn(io: any, socket: any, userId: any, eventName: any, handler: an
 // actually has a chance to reach the client over the wire before we tear
 // the transport down — disconnect(true) closes the underlying connection
 // immediately, which can otherwise race the outgoing packet.
-function disconnectForRateLimit(socket: any, details: any) {
+function disconnectForRateLimit(
+  socket: TypedSocket,
+  details: { scope: string; event?: string; limit: number; windowMs: number; message: string }
+) {
   socket.emit('error:rate_limit_exceeded', details);
-  (socket.log || fallbackLogger).warn({ ...details, socketId: socket.id }, 'Disconnecting socket: rate limit exceeded');
+  (socket.data?.log || fallbackLogger).warn({ ...details, socketId: socket.id }, 'Disconnecting socket: rate limit exceeded');
   setImmediate(() => socket.disconnect(true));
 }
 
@@ -204,7 +245,7 @@ const CONNECTION_LIMIT = { windowMs: 60_000, max: 30 }; // 30 new connections/mi
 // works fine here: everything before the first `await` runs synchronously
 // as usual, and `next()` still fires exactly once, just after the Redis
 // round trip resolves instead of immediately.
-async function socketConnectionRateLimiter(socket: any, next: any) {
+async function socketConnectionRateLimiter(socket: TypedSocket, next: (err?: Error) => void) {
   const ip = socket.handshake.address || socket.conn?.remoteAddress || 'unknown';
   if (await isFloodingUser(`ip:${ip}`, 'connect', CONNECTION_LIMIT.windowMs, CONNECTION_LIMIT.max)) {
     return next(new Error('Too many connection attempts, please slow down'));

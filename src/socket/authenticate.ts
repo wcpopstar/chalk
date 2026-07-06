@@ -1,4 +1,5 @@
 export {};
+import type { TypedSocket, JwtPayload } from './types';
 const { verifyAccessToken } = require('../utils/jwt');
 const tokenBlacklist = require('../services/tokenBlacklist');
 
@@ -10,14 +11,14 @@ const tokenBlacklist = require('../services/tokenBlacklist');
 // naturally expires, instead of letting a long-lived socket connection
 // outlive the credential that authenticated it — sockets don't get to be an
 // exception to token expiry just because they're long-lived.
-function authenticateSocket(socket: any, next: any) {
+function authenticateSocket(socket: TypedSocket, next: (err?: Error) => void) {
   const token = socket.handshake.auth?.token || socket.handshake.query?.token;
 
   if (!token || typeof token !== 'string') {
     return next(new Error('Authentication required'));
   }
 
-  let payload;
+  let payload: JwtPayload;
   try {
     payload = verifyAccessToken(token);
   } catch (err: any) {
@@ -37,14 +38,16 @@ function authenticateSocket(socket: any, next: any) {
   // token (after hitting POST /api/auth/refresh) without a full socket
   // reconnect. The client should call this proactively before the token
   // in use expires.
-  socket.on('auth:refresh', (newToken: any, ack: any) => {
-    const respond = (result: any) => { if (typeof ack === 'function') ack(result); };
+  socket.on('auth:refresh', (newToken, ack) => {
+    const respond = (result: { ok: boolean; error?: string; expiresAt?: number }) => {
+      if (typeof ack === 'function') ack(result);
+    };
 
     if (!newToken || typeof newToken !== 'string') {
       return respond({ ok: false, error: 'Missing token' });
     }
 
-    let newPayload;
+    let newPayload: JwtPayload;
     try {
       newPayload = verifyAccessToken(newToken);
     } catch (err: any) {
@@ -57,12 +60,12 @@ function authenticateSocket(socket: any, next: any) {
 
     // Refreshed token must belong to the same account — a socket can't
     // silently hijack another user's session via this channel.
-    if (newPayload.id !== socket.user.id) {
+    if (newPayload.id !== socket.data.user?.id) {
       return respond({ ok: false, error: 'USER_MISMATCH' });
     }
 
     applyAuth(socket, newPayload);
-    respond({ ok: true, expiresAt: socket.tokenExpiresAt });
+    respond({ ok: true, expiresAt: socket.data.tokenExpiresAt });
   });
 
   next();
@@ -70,20 +73,20 @@ function authenticateSocket(socket: any, next: any) {
 
 // Attaches the decoded token to the socket and (re)schedules the
 // expiry-driven disconnect.
-function applyAuth(socket: any, payload: any) {
-  clearTimeout(socket.tokenExpiryTimer);
+function applyAuth(socket: TypedSocket, payload: JwtPayload) {
+  clearTimeout(socket.data.tokenExpiryTimer);
 
-  socket.user = payload;
-  socket.tokenExpiresAt = payload.exp * 1000;
+  socket.data.user = payload;
+  socket.data.tokenExpiresAt = payload.exp * 1000;
 
-  const msUntilExpiry = socket.tokenExpiresAt - Date.now();
-  socket.tokenExpiryTimer = setTimeout(() => {
+  const msUntilExpiry = socket.data.tokenExpiresAt - Date.now();
+  socket.data.tokenExpiryTimer = setTimeout(() => {
     socket.emit('auth:expired');
     socket.disconnect(true);
   }, Math.max(msUntilExpiry, 0));
-  socket.tokenExpiryTimer.unref?.();
+  socket.data.tokenExpiryTimer.unref?.();
 
-  socket.once('disconnect', () => clearTimeout(socket.tokenExpiryTimer));
+  socket.once('disconnect', () => clearTimeout(socket.data.tokenExpiryTimer));
 }
 
 module.exports = { authenticateSocket };

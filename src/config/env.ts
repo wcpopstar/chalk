@@ -115,6 +115,16 @@ const config = Object.freeze({
     apiKey: process.env.ADMIN_API_KEY || null,
   }),
 
+  giphy: Object.freeze({
+    // Used by routes/gifs.ts to proxy GIF search server-side, so the key
+    // never ships to the browser (see that file's header comment for why
+    // a client-side Giphy key is a bad idea even though Giphy search keys
+    // are low-stakes: it's still an account-tied, rate-limited credential
+    // that shouldn't be handed to every visitor). Unset = the GIF picker
+    // is disabled (503), not broken with a confusing downstream error.
+    apiKey: process.env.GIPHY_API_KEY || null,
+  }),
+
   // Not read from anywhere else in the old (pre-centralization) codebase —
   // added here directly since index.ts/worker.ts both need it and every
   // other env var already lives here.
@@ -165,6 +175,9 @@ function validateEnv() {
   }
   if (!config.admin.apiKey && config.server.isProduction) {
     logger.warn('ADMIN_API_KEY is not set in production — the feature-flag admin endpoints (/api/flags/admin/*) are disabled (fail closed).');
+  }
+  if (!config.giphy.apiKey && config.server.isProduction) {
+    logger.warn('GIPHY_API_KEY is not set in production — the GIF picker will return 503 instead of search results.');
   }
 }
 

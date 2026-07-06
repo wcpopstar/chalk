@@ -80,10 +80,9 @@ function sendGlobalMsg() {
 }
 
 // ── GIF PICKER (shared between the DM/group chat and the global chat) ──────
-// Uses Giphy's public "beta" demo key, which works out of the box for
-// low-volume/demo traffic. Swap GIPHY_API_KEY for your own key in production
-// (https://developers.giphy.com).
-var GIPHY_API_KEY = 'lOUcTmMGQOaq9ZNBb2uh0LvQVCOQplVR';
+// Search goes through our own backend (/api/gifs/search), which holds the
+// Giphy API key server-side — see src/routes/gifs.ts for why this isn't
+// called directly from here anymore.
 var gifSearchTimers = {};
 
 function toggleGifPicker(scope) {
@@ -111,15 +110,11 @@ function searchGifs(scope, query) {
   gifSearchTimers[scope] = setTimeout(async () => {
     grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_searching">Ищем...</span></div>';
     try {
-      const url = `https://api.giphy.com/v1/gifs/search?api_key=${  GIPHY_API_KEY  }&q=${  encodeURIComponent(query)  }&limit=12&rating=pg-13`;
-      const r = await fetch(url);
-      const data = await r.json();
-      const results = data.data || [];
+      const data = await api(`/api/gifs/search?q=${  encodeURIComponent(query)  }&limit=12`);
+      const results = data.results || [];
       if (!results.length) { grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_nothing_found">Ничего не найдено</span></div>'; return; }
       grid.innerHTML = results.map((g) =>{
-        const thumb = g.images && g.images.fixed_width_small ? g.images.fixed_width_small.url : (g.images && g.images.preview_gif ? g.images.preview_gif.url : '');
-        const full = g.images && g.images.downsized ? g.images.downsized.url : (g.images && g.images.fixed_width ? g.images.fixed_width.url : thumb);
-        return `<img src="${  thumb  }" onclick="pickGif('${  scope  }','${  full.replace(/'/g, "\\'")  }')" alt="gif">`;
+        return `<img src="${  g.thumb  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`;
       }).join('');
     } catch (e) {
       grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_couldnt_load">Не удалось загрузить GIF</span></div>';

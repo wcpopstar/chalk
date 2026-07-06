@@ -1,5 +1,3 @@
-const FALLBACK_APP_ID = "78a6c18e54f34fe5a13aa04b4a2d89f3";
-
 let client = null;
 let microphoneTrack = null;
 const remoteAudioTracks = new Map();
@@ -13,7 +11,7 @@ let voiceState = {
   channel: null,
   muted: false,
   deafened: false,
-  appId: FALLBACK_APP_ID
+  appId: null
 };
 
 /**
@@ -165,7 +163,15 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
 
   try {
     const data = await requestVoiceToken(channel, userId);
-    const appId = data.appId || FALLBACK_APP_ID;
+    // requestVoiceToken() already throws on a non-OK response (see above),
+    // and the server (src/routes/agora.ts) always includes appId in every
+    // 200 response — including the no-certificate dev-fallback branch — so
+    // there's nothing to fall back to here. If it's ever missing, fail
+    // loudly instead of silently joining with a stale hardcoded App ID.
+    if (!data.appId) {
+      throw new Error("Сервер не вернул Agora App ID");
+    }
+    const appId = data.appId;
     const joinUid = (data.uid !== undefined && data.uid !== null) ? data.uid : userId;
 
     await c.join(appId, channel, data.token || null, joinUid);
@@ -348,7 +354,7 @@ window.leaveVoice = async function () {
     channel: null,
     muted: false,
     deafened: false,
-    appId: FALLBACK_APP_ID
+    appId: null
   };
 
   window.dispatchEvent(

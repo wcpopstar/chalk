@@ -10,7 +10,7 @@
     "worker": "node dist/worker.js",
     "worker:dev": "tsx watch src/worker.ts",
     "migrate": "node supabase/migrate.js",
-    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "test": "node --import tsx --test --test-force-exit \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

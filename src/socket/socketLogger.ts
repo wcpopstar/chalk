@@ -18,21 +18,22 @@ export {};
  * Usage inside any handler module:
  *   function registerChatHandlers(io, socket, userId, username) {
  *     socket.on('message:send', async (payload) => {
- *       socket.log.info({ event: 'message:send' }, 'Message received');
+ *       socket.data.log.info({ event: 'message:send' }, 'Message received');
  *       ...
- *       socket.log.error({ err }, 'Failed to save message');
+ *       socket.data.log.error({ err }, 'Failed to save message');
  *     });
  *   }
  */
 
+import type { TypedSocket, JwtPayload } from './types';
 const { randomUUID } = require('crypto');
 const logger = require('../utils/logger');
 
-function socketLogger(socket: any, next: any) {
+function socketLogger(socket: TypedSocket, next: (err?: Error) => void) {
   const connectionId = randomUUID();
 
-  socket.connectionId = connectionId;
-  socket.log = logger.child({ connectionId, socketId: socket.id });
+  socket.data.connectionId = connectionId;
+  socket.data.log = logger.child({ connectionId, socketId: socket.id });
 
   next();
 }
@@ -42,8 +43,8 @@ function socketLogger(socket: any, next: any) {
  * user context, so every subsequent log line from this socket is
  * attributable to a user without repeating userId in every call site.
  */
-function attachUserContext(socket: any, { id: userId, username }: any = {}) {
-  socket.log = socket.log.child({ userId, username });
+function attachUserContext(socket: TypedSocket, { id: userId, username }: JwtPayload) {
+  socket.data.log = socket.data.log.child({ userId, username });
 }
 
 module.exports = { socketLogger, attachUserContext };
