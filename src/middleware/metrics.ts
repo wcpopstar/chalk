@@ -1,4 +1,3 @@
-export {};
 /**
  * HTTP metrics middleware — feeds the Prometheus registry in utils/metrics.ts.
  *
@@ -14,7 +13,7 @@ export {};
  * raw path, for the same cardinality reason.
  */
 
-const metrics = require('../utils/metrics');
+import metrics from '../utils/metrics';
 
 function metricsMiddleware(req: any, res: any, next: any) {
   const startNs = process.hrtime.bigint();
@@ -38,4 +37,4 @@ function metricsMiddleware(req: any, res: any, next: any) {
   next();
 }
 
-module.exports = { metricsMiddleware };
+export { metricsMiddleware };

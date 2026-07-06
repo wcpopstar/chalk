@@ -1,43 +1,43 @@
-export {};
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Sentry must be required before anything else gets a chance to throw, so
 // its init (including automatic uncaught-exception hooking) is in place
 // for the rest of the module graph below.
-const Sentry = require('./utils/sentry');
+import Sentry from './utils/sentry';
 
-const express = require('express');
-const http = require('http');
-const path = require('path');
-const { Server } = require('socket.io');
-const { createAdapter } = require('@socket.io/redis-adapter');
-const helmet = require('helmet');
-const cors = require('cors');
-const rateLimit = require('express-rate-limit');
+import express from 'express';
+import http from 'http';
+import path from 'path';
+import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import helmet from 'helmet';
+import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
-const logger = require('./utils/logger');
-const { requestLogger } = require('./middleware/requestLogger');
-const { requireAuth } = require('./middleware/auth');
-const { config, validateEnv } = require('./config/env');
-const { redis, pubClient, subClient, waitForRedisReady } = require('./socket/redisClient');
-const { supabase, supabaseAdmin } = require('./services/supabase');
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const matchRoutes = require('./routes/match');
-const friendRoutes = require('./routes/friends');
-const callRoutes = require('./routes/calls');
-const chatRoutes = require('./routes/chats');
-const agoraRoutes = require('./routes/agora');
-const gameRoutes = require('./routes/games');
-const featureFlagRoutes = require('./routes/featureFlags');
-const gifRoutes = require('./routes/gifs');
-const { initSocket } = require('./socket');
-const { startWorkers, closeWorkers } = require('./workers');
-const { closeQueues } = require('./queues');
-const metrics = require('./utils/metrics');
-const { metricsMiddleware } = require('./middleware/metrics');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./config/swagger');
+import logger from './utils/logger';
+import { requestLogger } from './middleware/requestLogger';
+import { requireAuth } from './middleware/auth';
+import { config, validateEnv } from './config/env';
+import { redis, pubClient, subClient, waitForRedisReady } from './socket/redisClient';
+import { supabase, supabaseAdmin } from './services/supabase';
+import authRoutes from './routes/auth';
+import userRoutes from './routes/users';
+import matchRoutes from './routes/match';
+import friendRoutes from './routes/friends';
+import callRoutes from './routes/calls';
+import chatRoutes from './routes/chats';
+import agoraRoutes from './routes/agora';
+import gameRoutes from './routes/games';
+import featureFlagRoutes from './routes/featureFlags';
+import gifRoutes from './routes/gifs';
+import { initSocket } from './socket';
+import { startWorkers, closeWorkers } from './workers';
+import { closeQueues } from './queues';
+import metrics from './utils/metrics';
+import { metricsMiddleware } from './middleware/metrics';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger';
 
 validateEnv();
 
@@ -354,4 +354,4 @@ async function shutdown(signal: any) {
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 process.on('SIGINT', () => shutdown('SIGINT'));
 
-module.exports = { app, io, server };
+export { app, io, server };

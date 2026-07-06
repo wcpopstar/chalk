@@ -1,6 +1,5 @@
-export {};
 import type { TypedSocket } from './types';
-const { checkSlidingWindow } = require('./rateLimiter');
+import { checkSlidingWindow } from './rateLimiter';
 
 /**
  * All Socket.io flood/rate-limit checks for this app. Backed by Redis (see
@@ -108,7 +107,7 @@ async function checkNamedLimit(userId: any, eventName: any) {
   return { ...res, limitKey: cfg.limitKey };
 }
 
-module.exports = {
+export {
   // tier 1 (legacy, soft)
   isFlooding,
   isFloodingUser,

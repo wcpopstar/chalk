@@ -1,8 +1,8 @@
-export {};
-const { verifyAccessToken } = require('../utils/jwt');
-const tokenBlacklist = require('../services/tokenBlacklist');
-const { sendError } = require('../utils/http');
-const logger = require('../utils/logger').child({ module: 'auth-middleware' });
+import { verifyAccessToken } from '../utils/jwt';
+import tokenBlacklist from '../services/tokenBlacklist';
+import { sendError } from '../utils/http';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'auth-middleware' });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function extractBearerToken(req: any) {
@@ -70,4 +70,4 @@ function optionalAuth(req: any, _res: any, next: any) {
   next();
 }
 
-module.exports = { requireAuth, optionalAuth, extractBearerToken };
+export { requireAuth, optionalAuth, extractBearerToken };

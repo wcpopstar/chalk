@@ -1,7 +1,7 @@
-export {};
-const crypto = require('crypto');
-const logger = require('../utils/logger').child({ module: 'admin-auth' });
-const { config } = require('../config/env');
+import crypto from 'crypto';
+import loggerBase from '../utils/logger';
+import { config } from '../config/env';
+const logger = loggerBase.child({ module: 'admin-auth' });
 
 /**
  * Gates the feature-flag admin endpoints behind a shared secret header
@@ -31,4 +31,4 @@ function requireAdminKey(req: any, res: any, next: any) {
   next();
 }
 
-module.exports = { requireAdminKey };
+export { requireAdminKey };

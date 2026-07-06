@@ -1,15 +1,14 @@
-export {};
 import type { TypedServer, TypedSocket } from './types';
-const { supabaseAdmin } = require('../services/supabase');
-const { areUsersBlocked } = require('../services/blockHelper');
-const {
+import { supabaseAdmin } from '../services/supabase';
+import { areUsersBlocked } from '../services/blockHelper';
+import {
   getRoom, deleteRoom, updateRoom, roomSize,
   getOnlineSocket, getUserCurrentRoom,
   setUserRoom, clearUserRoom,
   addPendingInvite, consumePendingInvite,
   addPendingJoinRequest, consumePendingJoinRequest,
   markCallPartners,
-} = require('./state');
+} from './state';
 import { secureOn } from './validation';
 
 // All handlers below go through secureOn() — see chat.js/globalChat.js for
@@ -180,4 +179,4 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
   });
 }
 
-module.exports = { registerCallHandlers };
+export { registerCallHandlers };

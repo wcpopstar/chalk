@@ -1,4 +1,3 @@
-export {};
 /**
  * validate({ body, query, params }) — runs each given Zod schema against
  * the matching part of the request, replaces it with the *parsed* result
@@ -30,4 +29,4 @@ function validate({ body, query, params }: any = {}) {
   };
 }
 
-module.exports = { validate };
+export { validate };

@@ -1,4 +1,3 @@
-export {};
 /**
  * Socket.IO logging middleware.
  *
@@ -26,8 +25,8 @@ export {};
  */
 
 import type { TypedSocket, JwtPayload } from './types';
-const { randomUUID } = require('crypto');
-const logger = require('../utils/logger');
+import { randomUUID } from 'crypto';
+import logger from '../utils/logger';
 
 function socketLogger(socket: TypedSocket, next: (err?: Error) => void) {
   const connectionId = randomUUID();
@@ -47,4 +46,4 @@ function attachUserContext(socket: TypedSocket, { id: userId, username }: JwtPay
   socket.data.log = socket.data.log.child({ userId, username });
 }
 
-module.exports = { socketLogger, attachUserContext };
+export { socketLogger, attachUserContext };

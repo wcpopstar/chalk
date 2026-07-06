@@ -1,6 +1,6 @@
-export {};
-const { redis } = require('./redisClient');
-const logger = require('../utils/logger').child({ module: 'socket-rate-limiter' });
+import { redis } from './redisClient';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'socket-rate-limiter' });
 
 /**
  * Core Redis-backed sliding-window rate limiter used by every socket flood
@@ -120,4 +120,4 @@ async function checkSlidingWindow(key: any, windowMs: any, limit: any, warnRatio
   }
 }
 
-module.exports = { checkSlidingWindow };
+export { checkSlidingWindow };

@@ -113,9 +113,7 @@ function searchGifs(scope, query) {
       const data = await api(`/api/gifs/search?q=${  encodeURIComponent(query)  }&limit=12`);
       const results = data.results || [];
       if (!results.length) { grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_nothing_found">Ничего не найдено</span></div>'; return; }
-      grid.innerHTML = results.map((g) =>{
-        return `<img src="${  g.thumb  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`;
-      }).join('');
+      grid.innerHTML = results.map((g) => `<img src="${  g.thumb  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`).join('');
     } catch (e) {
       grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_couldnt_load">Не удалось загрузить GIF</span></div>';
     }

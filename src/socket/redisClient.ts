@@ -1,7 +1,7 @@
-export {};
-const Redis = require('ioredis');
-const logger = require('../utils/logger').child({ module: 'redis' });
-const { config } = require('../config/env');
+import Redis from 'ioredis';
+import loggerBase from '../utils/logger';
+import { config } from '../config/env';
+const logger = loggerBase.child({ module: 'redis' });
 
 /**
  * Redis connections used by the realtime layer.
@@ -56,4 +56,4 @@ function waitForRedisReady() {
   return Promise.all([ready(redis), ready(pubClient), ready(subClient)]);
 }
 
-module.exports = { redis, pubClient, subClient, waitForRedisReady, REDIS_URL };
+export { redis, pubClient, subClient, waitForRedisReady, REDIS_URL };

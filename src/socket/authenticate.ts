@@ -1,7 +1,6 @@
-export {};
 import type { TypedSocket, JwtPayload } from './types';
-const { verifyAccessToken } = require('../utils/jwt');
-const tokenBlacklist = require('../services/tokenBlacklist');
+import { verifyAccessToken } from '../utils/jwt';
+import tokenBlacklist from '../services/tokenBlacklist';
 
 // ── Authenticate socket via handshake token ─────────────────────────────────
 // Validates the same short-lived access JWT used by the HTTP API (signature,
@@ -89,4 +88,4 @@ function applyAuth(socket: TypedSocket, payload: JwtPayload) {
   socket.once('disconnect', () => clearTimeout(socket.data.tokenExpiryTimer));
 }
 
-module.exports = { authenticateSocket };
+export { authenticateSocket };

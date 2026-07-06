@@ -1,15 +1,15 @@
-export {};
 import type { TypedServer, TypedSocket, ClientToServerEvents, SecuredEventName } from './types';
-const { socketEventSchemas } = require('../validation/socketSchemas');
-const {
+import { socketEventSchemas } from '../validation/socketSchemas';
+import {
   isFlooding,
   isFloodingUser,
   isFloodingGlobal,
   checkNamedLimit,
-} = require('./rateLimit');
-const fallbackLogger = require('../utils/logger').child({ module: 'socket-validation' });
-const Sentry = require('../utils/sentry');
-const metrics = require('../utils/metrics');
+} from './rateLimit';
+import fallbackLoggerBase from '../utils/logger';
+import Sentry from '../utils/sentry';
+import metrics from '../utils/metrics';
+const fallbackLogger = fallbackLoggerBase.child({ module: 'socket-validation' });
 
 // ── secureOn() handler/options types ─────────────────────────────────────
 // `E` is the event name; the handler's `data`/`ack` parameter types are
@@ -253,8 +253,7 @@ async function socketConnectionRateLimiter(socket: TypedSocket, next: (err?: Err
   next();
 }
 
-module.exports = {
-  secureOn,
+export {
   validateSocketEvent,
   socketConnectionRateLimiter,
   disconnectForRateLimit,

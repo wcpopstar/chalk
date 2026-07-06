@@ -1,8 +1,7 @@
-export {};
 import type { TypedServer } from './types';
-const { supabaseAdmin } = require('../services/supabase');
-const { getOnlineSocket } = require('./state');
-const { safeAsync } = require('../utils/safeAsync');
+import { supabaseAdmin } from '../services/supabase';
+import { getOnlineSocket } from './state';
+import { safeAsync } from '../utils/safeAsync';
 
 // ── Tell online friends about presence change ─────────────────────────────
 // Best-effort: a friend not finding out someone came online/offline isn't
@@ -26,4 +25,4 @@ async function notifyFriendsPresence(io: TypedServer, userId: string, status: 'o
   }, { label: 'notify friends of presence change', context: { userId, status } });
 }
 
-module.exports = { notifyFriendsPresence };
+export { notifyFriendsPresence };

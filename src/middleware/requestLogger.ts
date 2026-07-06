@@ -1,4 +1,3 @@
-export {};
 /**
  * HTTP request logging middleware, built on pino-http.
  *
@@ -23,9 +22,9 @@ export {};
  *   });
  */
 
-const { randomUUID } = require('crypto');
-const pinoHttp = require('pino-http');
-const logger = require('../utils/logger');
+import { randomUUID } from 'crypto';
+import pinoHttp from 'pino-http';
+import logger from '../utils/logger';
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
@@ -81,4 +80,4 @@ const requestLogger = pinoHttp({
   },
 });
 
-module.exports = { requestLogger, REQUEST_ID_HEADER };
+export { requestLogger, REQUEST_ID_HEADER };

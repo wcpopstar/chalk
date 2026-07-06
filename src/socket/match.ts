@@ -1,12 +1,12 @@
-export {};
 import type { TypedServer, TypedSocket } from './types';
-const { v4: uuid } = require('uuid');
-const { supabaseAdmin } = require('../services/supabase');
-const { addFriendPairInstant } = require('../services/friendsHelper');
-const { enqueue, dequeue, runMatchCycle, queueSize } = require('./matchmaking');
-const { saveRoom, deleteRoom, updateRoom, setUserRoom, clearUserRoom, markCallPartners } = require('./state');
+import { v4 as uuid } from 'uuid';
+import { supabaseAdmin } from '../services/supabase';
+import { addFriendPairInstant } from '../services/friendsHelper';
+import { enqueue, dequeue, runMatchCycle, queueSize } from './matchmaking';
+import { saveRoom, deleteRoom, updateRoom, setUserRoom, clearUserRoom, markCallPartners } from './state';
 import { secureOn } from './validation';
-const logger = require('../utils/logger').child({ module: 'match' });
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'match' });
 
 // ── Persist match to history ──────────────────────────────────────────────
 async function saveMatchHistory(participants: any, gameId: any, mode: any) {
@@ -229,4 +229,4 @@ function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: str
   });
 }
 
-module.exports = { startMatchLoop, registerMatchHandlers };
+export { startMatchLoop, registerMatchHandlers };

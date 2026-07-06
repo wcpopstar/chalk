@@ -1,6 +1,5 @@
-export {};
-const { v4: uuid } = require('uuid');
-const { supabaseAdmin } = require('../services/supabase');
+import { v4 as uuid } from 'uuid';
+import { supabaseAdmin } from '../services/supabase';
 
 // ── Lightweight magic-byte sniffing ─────────────────────────────────────────
 // We don't trust the client-supplied `mime` for what ends up as the
@@ -67,4 +66,4 @@ async function uploadVideoNote(senderId: any, buffer: any, _mime: any) {
   return data.publicUrl;
 }
 
-module.exports = { uploadVoiceNote, uploadVideoNote };
+export { uploadVoiceNote, uploadVideoNote };

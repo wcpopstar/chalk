@@ -1,16 +1,15 @@
-export {};
 import type { TypedServer, TypedSocket } from './types';
-const { isYouTubeUrl, getYouTubePreviewData } = require('../utils/links');
+import { isYouTubeUrl, getYouTubePreviewData } from '../utils/links';
 import { secureOn } from './validation';
-const { uploadVoiceNote, uploadVideoNote } = require('./media');
-const {
+import { uploadVoiceNote, uploadVideoNote } from './media';
+import {
   MESSAGE_SELECT,
   saveMessage,
   editMessageRow,
   deleteMessageRow,
   directPartnerBlocked,
   isConversationMember,
-} = require('./messages');
+} from './messages';
 
 // All handlers below go through secureOn(), which — before this code ever
 // runs — checks the global per-user event budget, the per-event rate limit
@@ -119,4 +118,4 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
   });
 }
 
-module.exports = { registerChatHandlers };
+export { registerChatHandlers };

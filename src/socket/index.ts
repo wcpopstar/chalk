@@ -1,20 +1,19 @@
-export {};
 import type { TypedServer, TypedSocket } from './types';
-const { supabaseAdmin } = require('../services/supabase');
-const { dequeue } = require('../services/matchmakingRedis');
-const { authenticateSocket } = require('./authenticate');
-const { socketLogger, attachUserContext } = require('./socketLogger');
-const { setOnline, removeOnline, onlineCount, clearUserRoom } = require('./state');
-const { clearRateLimitsFor, checkConnectionBudget } = require('./rateLimit');
-const { socketConnectionRateLimiter, disconnectForRateLimit } = require('./validation');
-const { notifyFriendsPresence } = require('./presence');
-const { startMatchLoop, registerMatchHandlers } = require('./match');
-const { registerCallHandlers } = require('./calls');
-const { registerChatHandlers } = require('./chat');
-const { registerGlobalChatHandlers } = require('./globalChat');
-const { registerSwipeHandlers } = require('./swipe');
-const metrics = require('../utils/metrics');
-const { safeAsync } = require('../utils/safeAsync');
+import { supabaseAdmin } from '../services/supabase';
+import { dequeue } from '../services/matchmakingRedis';
+import { authenticateSocket } from './authenticate';
+import { socketLogger, attachUserContext } from './socketLogger';
+import { setOnline, removeOnline, onlineCount, clearUserRoom } from './state';
+import { clearRateLimitsFor, checkConnectionBudget } from './rateLimit';
+import { socketConnectionRateLimiter, disconnectForRateLimit } from './validation';
+import { notifyFriendsPresence } from './presence';
+import { startMatchLoop, registerMatchHandlers } from './match';
+import { registerCallHandlers } from './calls';
+import { registerChatHandlers } from './chat';
+import { registerGlobalChatHandlers } from './globalChat';
+import { registerSwipeHandlers } from './swipe';
+import metrics from '../utils/metrics';
+import { safeAsync } from '../utils/safeAsync';
 
 // ── Main socket initialiser ───────────────────────────────────────────────
 // Each feature area (matchmaking, calls, DM chat, global chat, swipes) lives
@@ -118,4 +117,4 @@ function initSocket(io: TypedServer) {
   return { stopMatchLoop };
 }
 
-module.exports = { initSocket };
+export { initSocket };

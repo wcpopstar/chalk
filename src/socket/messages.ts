@@ -1,8 +1,8 @@
-export {};
-const { v4: uuid } = require('uuid');
-const { supabaseAdmin } = require('../services/supabase');
-const { areUsersBlocked } = require('../services/blockHelper');
-const logger = require('../utils/logger').child({ module: 'messages' });
+import { v4 as uuid } from 'uuid';
+import { supabaseAdmin } from '../services/supabase';
+import { areUsersBlocked } from '../services/blockHelper';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'messages' });
 
 const MESSAGE_SELECT = 'id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at, preview_title, preview_url, preview_thumbnail, preview_video_id, sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )';
 const GLOBAL_MESSAGE_SELECT = `
@@ -121,7 +121,7 @@ async function isConversationMember(conversationId: any, userId: any) {
   return !!data;
 }
 
-module.exports = {
+export {
   MESSAGE_SELECT,
   GLOBAL_MESSAGE_SELECT,
   saveMessage,

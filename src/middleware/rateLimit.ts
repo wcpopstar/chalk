@@ -1,5 +1,4 @@
-export {};
-const rateLimit = require('express-rate-limit');
+import rateLimit from 'express-rate-limit';
 
 /**
  * Rate limiter keyed by authenticated user id when available, falling back
@@ -21,4 +20,4 @@ function userLimiter({ windowMs, max, message }: any) {
   });
 }
 
-module.exports = { userLimiter };
+export { userLimiter };

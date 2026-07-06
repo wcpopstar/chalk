@@ -1,14 +1,13 @@
-export {};
 import type { TypedServer, TypedSocket } from './types';
-const { isYouTubeUrl, getYouTubePreviewData } = require('../utils/links');
+import { isYouTubeUrl, getYouTubePreviewData } from '../utils/links';
 import { secureOn } from './validation';
-const { uploadVoiceNote, uploadVideoNote } = require('./media');
-const {
+import { uploadVoiceNote, uploadVideoNote } from './media';
+import {
   GLOBAL_MESSAGE_SELECT,
   saveGlobalMessage,
   editMessageRow,
   deleteMessageRow,
-} = require('./messages');
+} from './messages';
 
 // ── GLOBAL CHAT (platform-wide public room) ─────────────────────────────
 // All handlers below go through secureOn(), which — before this code ever
@@ -69,4 +68,4 @@ function registerGlobalChatHandlers(io: TypedServer, socket: TypedSocket, userId
   });
 }
 
-module.exports = { registerGlobalChatHandlers };
+export { registerGlobalChatHandlers };

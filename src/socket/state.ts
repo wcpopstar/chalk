@@ -1,8 +1,7 @@
-export {};
 import type { TypedServer } from './types';
-const { supabaseAdmin } = require('../services/supabase');
-const { redis } = require('./redisClient');
-const { safeAsync } = require('../utils/safeAsync');
+import { supabaseAdmin } from '../services/supabase';
+import { redis } from './redisClient';
+import { safeAsync } from '../utils/safeAsync';
 
 /**
  * Realtime state shared by every socket handler module — now backed by
@@ -254,7 +253,7 @@ async function wereRecentCallPartners(userIdA: any, userIdB: any) {
   return exists === 1;
 }
 
-module.exports = {
+export {
   // online presence
   setOnline,
   getOnlineSocket,

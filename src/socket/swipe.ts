@@ -1,7 +1,6 @@
-export {};
 import type { TypedServer, TypedSocket } from './types';
-const { supabaseAdmin } = require('../services/supabase');
-const { getOnlineSocket } = require('./state');
+import { supabaseAdmin } from '../services/supabase';
+import { getOnlineSocket } from './state';
 import { secureOn } from './validation';
 
 // ── SWIPE ─────────────────────────────────────────────────────────────
@@ -39,4 +38,4 @@ function registerSwipeHandlers(io: TypedServer, socket: TypedSocket, userId: str
   }, { onRateLimited: emitSwipeError, onInvalid: emitSwipeError });
 }
 
-module.exports = { registerSwipeHandlers };
+export { registerSwipeHandlers };
