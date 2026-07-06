@@ -63,7 +63,7 @@ const airbnbStyleRules = {
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'supabase/migrations/**', 'public/css/**', 'coverage/**'],
+    ignores: ['node_modules/**', 'supabase/migrations/**', 'public/css/**', 'coverage/**', 'dist/**'],
   },
 
   // Baseline recommended rules everywhere.
@@ -148,6 +148,30 @@ module.exports = [
       // public/js/auth.js's logout(), public/js/i18n.js's language
       // detection) — best-effort operations where failure is expected.
       'no-empty': ['error', { allowEmptyCatch: true }],
+
+      // These files are classic pre-ES6-style <script> tags loaded
+      // directly by public/index.html (no bundler/transpiler, no
+      // module boundaries) — the airbnb-style "TypeScript strictness"
+      // rules above don't fit that code and mostly flag style, not bugs:
+      //  - var is used throughout for cross-<script> globals; switching
+      //    piecemeal to let/const across ~20 interdependent files risks
+      //    subtle scoping regressions for no real benefit here.
+      //  - DOM helpers here commonly mutate the element/object they're
+      //    passed (e.g. building up an `item`/`opts` object, tweaking a
+      //    `btn`/`el` node) — that's the normal idiom for this style of
+      //    UI code, not an accidental side effect.
+      //  - Several handlers legitimately return early for validation
+      //    failures and fall through to `undefined` on success — that's
+      //    intentional control flow, not a missed return.
+      //  - `no-use-before-define` false-positives here: these are global
+      //    script-scope vars that exist by the time the callback actually
+      //    runs, even though they're declared later in the file.
+      'no-var': 'off',
+      'no-param-reassign': 'off',
+      'consistent-return': 'off',
+      'no-plusplus': 'off',
+      'no-nested-ternary': 'off',
+      'no-use-before-define': 'off',
     },
   },
 

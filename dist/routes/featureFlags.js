@@ -1,0 +1,72 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const router = require('express').Router();
+const { requireAuth } = require('../middleware/auth');
+const { requireAdminKey } = require('../middleware/requireAdminKey');
+const { validate } = require('../middleware/validate');
+const { userLimiter } = require('../middleware/rateLimit');
+// Bootstrap call fired once per session — loose, but not unbounded.
+const bootstrapLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Too many requests, slow down.' });
+const { setOverride, listFlags } = require('../services/featureFlags');
+const { flagKeyParam, setFlagBodySchema } = require('../validation/featureFlagSchemas');
+// Toggling flags is an ops action, not something that needs to survive a
+// mash-click — a loose cap is just here to stop a leaked/rotated admin key
+// from being used to hammer Redis in a loop.
+const adminLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Too many admin requests, slow down.' });
+/**
+ * @openapi
+ * /api/flags:
+ *   get:
+ *     tags: [Users]
+ *     summary: Get resolved feature flags for the current user
+ *     description: Client bootstrap call — nothing here is sensitive (it's just which UI features are currently on), so any authenticated user can read it. Resolved per-user so a flag with a rolloutPercent override comes back correctly bucketed for THIS user rather than as a global on/off.
+ *     responses:
+ *       200:
+ *         description: OK
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 flags:
+ *                   type: object
+ *                   additionalProperties: { type: boolean }
+ *                   example: { 'discovery.enabled': true, 'games.tetris.enabled': true }
+ */
+router.get('/', requireAuth, bootstrapLimiter, async (req, res) => {
+    const flags = await listFlags({ userId: req.user.id });
+    const resolved = {};
+    flags.forEach((f) => { resolved[f.key] = f.enabled; });
+    res.json({ flags: resolved });
+});
+// ── GET /api/flags/admin ─────────────────────────────────────────────────────
+// Full detail (defaults, active overrides) — for an internal ops tool/CLI,
+// not the client app.
+router.get('/admin', requireAdminKey, adminLimiter, async (_req, res) => {
+    const flags = await listFlags();
+    res.json({ flags });
+});
+// ── PATCH /api/flags/admin/:key ──────────────────────────────────────────────
+// Body is either { enabled: true|false } or { rolloutPercent: 0-100 }.
+router.patch('/admin/:key', requireAdminKey, adminLimiter, validate({ params: flagKeyParam, body: setFlagBodySchema }), async (req, res) => {
+    try {
+        await setOverride(req.params.key, req.body);
+        res.json({ ok: true });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+// ── DELETE /api/flags/admin/:key ─────────────────────────────────────────────
+// Removes any live override, falling back to the env var / code default.
+router.delete('/admin/:key', requireAdminKey, adminLimiter, validate({ params: flagKeyParam }), async (req, res) => {
+    try {
+        await setOverride(req.params.key, null);
+        res.json({ ok: true });
+    }
+    catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+module.exports = router;
+//# sourceMappingURL=featureFlags.js.map

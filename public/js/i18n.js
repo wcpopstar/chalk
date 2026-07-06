@@ -12,40 +12,40 @@ var currentLang = 'ru';
 
 function detectInitialLang() {
   try {
-    var saved = localStorage.getItem('chalk_lang');
+    const saved = localStorage.getItem('chalk_lang');
     if (saved && I18N_LANGS.indexOf(saved) !== -1) return saved;
   } catch (_) {}
   try {
-    var nav = (navigator.language || navigator.userLanguage || 'ru').toLowerCase();
-    var short = nav.slice(0, 2);
+    const nav = (navigator.language || navigator.userLanguage || 'ru').toLowerCase();
+    const short = nav.slice(0, 2);
     if (I18N_LANGS.indexOf(short) !== -1) return short;
   } catch (_) {}
   return 'ru';
 }
 
 function T(key, fallback) {
-  var dict = I18N_DATA[currentLang] || I18N_DATA.ru;
+  const dict = I18N_DATA[currentLang] || I18N_DATA.ru;
   if (dict && Object.prototype.hasOwnProperty.call(dict, key)) return dict[key];
-  var ruDict = I18N_DATA.ru;
+  const ruDict = I18N_DATA.ru;
   if (ruDict && Object.prototype.hasOwnProperty.call(ruDict, key)) return ruDict[key];
   return fallback !== undefined ? fallback : key;
 }
 
 function applyI18n() {
-  var dict = I18N_DATA[currentLang] || I18N_DATA.ru;
-  var nodes = document.querySelectorAll('[data-i18n]');
-  for (var i = 0; i < nodes.length; i++) {
-    var key = nodes[i].getAttribute('data-i18n');
+  const dict = I18N_DATA[currentLang] || I18N_DATA.ru;
+  const nodes = document.querySelectorAll('[data-i18n]');
+  for (let i = 0; i < nodes.length; i++) {
+    const key = nodes[i].getAttribute('data-i18n');
     if (Object.prototype.hasOwnProperty.call(dict, key)) nodes[i].textContent = dict[key];
   }
-  var phNodes = document.querySelectorAll('[data-i18n-placeholder]');
-  for (var j = 0; j < phNodes.length; j++) {
-    var pkey = phNodes[j].getAttribute('data-i18n-placeholder');
+  const phNodes = document.querySelectorAll('[data-i18n-placeholder]');
+  for (let j = 0; j < phNodes.length; j++) {
+    const pkey = phNodes[j].getAttribute('data-i18n-placeholder');
     if (Object.prototype.hasOwnProperty.call(dict, pkey)) phNodes[j].setAttribute('placeholder', dict[pkey]);
   }
-  var titleNodes = document.querySelectorAll('[data-i18n-title]');
-  for (var k = 0; k < titleNodes.length; k++) {
-    var tkey = titleNodes[k].getAttribute('data-i18n-title');
+  const titleNodes = document.querySelectorAll('[data-i18n-title]');
+  for (let k = 0; k < titleNodes.length; k++) {
+    const tkey = titleNodes[k].getAttribute('data-i18n-title');
     if (Object.prototype.hasOwnProperty.call(dict, tkey)) titleNodes[k].setAttribute('title', dict[tkey]);
   }
   document.documentElement.setAttribute('lang', currentLang);
@@ -57,12 +57,12 @@ function applyI18n() {
 }
 
 function updateLangToggleUI() {
-  var meta = I18N_LANG_META[currentLang];
+  const meta = I18N_LANG_META[currentLang];
   if (!meta) return;
-  var btns = document.querySelectorAll('.lang-toggle-btn');
-  for (var i = 0; i < btns.length; i++) btns[i].textContent = meta.flag;
-  var items = document.querySelectorAll('.lang-menu-item');
-  for (var j = 0; j < items.length; j++) {
+  const btns = document.querySelectorAll('.lang-toggle-btn');
+  for (let i = 0; i < btns.length; i++) btns[i].textContent = meta.flag;
+  const items = document.querySelectorAll('.lang-menu-item');
+  for (let j = 0; j < items.length; j++) {
     items[j].classList.toggle('active', items[j].getAttribute('data-lang') === currentLang);
   }
 }
@@ -77,16 +77,16 @@ function setLang(lang) {
 
 function toggleLangMenu(event) {
   if (event) event.stopPropagation();
-  var menus = document.querySelectorAll('.lang-menu');
-  for (var i = 0; i < menus.length; i++) menus[i].classList.toggle('show');
+  const menus = document.querySelectorAll('.lang-menu');
+  for (let i = 0; i < menus.length; i++) menus[i].classList.toggle('show');
 }
 
 function closeLangMenu() {
-  var menus = document.querySelectorAll('.lang-menu');
-  for (var i = 0; i < menus.length; i++) menus[i].classList.remove('show');
+  const menus = document.querySelectorAll('.lang-menu');
+  for (let i = 0; i < menus.length; i++) menus[i].classList.remove('show');
 }
 
-document.addEventListener('click', function (e) {
+document.addEventListener('click', (e) => {
   if (!e.target.closest || !e.target.closest('.lang-switcher')) closeLangMenu();
 });
 
@@ -96,45 +96,45 @@ document.documentElement.setAttribute('lang', currentLang);
 // Auto-translate any HTML inserted later via innerHTML (chat lists, friend lists, etc.)
 function applyI18nToNode(node) {
   if (!node || node.nodeType !== 1) return;
-  var dict = I18N_DATA[currentLang] || I18N_DATA.ru;
-  var targets = [];
+  const dict = I18N_DATA[currentLang] || I18N_DATA.ru;
+  const targets = [];
   if (node.hasAttribute && node.hasAttribute('data-i18n')) targets.push(node);
   if (node.querySelectorAll) {
-    var found = node.querySelectorAll('[data-i18n]');
-    for (var i = 0; i < found.length; i++) targets.push(found[i]);
+    const found = node.querySelectorAll('[data-i18n]');
+    for (let i = 0; i < found.length; i++) targets.push(found[i]);
   }
-  for (var j = 0; j < targets.length; j++) {
-    var key = targets[j].getAttribute('data-i18n');
+  for (let j = 0; j < targets.length; j++) {
+    const key = targets[j].getAttribute('data-i18n');
     if (Object.prototype.hasOwnProperty.call(dict, key)) targets[j].textContent = dict[key];
   }
-  var phTargets = [];
+  const phTargets = [];
   if (node.hasAttribute && node.hasAttribute('data-i18n-placeholder')) phTargets.push(node);
   if (node.querySelectorAll) {
-    var foundPh = node.querySelectorAll('[data-i18n-placeholder]');
-    for (var k = 0; k < foundPh.length; k++) phTargets.push(foundPh[k]);
+    const foundPh = node.querySelectorAll('[data-i18n-placeholder]');
+    for (let k = 0; k < foundPh.length; k++) phTargets.push(foundPh[k]);
   }
-  for (var m = 0; m < phTargets.length; m++) {
-    var pkey = phTargets[m].getAttribute('data-i18n-placeholder');
+  for (let m = 0; m < phTargets.length; m++) {
+    const pkey = phTargets[m].getAttribute('data-i18n-placeholder');
     if (Object.prototype.hasOwnProperty.call(dict, pkey)) phTargets[m].setAttribute('placeholder', dict[pkey]);
   }
-  var titleTargets = [];
+  const titleTargets = [];
   if (node.hasAttribute && node.hasAttribute('data-i18n-title')) titleTargets.push(node);
   if (node.querySelectorAll) {
-    var foundTitle = node.querySelectorAll('[data-i18n-title]');
-    for (var n = 0; n < foundTitle.length; n++) titleTargets.push(foundTitle[n]);
+    const foundTitle = node.querySelectorAll('[data-i18n-title]');
+    for (let n = 0; n < foundTitle.length; n++) titleTargets.push(foundTitle[n]);
   }
-  for (var p = 0; p < titleTargets.length; p++) {
-    var tkey = titleTargets[p].getAttribute('data-i18n-title');
+  for (let p = 0; p < titleTargets.length; p++) {
+    const tkey = titleTargets[p].getAttribute('data-i18n-title');
     if (Object.prototype.hasOwnProperty.call(dict, tkey)) titleTargets[p].setAttribute('title', dict[tkey]);
   }
 }
 
 if (typeof MutationObserver !== 'undefined') {
-  document.addEventListener('DOMContentLoaded', function () {
-    var i18nObserver = new MutationObserver(function (mutations) {
-      for (var i = 0; i < mutations.length; i++) {
-        var added = mutations[i].addedNodes;
-        for (var j = 0; j < added.length; j++) applyI18nToNode(added[j]);
+  document.addEventListener('DOMContentLoaded', () => {
+    const i18nObserver = new MutationObserver((mutations) => {
+      for (let i = 0; i < mutations.length; i++) {
+        const added = mutations[i].addedNodes;
+        for (let j = 0; j < added.length; j++) applyI18nToNode(added[j]);
       }
     });
     i18nObserver.observe(document.body, { childList: true, subtree: true });
