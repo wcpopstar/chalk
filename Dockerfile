@@ -63,8 +63,20 @@ ENTRYPOINT ["tini", "--"]
 CMD ["npm", "run", "dev"]
 
 # -----------------------------------------------------------------------
+# build — compiles TypeScript (src/**/*.ts) to plain JS (dist/**/*.js).
+# Needs the *full* node_modules (dev-dependencies stage) because `tsc`
+# itself is a devDependency — this stage's output (dist/) is copied into
+# the production image below, but its node_modules never is.
+# -----------------------------------------------------------------------
+FROM dev-dependencies AS build
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build
+
+# -----------------------------------------------------------------------
 # production — final runtime image. Only prod node_modules + the exact
-# runtime files the app needs (no tests, no migrations, no .env, no git).
+# runtime files the app needs (no tests, no migrations, no .env, no git,
+# no TypeScript source — just the compiled dist/ output).
 # Non-root user, read-only-friendly (no filesystem writes at runtime —
 # the app has no fs.write*/multer/temp-file usage), tini as PID 1.
 #
@@ -72,10 +84,10 @@ CMD ["npm", "run", "dev"]
 # SIGTERM to PID 1 when stopping/redeploying the container. tini is PID 1
 # here specifically so that signal is forwarded correctly to the Node
 # process (Node does not handle being PID 1 well on its own — it won't
-# reap zombies and can miss signals). src/index.js's SIGTERM/SIGINT
+# reap zombies and can miss signals). src/index.ts's SIGTERM/SIGINT
 # handler then drains in-flight requests, closes Socket.io connections,
 # and closes Redis/Supabase connections before exiting — see the
-# "Graceful shutdown" section of src/index.js for the exact order.
+# "Graceful shutdown" section of src/index.ts for the exact order.
 # STOPSIGNAL is SIGTERM by default for Docker, spelled out here so the
 # platform's shutdown grace period (must be >= the app's own
 # SHUTDOWN_TIMEOUT_MS, currently 15s) is a deliberate choice, not an
@@ -87,10 +99,11 @@ RUN addgroup -S chalk && adduser -S chalk -G chalk
 
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json ./
-COPY src ./src
+COPY --from=build /app/dist ./dist
 COPY public ./public
-# Deliberately NOT copied: test/, supabase/migrations/, .env*, README.md,
-# .git — none of them are needed to run the server (see .dockerignore).
+# Deliberately NOT copied: src/ (TypeScript source — dist/ is what runs),
+# test/, supabase/migrations/, .env*, README.md, .git — none of them are
+# needed to run the server (see .dockerignore).
 
 USER chalk
 
@@ -103,9 +116,9 @@ STOPSIGNAL SIGTERM
 # answering immediately — give those two network calls room to finish
 # under normal conditions without the healthcheck itself flapping.
 # A non-200 response (503 while draining, or if either dependency check
-# fails) correctly marks the container unhealthy — see src/index.js.
+# fails) correctly marks the container unhealthy — see src/index.ts.
 HEALTHCHECK --interval=30s --timeout=8s --start-period=20s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.PORT||3000)+'/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 ENTRYPOINT ["tini", "--"]
-CMD ["node", "src/index.js"]
+CMD ["node", "dist/index.js"]

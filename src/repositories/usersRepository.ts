@@ -1,0 +1,161 @@
+export {};
+const { supabaseAdmin } = require('../services/supabase');
+
+/**
+ * Repository layer for the `users` table.
+ *
+ * Rules this file follows (so it stays worth having):
+ *  - Every function here maps to exactly one query shape a route actually
+ *    needs — named for intent (`findForLogin`, not a generic `find(opts)`).
+ *  - No HTTP concerns (no req/res, no status codes) and no cross-table
+ *    business rules (e.g. "block also removes the friendship" belongs in
+ *    services/blockHelper.js, not here).
+ *  - Returns exactly what supabase-js returns ({ data, error }) rather than
+ *    throwing, so call sites that already do `if (error) return
+ *    res.status(500)...` keep working unchanged — this is a data-access
+ *    seam, not a rewrite of error handling.
+ */
+
+const FULL_PROFILE_FIELDS =
+  'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, presence, created_at';
+
+// ── register.js ──────────────────────────────────────────────────────────
+function existsByEmailOrUsername(email: any, username: any) {
+  return supabaseAdmin
+    .from('users')
+    .select('id')
+    .or(`email.eq.${email},username.eq.${username}`)
+    .maybeSingle();
+}
+
+function createUser(record: any, selectFields: any = FULL_PROFILE_FIELDS) {
+  return supabaseAdmin.from('users').insert(record).select(selectFields).single();
+}
+
+// ── login.js ─────────────────────────────────────────────────────────────
+function findForLogin(email: any) {
+  return supabaseAdmin
+    .from('users')
+    .select(
+      'id, username, email, password_hash, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, presence'
+    )
+    .eq('email', email.toLowerCase())
+    .maybeSingle();
+}
+
+// ── login.js / session.js (logout, logout-all) ──────────────────────────
+function setStatus(userId: any, status: any) {
+  return supabaseAdmin
+    .from('users')
+    .update({ status, last_seen: new Date().toISOString() })
+    .eq('id', userId);
+}
+
+// ── session.js: /refresh ─────────────────────────────────────────────────
+function findBasicById(userId: any) {
+  return supabaseAdmin.from('users').select('id, username').eq('id', userId).maybeSingle();
+}
+
+// ── session.js: GET /me ───────────────────────────────────────────────────
+function findFullProfileById(userId: any) {
+  return supabaseAdmin
+    .from('users')
+    .select(
+      'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, presence, bio, created_at'
+    )
+    .eq('id', userId)
+    .single();
+}
+
+// ── passwordReset.js ─────────────────────────────────────────────────────
+function findByEmailForPasswordReset(email: any) {
+  return supabaseAdmin.from('users').select('id, email').eq('email', email.toLowerCase()).maybeSingle();
+}
+
+function updatePasswordHash(userId: any, passwordHash: any) {
+  return supabaseAdmin.from('users').update({ password_hash: passwordHash }).eq('id', userId);
+}
+
+// ── users/profile.js ──────────────────────────────────────────────────────
+function existsByUsernameExcludingId(username: any, excludeUserId: any) {
+  return supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('username', username)
+    .neq('id', excludeUserId)
+    .maybeSingle();
+}
+
+function updateProfile(userId: any, updates: any, selectFields: any) {
+  return supabaseAdmin.from('users').update(updates).eq('id', userId).select(selectFields).single();
+}
+
+// ── users/discovery.js ────────────────────────────────────────────────────
+// Deliberately takes the exact excludeIds/gameFilterIds/limit shape the
+// route already builds, rather than trying to be a general-purpose filter
+// builder — this is the one query /discover needs, and it stays readable at
+// the call site because the params map 1:1 to what the route computed.
+function findDiscoverCandidates({ excludeIds, gameFilterIds, limit }: any) {
+  let query = supabaseAdmin
+    .from('users')
+    .select(
+      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence,
+       user_games ( rank, games ( id, name, emoji ) )`
+    )
+    .eq('status', 'online')
+    .not('id', 'in', `(${excludeIds.join(',')})`)
+    .limit(limit);
+
+  if (gameFilterIds) {
+    query = query.in('id', gameFilterIds);
+  }
+  return query;
+}
+
+function findByUsernameExact(username: any, excludeUserId: any) {
+  return supabaseAdmin
+    .from('users')
+    .select('id, username, avatar_emoji, avatar_url, status, presence')
+    .ilike('username', username)
+    .neq('id', excludeUserId)
+    .maybeSingle();
+}
+
+function searchByUsername(likePattern: any, excludeUserId: any, limit: any) {
+  return supabaseAdmin
+    .from('users')
+    .select('id, username, avatar_emoji, avatar_url, status, presence')
+    .ilike('username', likePattern)
+    .neq('id', excludeUserId)
+    .limit(limit);
+}
+
+// ── users/publicProfile.js ────────────────────────────────────────────────
+function findPublicProfileById(userId: any) {
+  return supabaseAdmin
+    .from('users')
+    .select(
+      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence, last_seen,
+       user_games ( game_id, rank, hours_played, games ( name, emoji ) )`
+    )
+    .eq('id', userId)
+    .single();
+}
+
+module.exports = {
+  FULL_PROFILE_FIELDS,
+  existsByEmailOrUsername,
+  createUser,
+  findForLogin,
+  setStatus,
+  findBasicById,
+  findFullProfileById,
+  findByEmailForPasswordReset,
+  updatePasswordHash,
+  existsByUsernameExcludingId,
+  updateProfile,
+  findDiscoverCandidates,
+  findByUsernameExact,
+  searchByUsername,
+  findPublicProfileById,
+};

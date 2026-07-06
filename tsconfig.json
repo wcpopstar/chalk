@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    /* Requested baseline */
+    "strict": true,
+    "module": "commonjs",
+    "target": "es2022",
+    "esModuleInterop": true,
+
+    /* Node resolution matching the "module": "commonjs" runtime.
+       (moduleResolution isn't set explicitly — for "module": "commonjs"
+       TypeScript defaults to the matching classic Node resolution on its
+       own, and pinning it to "node" trips a deprecation warning on newer
+       compiler versions.) */
+    "lib": ["ES2022"],
+    "types": ["node"],
+
+    /* Output */
+    "outDir": "dist",
+    "rootDir": "src",
+    "sourceMap": true,
+    "declaration": false,
+
+    /* Stage-1 migration ergonomics: the codebase is still plain CommonJS
+       (require/module.exports) and several dependencies (swagger-jsdoc,
+       swagger-ui-express, agora-token, agora-rtc-sdk-ng) either ship no
+       types or ship types that aren't worth fighting yet. skipLibCheck
+       avoids type-checking inside node_modules' own .d.ts files, which is
+       standard practice and keeps this stage focused on *our* code. */
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Quality-of-life strict-mode companions (kept on, they're what
+       actually catches bugs — see README note in the PR description) */
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "public", "test"]
+}

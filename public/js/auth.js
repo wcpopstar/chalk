@@ -165,6 +165,10 @@ async function bootApp() {
   // Connect socket
   connectSocket();
 
+  // Feature flags gate a couple of nav items (see feature-flags.js) — fetch
+  // once per session, not blocking the rest of boot on it.
+  loadFeatureFlags();
+
   // Load friends
   loadFriends();
   if (!friendsPollInterval) friendsPollInterval = setInterval(loadFriends, 15000);

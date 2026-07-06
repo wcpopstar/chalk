@@ -40,13 +40,36 @@ cp .env.example .env
 
 ### 5. Run locally
 ```bash
-npm run dev      # nodemon auto-reload
+npm install       # first time only — also (re)syncs package-lock.json,
+                   # required before `npm ci` will work anywhere (Docker, CI)
+npm run dev        # tsx watch — auto-reload, runs src/**/*.ts directly, no build step
 # or
-npm start        # plain node
+npm run build && npm start   # compile to dist/, then run the compiled JS
 ```
 
 Server boots at `http://localhost:3000`
 Health check: `GET /health`
+
+### TypeScript
+
+The backend (`src/`, `test/`) is TypeScript, compiled with `tsc` (see
+`tsconfig.json`: `strict`, `commonjs`, `es2022`, `esModuleInterop`).
+`public/js/` stays plain JS on purpose — it's loaded directly by the browser
+via `<script>` tags with no bundler in front of it, so there's nothing for
+`tsc` to compile there.
+
+This is a first-pass migration: files were renamed `.js` → `.ts` and typed
+just enough to satisfy `strict` mode (mostly explicit `: any` at dynamic
+boundaries — request/response bodies, Socket.io payloads, Supabase rows).
+`require()`/`module.exports` were intentionally left as-is rather than
+rewritten to ES `import`/`export` — smaller diff, same runtime behavior.
+Tightening the `any`s into real types is left for a follow-up pass.
+
+```bash
+npm run build       # tsc -p tsconfig.json -> dist/
+npm run typecheck   # type-checks src/ + test/ together, no emit
+npm test            # runs test/**/*.test.ts via node's test runner + tsx
+```
 
 ---
 
