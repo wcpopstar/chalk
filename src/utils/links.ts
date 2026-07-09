@@ -1,7 +1,20 @@
+import type { IncomingMessage } from 'node:http';
+
+export interface YouTubeLink {
+  type: 'youtube';
+  videoId: string;
+  url: string;
+}
+
+export interface YouTubePreview extends YouTubeLink {
+  thumbnail: string;
+  title: string;
+}
+
 const https = require('node:https');
 const logger = require('./logger').child({ module: 'links' });
 
-function isYouTubeUrl(value: any) {
+function isYouTubeUrl(value: unknown): YouTubeLink | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
 
@@ -11,7 +24,7 @@ function isYouTubeUrl(value: any) {
   if (!match) return null;
 
   // Trim common trailing punctuation a user might have typed after the link.
-  const candidate = match[0].replace(/[)\].,!?'"]+$/, '');
+  const candidate = (match[0] ?? '').replace(/[)\].,!?'"]+$/, '');
 
   let url;
   try {
@@ -32,14 +45,14 @@ function isYouTubeUrl(value: any) {
   }
 
   // youtu.be/<id> style short links have just one path segment.
-  if (pathParts.length === 1) {
+  if (pathParts.length === 1 && pathParts[0]) {
     return { type: 'youtube', videoId: pathParts[0], url: candidate };
   }
 
   return null;
 }
 
-function getYouTubePreviewData(url: any) {
+function getYouTubePreviewData(url: unknown): Promise<YouTubePreview | null> {
   const parsed = isYouTubeUrl(url);
   if (!parsed) return Promise.resolve(null);
 
@@ -47,10 +60,10 @@ function getYouTubePreviewData(url: any) {
   const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(parsed.url)}&format=json`;
 
   return new Promise((resolve) => {
-    const req = https.get(oEmbedUrl, { headers: { 'User-Agent': 'chalk-app' } }, (res: any) => {
+    const req = https.get(oEmbedUrl, { headers: { 'User-Agent': 'chalk-app' } }, (res: IncomingMessage) => {
       let data = '';
       res.setEncoding('utf8');
-      res.on('data', (chunk: any) => { data += chunk; });
+      res.on('data', (chunk: string) => { data += chunk; });
       res.on('end', () => {
         if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
           try {

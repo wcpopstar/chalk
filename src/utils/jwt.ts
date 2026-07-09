@@ -1,3 +1,4 @@
+import type { JwtPayload } from '../socket/types';
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { config } = require('../config/env');
@@ -14,7 +15,7 @@ const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ── Access tokens (JWT) ──────────────────────────────────────────────────────
-function signAccessToken({ id, username }: any) {
+function signAccessToken({ id, username }: { id: string; username: string }): { token: string; jti: string; expiresIn: number } {
   const jti = crypto.randomUUID();
   const token = jwt.sign(
     { id, username },
@@ -31,21 +32,21 @@ function signAccessToken({ id, username }: any) {
 
 // Throws jwt.JsonWebTokenError / jwt.TokenExpiredError on bad tokens — callers
 // should catch and translate, never assume this always resolves.
-function verifyAccessToken(token: any) {
+function verifyAccessToken(token: string): JwtPayload {
   return jwt.verify(token, config.jwt.secret, {
     issuer: ISSUER,
     audience: AUDIENCE,
-  });
+  }) as JwtPayload;
 }
 
 // ── Refresh tokens (opaque, random — not JWTs) ───────────────────────────────
 // Opaque tokens carry no claims of their own, so a leaked one is useless
 // without the DB row backing it, and it's trivial to revoke by hash.
-function generateOpaqueToken() {
+function generateOpaqueToken(): string {
   return crypto.randomBytes(48).toString('base64url');
 }
 
-function hashOpaqueToken(rawToken: any) {
+function hashOpaqueToken(rawToken: string): string {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
 }
 

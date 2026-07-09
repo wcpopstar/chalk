@@ -1,3 +1,4 @@
+import type { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -54,7 +55,7 @@ validateEnv();
 // silently vanishing — this does NOT paper over real bugs, every actual
 // Redis-touching code path in this app already has its own try/catch (see
 // match.js's startMatchLoop); this only catches things that slip through.
-process.on('unhandledRejection', (reason: any) => {
+process.on('unhandledRejection', (reason: string) => {
   logger.error({ err: reason }, 'Unhandled promise rejection');
   Sentry.captureException(reason);
   metrics.appErrorsTotal.inc({ source: 'unhandled_rejection' });
@@ -118,7 +119,7 @@ app.use(rateLimit({
   // Prometheus scraper), not end users — they shouldn't share a budget
   // meant to catch API abuse, and a short scrape interval could otherwise
   // trip this limit on its own.
-  skip: (req: any) => req.path === '/health' || req.path === '/metrics',
+  skip: (req: Request) => req.path === '/health' || req.path === '/metrics',
 }));
 
 // Prometheus metrics: request duration + counters. Must be registered
@@ -139,10 +140,10 @@ let isShuttingDown = false;
 
 // Wraps a promise so a hung dependency (Redis/Supabase) can't make /health
 // itself hang forever — a stuck healthcheck is as bad as a down one.
-function withTimeout(promise: any, ms: any, label: any) {
+function withTimeout<T>(promise: Promise<T> | PromiseLike<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
   ]);
 }
 
@@ -163,7 +164,7 @@ async function checkSupabaseHealth() {
     // HEAD + count-only request: cheapest possible round trip that still
     // proves the DB is reachable and the service key is valid — no rows
     // are actually returned.
-    const { error } = await withTimeout(
+    const { error } = await withTimeout<{ error: { message: string } | null }>(
       supabaseAdmin.from('users').select('id', { head: true, count: 'exact' }),
       2000,
       'Supabase query'
@@ -175,7 +176,7 @@ async function checkSupabaseHealth() {
   }
 }
 
-app.get('/health', async (_req: any, res: any) => {
+app.get('/health', async (_req: Request, res: Response) => {
   if (isShuttingDown) {
     return res.status(503).json({
       status: 'degraded',
@@ -189,7 +190,7 @@ app.get('/health', async (_req: any, res: any) => {
   const services = { redis: redisHealth, supabase: supabaseHealth };
   const allOk = Object.values(services).every((s) => s.status === 'ok');
 
-  res.status(allOk ? 200 : 503).json({
+  return res.status(allOk ? 200 : 503).json({
     status: allOk ? 'ok' : 'degraded',
     ts: Date.now(),
     services,
@@ -203,7 +204,7 @@ app.get('/health', async (_req: any, res: any) => {
 // that doesn't need to be world-readable. If METRICS_TOKEN isn't set, the
 // endpoint stays open (with a startup warning) so this doesn't break
 // existing setups/dashboards that haven't been given a token yet.
-app.get('/metrics', async (req: any, res: any) => {
+app.get('/metrics', async (req: Request, res: Response) => {
   const token = config.metrics.token;
   if (token) {
     const provided = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -214,10 +215,10 @@ app.get('/metrics', async (req: any, res: any) => {
 
   try {
     res.set('Content-Type', metrics.register.contentType);
-    res.end(await metrics.register.metrics());
+    return res.end(await metrics.register.metrics());
   } catch (err: any) {
     logger.error({ err }, 'Failed to collect Prometheus metrics');
-    res.status(500).end('Failed to collect metrics');
+    return res.status(500).end('Failed to collect metrics');
   }
 });
 
@@ -239,7 +240,7 @@ if (config.docs.enabled) {
     customSiteTitle: 'Chalk API Docs',
   }));
   // Raw spec, for importing into Postman/Insomnia or codegen tools.
-  app.get('/api/docs.json', ...docsGate, (_req: any, res: any) => res.json(swaggerSpec));
+  app.get('/api/docs.json', ...docsGate, (_req: Request, res: Response) => res.json(swaggerSpec));
   logger.info(`API docs available at /api/docs${config.server.isProduction ? ' (requires a valid access token)' : ''}`);
 }
 
@@ -256,23 +257,23 @@ app.use('/api/gifs', gifRoutes);
 
 app.use(express.static(path.join(__dirname, '../public')));
 
-app.get('*', (req: any, res: any, next: any) => {
+app.get('*', (req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith('/api/')) return next();
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  return res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-app.use((_req: any, res: any) => res.status(404).json({ error: 'Not found' }));
+app.use((_req: Request, res: Response) => res.status(404).json({ error: 'Not found' }));
 
-app.use((err: any, req: any, res: any, _next: any) => {
+app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
   // req.log is the pino-http child logger — already tagged with this
   // request's correlation id, method, and url.
   (req.log || logger).error({ err }, 'Unhandled request error');
   Sentry.captureException(err);
   metrics.appErrorsTotal.inc({ source: 'http' });
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  return res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-let serverInstance: any;
+let serverInstance: http.Server | undefined;
 let stopMatchLoop = () => {};
 
 waitForRedisReady()
@@ -322,7 +323,7 @@ waitForRedisReady()
 // has to fall back to SIGKILL after its own grace period expires.
 const SHUTDOWN_TIMEOUT_MS = 15_000;
 
-async function shutdown(signal: any) {
+async function shutdown(signal: string) {
   if (isShuttingDown) return; // ignore a second SIGTERM/SIGINT mid-drain
   isShuttingDown = true;
   logger.info({ signal }, '🛑 Received shutdown signal, draining gracefully…');
@@ -341,7 +342,8 @@ async function shutdown(signal: any) {
     logger.info('Socket.io connections closed');
 
     if (serverInstance) {
-      await new Promise<void>((resolve) => serverInstance.close(() => resolve()));
+      const srv = serverInstance;
+      await new Promise<void>((resolve) => srv.close(() => resolve()));
       logger.info('HTTP server closed — no longer accepting new connections');
     }
 

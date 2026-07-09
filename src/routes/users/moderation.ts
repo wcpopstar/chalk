@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../../middleware/auth');
@@ -41,11 +42,11 @@ const blockedListLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 // Must stay above /:id.
-router.get('/me/blocked', requireAuth, blockedListLimiter, async (req: any, res: any) => {
+router.get('/me/blocked', requireAuth, blockedListLimiter, async (req: Request, res: Response) => {
   const { data, error } = await blocksRepository.listBlockedByUser(req.user.id);
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ blocked: (data || []).filter((r: any) => r.blocked) });
+  return res.json({ blocked: (data || []).filter((r: any) => r.blocked) });
 });
 
 /**
@@ -76,16 +77,16 @@ router.get('/me/blocked', requireAuth, blockedListLimiter, async (req: any, res:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/:id/block', requireAuth, moderationLimiter, validate({ params: uuidParam() }), async (req: any, res: any) => {
+router.post('/:id/block', requireAuth, moderationLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   const targetId = req.params.id;
   const uid = req.user.id;
   if (targetId === uid) return res.status(400).json({ error: 'Cannot block yourself' });
 
   try {
     await blockUser(uid, targetId);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -112,12 +113,12 @@ router.post('/:id/block', requireAuth, moderationLimiter, validate({ params: uui
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.delete('/:id/block', requireAuth, moderationLimiter, validate({ params: uuidParam() }), async (req: any, res: any) => {
+router.delete('/:id/block', requireAuth, moderationLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   try {
     await unblockUser(req.user.id, req.params.id);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -165,7 +166,7 @@ router.post(
   requireAuth,
   moderationLimiter,
   validate({ params: uuidParam(), body: reportBodySchema }),
-  async (req: any, res: any) => {
+  async (req: Request, res: Response) => {
     const targetId = req.params.id;
     const uid = req.user.id;
     const { reason, details, context } = req.body;
@@ -183,7 +184,7 @@ router.post(
     });
 
     if (error) return res.status(500).json({ error: error.message });
-    res.status(201).json({ ok: true });
+    return res.status(201).json({ ok: true });
   }
 );
 

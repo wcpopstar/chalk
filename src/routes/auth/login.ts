@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const analytics = require('../../services/analytics');
 const bcrypt = require('bcryptjs');
@@ -45,7 +46,7 @@ const { authLimiter, loginEmailLimiter, issueSession } = require('./shared');
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/login', authLimiter, loginEmailLimiter, async (req: any, res: any) => {
+router.post('/login', authLimiter, loginEmailLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = loginSchema.parse(req.body);
     const { email, password } = parsed;
@@ -66,13 +67,13 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req: any, res: any)
     const { password_hash, ...safeUser } = user;
     const { token, refreshToken, expiresIn } = await issueSession(user, req);
     analytics.capture(user.id, 'user_logged_in');
-    res.json({ user: safeUser, token, refreshToken, expiresIn });
+    return res.json({ user: safeUser, token, refreshToken, expiresIn });
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ error: 'Invalid request payload', details: error.issues.map((e: any) => e.message) });
+      return res.status(400).json({ error: 'Invalid request payload', details: error.issues.map((e: { message: string }) => e.message) });
     }
     req.log.error({ err: error }, 'Login failed');
-    res.status(500).json({ error: 'Could not log in' });
+    return res.status(500).json({ error: 'Could not log in' });
   }
 });
 

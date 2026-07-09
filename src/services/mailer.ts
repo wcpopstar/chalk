@@ -11,7 +11,7 @@ function getTransporter() {
     // No SMTP configured — fall back to logging the email to the console.
     // Useful for local development so the reset link is still visible.
     transporter = {
-      sendMail: async (opts: any) => {
+      sendMail: async (opts: { to: string; subject: string; text: string }) => {
         // Intentionally logged in full (not redacted) — this dev-only
         // fallback exists specifically so the reset link is visible when
         // no SMTP server is configured locally.
@@ -37,7 +37,7 @@ function getTransporter() {
   return transporter;
 }
 
-async function sendPasswordResetEmail(to: any, resetUrl: any) {
+async function sendPasswordResetEmail(to: string, resetUrl: string) {
   const t = getTransporter();
   await t.sendMail({
     from: config.smtp.from,

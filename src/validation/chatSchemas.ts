@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 const { paginationQuery, isoDateTimeOptional } = require('./common');
 
 const createDirectSchema = z.object({

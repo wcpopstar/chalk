@@ -37,7 +37,7 @@ function registerGlobalChatHandlers(io: TypedServer, socket: TypedSocket, userId
 
   secureOn(io, socket, userId, 'global:voice', async ({ audio, mime, duration }, ack) => {
     const buffer = Buffer.isBuffer(audio) ? audio : Buffer.from(audio as any);
-    const url = await uploadVoiceNote(userId, buffer, mime);
+    const url = await uploadVoiceNote(userId, buffer, mime ?? '');
     const msg = await saveGlobalMessage({
       senderId: userId, type: 'voice', mediaUrl: url, duration: Math.round(duration ?? 0) || null,
     });
@@ -47,7 +47,7 @@ function registerGlobalChatHandlers(io: TypedServer, socket: TypedSocket, userId
 
   secureOn(io, socket, userId, 'global:video_note', async ({ video, mime, duration }, ack) => {
     const buffer = Buffer.isBuffer(video) ? video : Buffer.from(video as any);
-    const url = await uploadVideoNote(userId, buffer, mime);
+    const url = await uploadVideoNote(userId, buffer, mime ?? '');
     const msg = await saveGlobalMessage({
       senderId: userId, type: 'video_note', mediaUrl: url, duration: Math.round(duration ?? 0) || null,
     });

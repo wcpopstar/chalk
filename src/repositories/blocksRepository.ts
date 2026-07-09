@@ -2,7 +2,7 @@ const { supabaseAdmin } = require('../services/supabase');
 
 // All block pairs where userId is either the blocker or the blocked side —
 // used by /discover to exclude both directions of a block.
-function findPairsInvolving(userId: any) {
+function findPairsInvolving(userId: string) {
   return supabaseAdmin
     .from('blocks')
     .select('blocker_id, blocked_id')
@@ -11,7 +11,7 @@ function findPairsInvolving(userId: any) {
 
 // Block rows specifically between two given users (either direction) — used
 // by the public profile route to compute blocked_by_me / has_blocked_me.
-function findPairBetween(userIdA: any, userIdB: any) {
+function findPairBetween(userIdA: string, userIdB: string) {
   return supabaseAdmin
     .from('blocks')
     .select('blocker_id, blocked_id')
@@ -19,7 +19,7 @@ function findPairBetween(userIdA: any, userIdB: any) {
 }
 
 // True/false query used by services/blockHelper.js's areUsersBlocked().
-function existsBetween(userIdA: any, userIdB: any) {
+function existsBetween(userIdA: string, userIdB: string) {
   return supabaseAdmin
     .from('blocks')
     .select('id')
@@ -29,7 +29,7 @@ function existsBetween(userIdA: any, userIdB: any) {
 
 // Everyone `blockerId` has blocked, with basic profile info for the "blocked
 // users" list in the add-friend modal.
-function listBlockedByUser(blockerId: any) {
+function listBlockedByUser(blockerId: string) {
   return supabaseAdmin
     .from('blocks')
     .select('id, created_at, blocked:users!blocks_blocked_id_fkey ( id, username, avatar_emoji, avatar_url )')
@@ -37,7 +37,7 @@ function listBlockedByUser(blockerId: any) {
     .order('created_at', { ascending: false });
 }
 
-function insertBlock({ id, blockerId, blockedId, createdAt }: any) {
+function insertBlock({ id, blockerId, blockedId, createdAt }: { id: string; blockerId: string; blockedId: string; createdAt: string }) {
   return supabaseAdmin
     .from('blocks')
     .upsert(
@@ -46,7 +46,7 @@ function insertBlock({ id, blockerId, blockedId, createdAt }: any) {
     );
 }
 
-function deleteBlock(blockerId: any, blockedId: any) {
+function deleteBlock(blockerId: string, blockedId: string) {
   return supabaseAdmin.from('blocks').delete().eq('blocker_id', blockerId).eq('blocked_id', blockedId);
 }
 

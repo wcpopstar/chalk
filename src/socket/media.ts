@@ -7,7 +7,7 @@ import { supabaseAdmin } from '../services/supabase';
 // we peek at the actual bytes and only accept containers this app knows how
 // to play back. Not a full codec validator, just enough to reject anything
 // that clearly isn't audio/video (e.g. HTML, an executable, etc).
-function detectContainer(buffer: any) {
+function detectContainer(buffer: Buffer) {
   if (!buffer || buffer.length < 8) return null;
   // WebM / Matroska — EBML header
   if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) return 'webm';
@@ -22,7 +22,7 @@ function detectContainer(buffer: any) {
 const VOICE_BUCKET = 'voice-notes';
 const MAX_VOICE_BYTES = 4 * 1024 * 1024; // ~4MB (roughly a couple of minutes of compressed audio)
 
-async function uploadVoiceNote(senderId: any, buffer: any, _mime: any) {
+async function uploadVoiceNote(senderId: string, buffer: Buffer, _mime: string) {
   if (!buffer || !buffer.length) throw new Error('Пустая запись');
   if (buffer.length > MAX_VOICE_BYTES) throw new Error('Голосовое сообщение слишком длинное');
 
@@ -46,7 +46,7 @@ async function uploadVoiceNote(senderId: any, buffer: any, _mime: any) {
 const VIDEO_BUCKET = 'video-notes';
 const MAX_VIDEO_BYTES = 8 * 1024 * 1024; // ~8MB — plenty for a ~30s low-bitrate circular clip
 
-async function uploadVideoNote(senderId: any, buffer: any, _mime: any) {
+async function uploadVideoNote(senderId: string, buffer: Buffer, _mime: string) {
   if (!buffer || !buffer.length) throw new Error('Пустая запись');
   if (buffer.length > MAX_VIDEO_BYTES) throw new Error('Видеосообщение слишком длинное');
 

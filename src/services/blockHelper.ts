@@ -7,7 +7,7 @@ const logger = require('../utils/logger').child({ module: 'blockHelper' });
  * True if either user has blocked the other (block is one-directional in
  * storage but always enforced both ways).
  */
-async function areUsersBlocked(userIdA: any, userIdB: any) {
+async function areUsersBlocked(userIdA: string, userIdB: string) {
   if (!userIdA || !userIdB) return false;
   const { data, error } = await blocksRepository.existsBetween(userIdA, userIdB);
   if (error) { logger.error({ err: error, userIdA, userIdB }, 'areUsersBlocked query failed'); return false; }
@@ -19,7 +19,7 @@ async function areUsersBlocked(userIdA: any, userIdB: any) {
  * stay "friends" with someone you've just blocked — tears down any
  * friendship / pending friend request between the pair in the same call.
  */
-async function blockUser(blockerId: any, blockedId: any) {
+async function blockUser(blockerId: string, blockedId: string) {
   if (!blockerId || !blockedId) throw new Error('Both user ids are required');
   if (blockerId === blockedId) throw new Error('Cannot block yourself');
 
@@ -36,7 +36,7 @@ async function blockUser(blockerId: any, blockedId: any) {
   return { ok: true };
 }
 
-async function unblockUser(blockerId: any, blockedId: any) {
+async function unblockUser(blockerId: string, blockedId: string) {
   const { error } = await blocksRepository.deleteBlock(blockerId, blockedId);
   if (error) throw error;
   return { ok: true };

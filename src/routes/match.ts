@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
@@ -41,8 +42,9 @@ const writeLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Сл�
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/history', requireAuth, historyLimiter, validate({ query: historyQuerySchema }), async (req: any, res: any) => {
-  const { limit, offset } = req.query;
+router.get('/history', requireAuth, historyLimiter, validate({ query: historyQuerySchema }), async (req: Request, res: Response) => {
+  // Parsed by historyQuerySchema (paginationQuery) in validate().
+  const { limit, offset } = req.query as unknown as { limit: number; offset: number };
   const uid = req.user.id;
 
   const { data, error } = await supabaseAdmin
@@ -58,7 +60,7 @@ router.get('/history', requireAuth, historyLimiter, validate({ query: historyQue
     .range(offset, offset + limit - 1);
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ matches: data || [] });
+  return res.json({ matches: data || [] });
 });
 
 /**
@@ -103,7 +105,7 @@ router.get('/history', requireAuth, historyLimiter, validate({ query: historyQue
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCallSchema }), async (req: any, res: any) => {
+router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCallSchema }), async (req: Request, res: Response) => {
   const { participants, mode, gameId } = req.body;
 
   const rows = participants
@@ -131,7 +133,7 @@ router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCa
     participantId: row.user_a === req.user.id ? row.user_b : row.user_a,
   }));
 
-  res.json({ matches });
+  return res.json({ matches });
 });
 
 /**
@@ -178,7 +180,7 @@ router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCa
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/:matchId/rate', requireAuth, writeLimiter, validate({ params: uuidParam('matchId'), body: rateMatchSchema }), async (req: any, res: any) => {
+router.post('/:matchId/rate', requireAuth, writeLimiter, validate({ params: uuidParam('matchId'), body: rateMatchSchema }), async (req: Request, res: Response) => {
   const { rating, comment } = req.body;
 
   // Find who to rate (the other person in this match)
@@ -215,7 +217,7 @@ router.post('/:matchId/rate', requireAuth, writeLimiter, validate({ params: uuid
     await supabaseAdmin.from('users').update({ avg_rating: parseFloat(avg.toFixed(2)) }).eq('id', ratedUserId);
   }
 
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 export = router;
