@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
+const { createRateLimitStore } = require('../../middleware/rateLimit');
 const { signAccessToken, ACCESS_TOKEN_TTL_SECONDS } = require('../../utils/jwt');
 const { issueRefreshToken } = require('../../services/refreshTokens');
 const tokenBlacklist = require('../../services/tokenBlacklist');
@@ -9,6 +10,7 @@ const USER_FIELDS =
 
 // Strict rate limit for auth endpoints, keyed by IP
 const authLimiter = rateLimit({
+  store: createRateLimitStore(),
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { error: 'Too many auth attempts, try again later.' },
@@ -17,6 +19,7 @@ const authLimiter = rateLimit({
 // Additional limit on /login keyed by the email being attempted, so an
 // attacker can't bypass the IP limit by rotating IPs against one account.
 const loginEmailLimiter = rateLimit({
+  store: createRateLimitStore(),
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,
@@ -27,6 +30,7 @@ const loginEmailLimiter = rateLimit({
 
 // Limit on /forgot-password keyed by email, so it can't be used to spam someone's inbox.
 const forgotPasswordEmailLimiter = rateLimit({
+  store: createRateLimitStore(),
   windowMs: 15 * 60 * 1000,
   max: 3,
   standardHeaders: true,
@@ -38,6 +42,7 @@ const forgotPasswordEmailLimiter = rateLimit({
 // Refresh/rotation gets its own generous-but-bounded limit, keyed by IP —
 // it's hit far more often than login but should still be capped against abuse.
 const refreshLimiter = rateLimit({
+  store: createRateLimitStore(),
   windowMs: 15 * 60 * 1000,
   max: 60,
   standardHeaders: true,

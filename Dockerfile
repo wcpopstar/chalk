@@ -44,7 +44,10 @@ RUN npm ci --omit=dev --no-audit
 # -----------------------------------------------------------------------
 FROM base AS dev-dependencies
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit
+# --include=dev is required: the base stage sets NODE_ENV=production, and
+# npm ci silently omits devDependencies under it — which strips tsc and
+# breaks the `build` stage below ("sh: tsc: not found").
+RUN npm ci --include=dev --no-audit
 
 # -----------------------------------------------------------------------
 # development — target used by docker-compose.yml. Source code is NOT

@@ -14,6 +14,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import { createRateLimitStore } from './middleware/rateLimit';
 
 import logger from './utils/logger';
 import { requestLogger } from './middleware/requestLogger';
@@ -104,6 +105,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
+  store: createRateLimitStore(),
   standardHeaders: true,
   legacyHeaders: false,
   // /health and /metrics are hit by infrastructure (load balancer probes,
