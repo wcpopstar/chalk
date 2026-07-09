@@ -1,4 +1,3 @@
-export {};
 const { supabaseAdmin } = require('../services/supabase');
 
 // Three independent counts for a user's profile stats card. Kept as one
@@ -20,4 +19,4 @@ function getUserStats(userId: any) {
   ]);
 }
 
-module.exports = { getUserStats };
+export { getUserStats };

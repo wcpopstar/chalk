@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../../middleware/auth');
@@ -188,4 +187,4 @@ router.post(
   }
 );
 
-module.exports = router;
+export = router;

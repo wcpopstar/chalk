@@ -1,4 +1,3 @@
-export {};
 /**
  * GIF search — proxies Giphy's search API instead of letting the browser
  * call it directly.
@@ -117,4 +116,4 @@ router.get(
   },
 );
 
-module.exports = router;
+export = router;

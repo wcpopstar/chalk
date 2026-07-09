@@ -1,4 +1,3 @@
-export {};
 /**
  * Prometheus metrics registry (prom-client).
  *
@@ -118,7 +117,7 @@ const socketActiveConnections = new client.Gauge({
   registers: [register],
 });
 
-module.exports = {
+export {
   register,
   httpRequestDuration,
   httpRequestsTotal,

@@ -1,4 +1,3 @@
-export {};
 /**
  * Sentry init module.
  *
@@ -30,4 +29,4 @@ if (config.sentry.dsn) {
   logger.warn('SENTRY_DSN not set — Sentry error reporting is disabled (errors will still be logged locally)');
 }
 
-module.exports = Sentry;
+export = Sentry;

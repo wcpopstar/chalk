@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
@@ -231,4 +230,4 @@ router.get('/me/stats', requireAuth, statsReadLimiter, async (req: any, res: any
   });
 });
 
-module.exports = router;
+export = router;

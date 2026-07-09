@@ -108,11 +108,11 @@ function ensureVoiceClient() {
       }
     });
 
-    client.on("user-unpublished", async (user) => {
+    client.on("user-unpublished", (user) => {
       if (user && user.uid) remoteAudioTracks.delete(String(user.uid));
     });
 
-    client.on("user-left", async (user) => {
+    client.on("user-left", (user) => {
       if (user && user.uid) remoteAudioTracks.delete(String(user.uid));
     });
   }
@@ -171,7 +171,7 @@ window.joinVoice = async function (channelName = "chalk-default", uid = null) {
     if (!data.appId) {
       throw new Error("Сервер не вернул Agora App ID");
     }
-    const appId = data.appId;
+    const { appId } = data;
     const joinUid = (data.uid !== undefined && data.uid !== null) ? data.uid : userId;
 
     await c.join(appId, channel, data.token || null, joinUid);

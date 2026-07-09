@@ -1,4 +1,3 @@
-export {};
 /**
  * Single source of truth for every environment variable this app reads.
  *
@@ -181,4 +180,4 @@ function validateEnv() {
   }
 }
 
-module.exports = { config, validateEnv };
+export { config, validateEnv };

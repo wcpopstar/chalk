@@ -1,4 +1,3 @@
-export {};
 const { userLimiter } = require('../../middleware/rateLimit');
 const { GENDERS, PRESENCE_STATES, REPORT_REASONS } = require('../../validation/userSchemas');
 
@@ -20,7 +19,7 @@ const searchLimiter = userLimiter({ windowMs: 10 * 1000, max: 40, message: 'Сл
 // a mash-click (or script) can't hammer the DB or spam report rows.
 const moderationLimiter = userLimiter({ windowMs: 60 * 1000, max: 20, message: 'Слишком много действий, подожди немного.' });
 
-module.exports = {
+export {
   searchLimiter,
   moderationLimiter,
   // Re-exported from validation/userSchemas.ts (the actual source of truth

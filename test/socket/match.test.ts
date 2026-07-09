@@ -80,14 +80,14 @@ describe('socket/match.js', () => {
       const io = makeFakeIo();
       const socketA = new FakeSocket();
       io.register(socketA);
-      registerMatchHandlers(io, socketA, 'alice');
-      await io.in(socketA.id).socketsJoin('room-1');
+      registerMatchHandlers(io, socketA, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      await io.in(socketA.id).socketsJoin('10000000-0000-4000-8000-000000000001');
 
-      await seedRoom('room-1', ['alice', 'bob']);
+      await seedRoom('10000000-0000-4000-8000-000000000001', ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']);
 
-      await socketA.trigger('trial:vote', { roomId: 'room-1', vote: 'yes' });
+      await socketA.trigger('trial:vote', { roomId: '10000000-0000-4000-8000-000000000001', vote: 'yes' });
 
-      assert.ok(socketA.emitted.some((e: any) => e.event === 'trial:voted' && e.payload.userId === 'alice'));
+      assert.ok(socketA.emitted.some((e: any) => e.event === 'trial:voted' && e.payload.userId === 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'));
       // Only one of two participants has voted so far — no result yet.
       assert.ok(!socketA.emitted.some((e: any) => e.event === 'trial:result'));
     });
@@ -98,8 +98,8 @@ describe('socket/match.js', () => {
       io.register(socket);
       registerMatchHandlers(io, socket, 'not-in-this-room');
 
-      await seedRoom('room-1', ['alice', 'bob']);
-      await socket.trigger('trial:vote', { roomId: 'room-1', vote: 'yes' });
+      await seedRoom('10000000-0000-4000-8000-000000000001', ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']);
+      await socket.trigger('trial:vote', { roomId: '10000000-0000-4000-8000-000000000001', vote: 'yes' });
 
       assert.equal(socket.emitted.length, 0);
     });
@@ -108,9 +108,9 @@ describe('socket/match.js', () => {
       const io = makeFakeIo();
       const socket = new FakeSocket();
       io.register(socket);
-      registerMatchHandlers(io, socket, 'alice');
+      registerMatchHandlers(io, socket, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 
-      await socket.trigger('trial:vote', { roomId: 'ghost-room', vote: 'yes' });
+      await socket.trigger('trial:vote', { roomId: 'e0000000-0000-4000-8000-0000000000ee', vote: 'yes' });
 
       assert.equal(socket.emitted.length, 0);
     });
@@ -121,12 +121,12 @@ describe('socket/match.js', () => {
       const socketB = new FakeSocket();
       io.register(socketA);
       io.register(socketB);
-      registerMatchHandlers(io, socketA, 'alice');
-      registerMatchHandlers(io, socketB, 'bob');
-      await io.in(socketA.id).socketsJoin('room-1');
-      await io.in(socketB.id).socketsJoin('room-1');
+      registerMatchHandlers(io, socketA, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      registerMatchHandlers(io, socketB, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+      await io.in(socketA.id).socketsJoin('10000000-0000-4000-8000-000000000001');
+      await io.in(socketB.id).socketsJoin('10000000-0000-4000-8000-000000000001');
 
-      await seedRoom('room-1', ['alice', 'bob']);
+      await seedRoom('10000000-0000-4000-8000-000000000001', ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']);
 
       // addFriendPairInstant(alice, bob): select -> none, then upsert.
       supaMock.enqueue({ data: null, error: null });
@@ -137,8 +137,8 @@ describe('socket/match.js', () => {
       supaMock.enqueue({ error: null });
       supaMock.enqueue({ error: null });
 
-      await socketA.trigger('trial:vote', { roomId: 'room-1', vote: 'yes' });
-      await socketB.trigger('trial:vote', { roomId: 'room-1', vote: 'yes' });
+      await socketA.trigger('trial:vote', { roomId: '10000000-0000-4000-8000-000000000001', vote: 'yes' });
+      await socketB.trigger('trial:vote', { roomId: '10000000-0000-4000-8000-000000000001', vote: 'yes' });
 
       const result = socketB.emitted.find((e: any) => e.event === 'trial:result');
       assert.ok(result);
@@ -146,10 +146,10 @@ describe('socket/match.js', () => {
 
       const promoted = socketB.emitted.find((e: any) => e.event === 'call:promoted');
       assert.ok(promoted);
-      assert.equal(promoted.payload.roomId, 'room-1');
+      assert.equal(promoted.payload.roomId, '10000000-0000-4000-8000-000000000001');
       assert.ok(promoted.payload.conversationId);
 
-      const room = await state.getRoom('room-1');
+      const room = await state.getRoom('10000000-0000-4000-8000-000000000001');
       assert.equal(room.promoted, true);
     });
 
@@ -159,29 +159,29 @@ describe('socket/match.js', () => {
       const socketB = new FakeSocket();
       io.register(socketA);
       io.register(socketB);
-      registerMatchHandlers(io, socketA, 'alice');
-      registerMatchHandlers(io, socketB, 'bob');
-      await io.in(socketA.id).socketsJoin('room-2');
-      await io.in(socketB.id).socketsJoin('room-2');
+      registerMatchHandlers(io, socketA, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      registerMatchHandlers(io, socketB, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+      await io.in(socketA.id).socketsJoin('20000000-0000-4000-8000-000000000002');
+      await io.in(socketB.id).socketsJoin('20000000-0000-4000-8000-000000000002');
 
-      await seedRoom('room-2', ['alice', 'bob']);
-      await state.setUserRoom(io, 'alice', 'room-2'); // no friends -> broadcastCallStatus queries return []
+      await seedRoom('20000000-0000-4000-8000-000000000002', ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']);
+      await state.setUserRoom(io, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', '20000000-0000-4000-8000-000000000002'); // no friends -> broadcastCallStatus queries return []
       supaMock.enqueue({ data: [], error: null }); // setUserRoom's friend broadcast for alice above
 
       // clearUserRoom (x2, one per participant) each does its own friend broadcast query.
       supaMock.enqueue({ data: [], error: null });
       supaMock.enqueue({ data: [], error: null });
 
-      await socketA.trigger('trial:vote', { roomId: 'room-2', vote: 'yes' });
-      await socketB.trigger('trial:vote', { roomId: 'room-2', vote: 'no' });
+      await socketA.trigger('trial:vote', { roomId: '20000000-0000-4000-8000-000000000002', vote: 'yes' });
+      await socketB.trigger('trial:vote', { roomId: '20000000-0000-4000-8000-000000000002', vote: 'no' });
 
       const result = socketB.emitted.find((e: any) => e.event === 'trial:result');
       assert.ok(result);
       assert.equal(result.payload.promote, false);
       assert.ok(!socketB.emitted.some((e: any) => e.event === 'call:promoted'));
 
-      assert.equal(await state.hasRoom('room-2'), false);
-      assert.equal(await state.getUserCurrentRoom('alice'), null);
+      assert.equal(await state.hasRoom('20000000-0000-4000-8000-000000000002'), false);
+      assert.equal(await state.getUserCurrentRoom('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'), null);
     });
   });
 
@@ -192,8 +192,8 @@ describe('socket/match.js', () => {
       const socketB = new FakeSocket();
       io.register(socketA);
       io.register(socketB);
-      registerMatchHandlers(io, socketA, 'alice');
-      registerMatchHandlers(io, socketB, 'bob');
+      registerMatchHandlers(io, socketA, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      registerMatchHandlers(io, socketB, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
 
       await socketA.trigger('match:join', {
         gameId: 'valorant', mode: 'solo', squadSize: 2, rankScore: 10, languages: ['en'], region: 'eu',
@@ -207,8 +207,8 @@ describe('socket/match.js', () => {
       supaMock.enqueue({ error: null });
       supaMock.enqueue({
         data: [
-          { id: 'alice', username: 'Alice', avatar_emoji: '🦊', avatar_url: null },
-          { id: 'bob', username: 'Bob', avatar_emoji: '🐼', avatar_url: null },
+          { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', username: 'Alice', avatar_emoji: '🦊', avatar_url: null },
+          { id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', username: 'Bob', avatar_emoji: '🐼', avatar_url: null },
         ],
         error: null,
       });

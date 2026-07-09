@@ -1,4 +1,3 @@
-export {};
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger').child({ module: 'mailer' });
 const { config } = require('../config/env');
@@ -57,4 +56,4 @@ async function sendPasswordResetEmail(to: any, resetUrl: any) {
   });
 }
 
-module.exports = { sendPasswordResetEmail };
+export { sendPasswordResetEmail };

@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 
 // Every id in this schema is a uuid() from the `uuid` package (see
@@ -21,4 +20,4 @@ function paginationQuery({ limit = 20, maxLimit = 100, offset = true }: any = {}
 // `before` cursor used by chat message pagination — an ISO timestamp string.
 const isoDateTimeOptional = z.string().datetime({ offset: true }).optional();
 
-module.exports = { uuidParam, paginationQuery, isoDateTimeOptional };
+export { uuidParam, paginationQuery, isoDateTimeOptional };

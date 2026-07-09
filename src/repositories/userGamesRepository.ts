@@ -1,4 +1,3 @@
-export {};
 const { supabaseAdmin } = require('../services/supabase');
 
 /**
@@ -23,4 +22,4 @@ function findUserIdsByGame(gameId: any) {
   return supabaseAdmin.from('user_games').select('user_id').eq('game_id', gameId);
 }
 
-module.exports = { replaceForUser, findUserIdsByGame };
+export { replaceForUser, findUserIdsByGame };

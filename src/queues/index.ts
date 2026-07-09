@@ -1,4 +1,3 @@
-export {};
 const logger = require('../utils/logger').child({ module: 'queues' });
 const { queueConnection } = require('./connection');
 const { getEmailQueue, closeEmailQueue, enqueuePasswordResetEmail } = require('./emailQueue');
@@ -17,4 +16,4 @@ async function closeQueues() {
   });
 }
 
-module.exports = { getEmailQueue, enqueuePasswordResetEmail, closeQueues };
+export { getEmailQueue, enqueuePasswordResetEmail, closeQueues };

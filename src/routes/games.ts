@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
@@ -213,4 +212,4 @@ router.get('/tetris/leaderboard', requireAuth, requireTetrisEnabled, leaderboard
   });
 });
 
-module.exports = router;
+export = router;

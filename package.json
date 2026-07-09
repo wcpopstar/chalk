@@ -59,6 +59,7 @@
     "eslint-plugin-n": "^17.15.1",
     "eslint-plugin-promise": "^7.2.1",
     "globals": "^15.14.0",
+    "lint-staged": "^17.0.8",
     "pino-pretty": "^13.0.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
@@ -66,5 +67,8 @@
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "lint-staged": {
+    "*.{js,ts}": "eslint --fix"
   }
 }

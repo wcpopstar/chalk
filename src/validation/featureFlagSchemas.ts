@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 const { REGISTRY } = require('../services/featureFlags');
 
@@ -13,4 +12,4 @@ const setFlagBodySchema = z.union([
   z.object({ rolloutPercent: z.number().int().min(0).max(100), enabled: z.literal(true).optional() }),
 ]);
 
-module.exports = { flagKeyParam, setFlagBodySchema };
+export { flagKeyParam, setFlagBodySchema };

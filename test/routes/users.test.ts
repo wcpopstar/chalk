@@ -49,10 +49,10 @@ async function clearProfileCache(id: any) {
 }
 
 describe('Users routes (/api/users)', () => {
-  let app;
-  let token;
-  const userId = '11111111-1111-1111-1111-111111111111';
-  const otherId = '22222222-2222-2222-2222-222222222222';
+  let app: any;
+  let token: any;
+  const userId = '11111111-1111-4111-8111-111111111111';
+  const otherId = '22222222-2222-4222-8222-222222222222';
 
   before(() => {
     app = buildTestApp({ '/api/users': usersRouter });
@@ -77,7 +77,7 @@ describe('Users routes (/api/users)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({});
       assert.equal(res.status, 400);
-      assert.match(res.body.error, /Nothing to update/);
+      assert.match(JSON.stringify(res.body.details), /Nothing to update/);
     });
 
     it('rejects an out-of-range age', async () => {

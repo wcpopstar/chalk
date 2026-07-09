@@ -28,7 +28,7 @@ stubModule(require.resolve('../../src/services/supabase'), {
 const state = require('../../src/socket/state');
 
 function fakeIo() {
-  const emitted = [];
+  const emitted: any = [];
   return {
     emitted,
     to: (socketId: any) => ({ emit: (event: any, payload: any) => emitted.push({ socketId, event, payload }) }),
