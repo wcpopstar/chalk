@@ -164,6 +164,30 @@ describe('socket/chat.js', () => {
       assert.deepEqual(ackResult, { ok: true });
       assert.ok(other.emitted.some((e: any) => e.event === 'chat:message' && e.payload.type === 'gif'));
     });
+
+    it('acks an error when the caller is not a member', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: null, error: null }); // not a member
+
+      let ackResult: any;
+      await socket.trigger('chat:gif', { conversationId: 'cc000001-0000-4000-8000-000000000001', gifUrl: 'https://example.com/x.gif' }, (r: any) => { ackResult = r; });
+
+      assert.match(ackResult.error, /Не участник/);
+    });
+
+    it('blocks a gif to a blocked DM partner and emits chat:blocked', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // conversation is a DM
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // the other member
+      supaMock.enqueue({ data: [{ id: 'block-row' }], error: null }); // blocked
+
+      let ackResult: any;
+      await socket.trigger('chat:gif', { conversationId: 'cc000001-0000-4000-8000-000000000001', gifUrl: 'https://example.com/x.gif' }, (r: any) => { ackResult = r; });
+
+      assert.match(ackResult.error, /заблокирован/);
+      assert.ok(socket.emitted.some((e: any) => e.event === 'chat:blocked'));
+    });
   });
 
   describe('chat:voice', () => {
@@ -205,6 +229,93 @@ describe('socket/chat.js', () => {
 
       assert.deepEqual(ackResult, { ok: true });
       assert.ok(other.emitted.some((e: any) => e.event === 'chat:message' && e.payload.type === 'voice'));
+    });
+
+    it('blocks a voice note to a blocked DM partner', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // conversation is a DM
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // the other member
+      supaMock.enqueue({ data: [{ id: 'block-row' }], error: null }); // blocked
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:voice',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', audio: FAKE_WEBM, mime: 'audio/webm', duration: 2 },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.match(ackResult.error, /заблокирован/);
+    });
+  });
+
+  describe('chat:video_note', () => {
+    it('acks an error when the caller is not a member', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: null, error: null }); // not a member
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:video_note',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', video: FAKE_WEBM, mime: 'video/webm', duration: 3 },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.match(ackResult.error, /Не участник/);
+    });
+
+    it('blocks a video note to a blocked DM partner', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // conversation is a DM
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // the other member
+      supaMock.enqueue({ data: [{ id: 'block-row' }], error: null }); // blocked
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:video_note',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', video: FAKE_WEBM, mime: 'video/webm', duration: 3 },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.match(ackResult.error, /заблокирован/);
+    });
+
+    it('acks an error for a payload that is not a valid video container', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: null, error: null }); // not blocked
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:video_note',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', video: Buffer.from('not video'), mime: 'video/webm', duration: 3 },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.match(ackResult.error, /формат/);
+    });
+
+    it('uploads and broadcasts a valid video note', async () => {
+      const { io, socket } = setup('me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: null, error: null }); // not blocked
+      supaMock.enqueue({ error: null }); // storage upload
+      supaMock.enqueue({ data: { id: 'vn1', type: 'video_note', duration_seconds: 3 }, error: null }); // saveMessage
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:video_note',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', video: FAKE_WEBM, mime: 'video/webm', duration: 3.2 },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.deepEqual(ackResult, { ok: true });
+      assert.ok(other.emitted.some((e: any) => e.event === 'chat:message' && e.payload.type === 'video_note'));
     });
   });
 

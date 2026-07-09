@@ -117,7 +117,12 @@ jobs:
     name: Build check
     runs-on: ubuntu-latest
     needs: [lint, test]
-    timeout-minutes: 15
+    # 30, not 15: the Docker validation step builds the multi-stage image
+    # from scratch on a cold GHA cache (two npm ci runs inside the image +
+    # exporting every layer with cache-to mode=max) — the first run after a
+    # dependency change was hitting the 15-minute job timeout. Warm-cache
+    # runs finish far faster; this ceiling is for the cold case.
+    timeout-minutes: 30
     services:
       redis:
         image: redis:7-alpine
