@@ -45,9 +45,9 @@ async function clearLeaderboardCache() {
 }
 
 describe('Games routes (/api/games)', () => {
-  let app;
-  let token;
-  const userId = '11111111-1111-1111-1111-111111111111';
+  let app: any;
+  let token: any;
+  const userId = '11111111-1111-4111-8111-111111111111';
 
   before(() => {
     app = buildTestApp({ '/api/games': gamesRouter });

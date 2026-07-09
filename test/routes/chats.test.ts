@@ -21,10 +21,10 @@ stubModule(require.resolve('../../src/services/supabase'), {
 const chatsRouter = require('../../src/routes/chats');
 
 describe('Chats routes (/api/chats)', () => {
-  let app;
-  let token;
-  const userId = '11111111-1111-1111-1111-111111111111';
-  const otherId = '22222222-2222-2222-2222-222222222222';
+  let app: any;
+  let token: any;
+  const userId = '11111111-1111-4111-8111-111111111111';
+  const otherId = '22222222-2222-4222-8222-222222222222';
 
   before(() => {
     app = buildTestApp({ '/api/chats': chatsRouter });
@@ -46,9 +46,9 @@ describe('Chats routes (/api/chats)', () => {
       supaMock.enqueue({
         data: [
           {
-            conversation_id: 'conv-1',
+            conversation_id: 'cc000001-0000-4000-8000-000000000001',
             conversations: {
-              id: 'conv-1',
+              id: 'cc000001-0000-4000-8000-000000000001',
               type: 'direct',
               name: null,
               created_at: '2026-01-01T00:00:00Z',
@@ -59,9 +59,9 @@ describe('Chats routes (/api/chats)', () => {
             },
           },
           {
-            conversation_id: 'conv-2',
+            conversation_id: 'cc000002-0000-4000-8000-000000000002',
             conversations: {
-              id: 'conv-2',
+              id: 'cc000002-0000-4000-8000-000000000002',
               type: 'group',
               name: 'Squad',
               created_at: '2026-01-02T00:00:00Z',
@@ -74,7 +74,7 @@ describe('Chats routes (/api/chats)', () => {
       // 2nd query: other member of the direct conversation(s)
       supaMock.enqueue({
         data: [
-          { conversation_id: 'conv-1', users: { id: otherId, username: 'Buddy', status: 'online' } },
+          { conversation_id: 'cc000001-0000-4000-8000-000000000001', users: { id: otherId, username: 'Buddy', status: 'online' } },
         ],
         error: null,
       });
@@ -84,12 +84,12 @@ describe('Chats routes (/api/chats)', () => {
       assert.equal(res.status, 200);
       assert.equal(res.body.conversations.length, 2);
 
-      const direct = res.body.conversations.find((c: any) => c.id === 'conv-1');
+      const direct = res.body.conversations.find((c: any) => c.id === 'cc000001-0000-4000-8000-000000000001');
       assert.equal(direct.name, 'Buddy');
       assert.equal(direct.other_user.username, 'Buddy');
       assert.equal(direct.last_message.text, 'hey!'); // last of the two messages
 
-      const group = res.body.conversations.find((c: any) => c.id === 'conv-2');
+      const group = res.body.conversations.find((c: any) => c.id === 'cc000002-0000-4000-8000-000000000002');
       assert.equal(group.name, 'Squad');
       assert.equal(group.other_user, null);
       assert.equal(group.last_message, null);
@@ -97,7 +97,7 @@ describe('Chats routes (/api/chats)', () => {
 
     it('skips the second query entirely when there are no direct conversations', async () => {
       supaMock.enqueue({
-        data: [{ conversation_id: 'conv-3', conversations: { id: 'conv-3', type: 'group', name: 'G', messages: [] } }],
+        data: [{ conversation_id: 'cc000003-0000-4000-8000-000000000003', conversations: { id: 'cc000003-0000-4000-8000-000000000003', type: 'group', name: 'G', messages: [] } }],
         error: null,
       });
       // No second enqueue() — if the route wrongly queried for direct
@@ -183,7 +183,7 @@ describe('Chats routes (/api/chats)', () => {
       supaMock.enqueue({ data: null, error: null }); // membership check -> not found
 
       const res = await request(app)
-        .get('/api/chats/conv-1/messages')
+        .get('/api/chats/cc000001-0000-4000-8000-000000000001/messages')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 403);
@@ -200,7 +200,7 @@ describe('Chats routes (/api/chats)', () => {
       }); // messages come back newest-first from the DB query...
 
       const res = await request(app)
-        .get('/api/chats/conv-1/messages')
+        .get('/api/chats/cc000001-0000-4000-8000-000000000001/messages')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 200);
@@ -214,7 +214,7 @@ describe('Chats routes (/api/chats)', () => {
       supaMock.enqueue({ data: null, error: null });
 
       const res = await request(app)
-        .get('/api/chats/conv-1/members')
+        .get('/api/chats/cc000001-0000-4000-8000-000000000001/members')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 403);
@@ -231,7 +231,7 @@ describe('Chats routes (/api/chats)', () => {
       });
 
       const res = await request(app)
-        .get('/api/chats/conv-1/members')
+        .get('/api/chats/cc000001-0000-4000-8000-000000000001/members')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 200);

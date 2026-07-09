@@ -1,4 +1,3 @@
-export {};
 const express = require('express');
 const router  = express.Router();
 const { requireAuth } = require('../middleware/auth');
@@ -134,4 +133,4 @@ router.get('/token', requireAuth, tokenLimiter, validate({ query: tokenQuerySche
   res.json({ token, appId: APP_ID, channel, uid });
 });
 
-module.exports = router;
+export = router;

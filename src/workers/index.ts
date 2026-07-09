@@ -1,4 +1,3 @@
-export {};
 const logger = require('../utils/logger').child({ module: 'workers' });
 const { createEmailWorker } = require('./emailWorker');
 
@@ -19,4 +18,4 @@ async function closeWorkers() {
   workers = [];
 }
 
-module.exports = { startWorkers, closeWorkers };
+export { startWorkers, closeWorkers };

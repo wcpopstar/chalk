@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 
 const passwordSchema = z.string().trim().min(8).refine((value: any) => {
@@ -33,4 +32,4 @@ const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
-module.exports = { registerSchema, loginSchema, passwordSchema, forgotPasswordSchema, resetPasswordSchema };
+export { registerSchema, loginSchema, passwordSchema, forgotPasswordSchema, resetPasswordSchema };

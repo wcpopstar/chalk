@@ -1,4 +1,3 @@
-export {};
 const crypto = require('crypto');
 const { supabaseAdmin } = require('./supabase');
 const { generateOpaqueToken, hashOpaqueToken, REFRESH_TOKEN_TTL_MS } = require('../utils/jwt');
@@ -92,7 +91,7 @@ async function revokeAllForUser(userId: any) {
     .is('revoked_at', null);
 }
 
-module.exports = {
+export {
   issueRefreshToken,
   rotateRefreshToken,
   revokeRefreshToken,

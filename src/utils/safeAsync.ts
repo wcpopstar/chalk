@@ -1,4 +1,3 @@
-export {};
 /**
  * safeAsync — the ONE way this codebase swallows an error on purpose.
  *
@@ -56,4 +55,4 @@ async function safeAsync(fn: any, { label = 'Background operation', context = {}
   }
 }
 
-module.exports = { safeAsync };
+export { safeAsync };

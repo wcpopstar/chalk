@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { supabaseAdmin } from '../services/supabase';
 import { areUsersBlocked } from '../services/blockHelper';
 import loggerBase from '../utils/logger';
+import * as analytics from '../services/analytics';
 const logger = loggerBase.child({ module: 'messages' });
 
 const MESSAGE_SELECT = 'id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at, preview_title, preview_url, preview_thumbnail, preview_video_id, sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )';
@@ -32,6 +33,7 @@ async function saveMessage({ conversationId, senderId, text, type, mediaUrl, dur
     .select(MESSAGE_SELECT)
     .single();
   if (error) { logger.error({ err: error, conversationId, senderId }, 'Failed to save message'); throw new Error(error.message || 'Не удалось отправить сообщение'); }
+  analytics.capture(senderId, 'message_sent', { type: type || 'text', scope: 'direct' });
   return data;
 }
 

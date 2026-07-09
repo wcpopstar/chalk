@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 const { paginationQuery } = require('./common');
 const { gameIdField } = require('./userSchemas');
@@ -21,4 +20,4 @@ const rateMatchSchema = z.object({
   comment: z.string().trim().max(500).optional(),
 });
 
-module.exports = { historyQuerySchema, recordCallSchema, rateMatchSchema };
+export { historyQuerySchema, recordCallSchema, rateMatchSchema };

@@ -1,4 +1,3 @@
-export {};
 const { Worker } = require('bullmq');
 const logger = require('../utils/logger').child({ module: 'email-worker' });
 const { queueConnection } = require('../queues/connection');
@@ -39,4 +38,4 @@ function createEmailWorker() {
   return worker;
 }
 
-module.exports = { createEmailWorker };
+export { createEmailWorker };

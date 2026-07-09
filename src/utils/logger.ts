@@ -1,4 +1,3 @@
-export {};
 /**
  * Centralized Pino logger.
  *
@@ -127,4 +126,4 @@ const logger = pino({
   },
 });
 
-module.exports = logger;
+export = logger;

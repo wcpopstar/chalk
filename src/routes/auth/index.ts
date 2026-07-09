@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 
 // Split by concern rather than one 590-line file:
@@ -13,4 +12,4 @@ router.use(require('./login'));
 router.use(require('./session'));
 router.use(require('./passwordReset'));
 
-module.exports = router;
+export = router;

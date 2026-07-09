@@ -1,5 +1,5 @@
-export {};
 const router = require('express').Router();
+const analytics = require('../services/analytics');
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
@@ -143,6 +143,7 @@ router.post('/request', requireAuth, friendRequestLimiter, validate({ body: targ
     .single();
 
   if (error) return res.status(500).json({ error: error.message });
+  analytics.capture(req.user.id, 'friend_request_sent');
   res.status(201).json({ request: data });
 });
 
@@ -187,6 +188,7 @@ router.patch('/:id/accept', requireAuth, friendActionLimiter, validate({ params:
     .eq('id', req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });
+  analytics.capture(req.user.id, 'friend_request_accepted');
   res.json({ ok: true });
 });
 
@@ -290,4 +292,4 @@ router.post('/add-after-call', requireAuth, friendRequestLimiter, validate({ bod
   }
 });
 
-module.exports = router;
+export = router;

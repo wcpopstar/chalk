@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 
 // ── IMPORTANT: specific routes MUST be mounted before /:id ────────────────
@@ -13,4 +12,4 @@ router.use(require('./discovery'));
 router.use(require('./moderation'));
 router.use(require('./publicProfile'));
 
-module.exports = router;
+export = router;

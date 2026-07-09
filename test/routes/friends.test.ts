@@ -31,10 +31,10 @@ stubModule(require.resolve('../../src/socket/state'), {
 const friendsRouter = require('../../src/routes/friends');
 
 describe('Friends routes (/api/friends)', () => {
-  let app;
-  let token;
-  const userId = '11111111-1111-1111-1111-111111111111';
-  const otherId = '22222222-2222-2222-2222-222222222222';
+  let app: any;
+  let token: any;
+  const userId = '11111111-1111-4111-8111-111111111111';
+  const otherId = '22222222-2222-4222-8222-222222222222';
 
   before(() => {
     app = buildTestApp({ '/api/friends': friendsRouter });
@@ -56,7 +56,7 @@ describe('Friends routes (/api/friends)', () => {
       supaMock.enqueue({
         data: [
           {
-            id: 'f1', status: 'accepted', created_at: '2026-01-01',
+            id: 'ff111111-1111-4111-8111-111111111111', status: 'accepted', created_at: '2026-01-01',
             user_a_profile: { id: userId, username: 'me' },
             user_b_profile: { id: otherId, username: 'Buddy' },
           },
@@ -102,7 +102,7 @@ describe('Friends routes (/api/friends)', () => {
 
     it('returns 409 with alreadyFriend when already accepted', async () => {
       supaMock.enqueue({ data: [], error: null }); // not blocked
-      supaMock.enqueue({ data: [{ id: 'f1', status: 'accepted' }], error: null }); // existing row
+      supaMock.enqueue({ data: [{ id: 'ff111111-1111-4111-8111-111111111111', status: 'accepted' }], error: null }); // existing row
 
       const res = await request(app)
         .post('/api/friends/request')
@@ -115,7 +115,7 @@ describe('Friends routes (/api/friends)', () => {
 
     it('returns 409 when a pending request already exists', async () => {
       supaMock.enqueue({ data: [], error: null }); // not blocked
-      supaMock.enqueue({ data: [{ id: 'f1', status: 'pending' }], error: null }); // existing row
+      supaMock.enqueue({ data: [{ id: 'ff111111-1111-4111-8111-111111111111', status: 'pending' }], error: null }); // existing row
 
       const res = await request(app)
         .post('/api/friends/request')
@@ -146,18 +146,18 @@ describe('Friends routes (/api/friends)', () => {
       supaMock.enqueue({ data: null, error: null });
 
       const res = await request(app)
-        .patch('/api/friends/f1/accept')
+        .patch('/api/friends/ff111111-1111-4111-8111-111111111111/accept')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 404);
     });
 
     it('accepts a pending request addressed to the caller', async () => {
-      supaMock.enqueue({ data: { id: 'f1', user_a: otherId, user_b: userId, status: 'pending' }, error: null });
+      supaMock.enqueue({ data: { id: 'ff111111-1111-4111-8111-111111111111', user_a: otherId, user_b: userId, status: 'pending' }, error: null });
       supaMock.enqueue({ error: null }); // update
 
       const res = await request(app)
-        .patch('/api/friends/f1/accept')
+        .patch('/api/friends/ff111111-1111-4111-8111-111111111111/accept')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 200);
@@ -170,7 +170,7 @@ describe('Friends routes (/api/friends)', () => {
       supaMock.enqueue({ error: null });
 
       const res = await request(app)
-        .delete('/api/friends/f1')
+        .delete('/api/friends/ff111111-1111-4111-8111-111111111111')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 200);
@@ -233,7 +233,7 @@ describe('Friends routes (/api/friends)', () => {
 
     it('returns 200 with already:true when the friendship already existed and was accepted', async () => {
       supaMock.enqueue({ data: [], error: null }); // not blocked
-      supaMock.enqueue({ data: { id: 'f1', status: 'accepted' }, error: null }); // addFriendPairInstant: already accepted
+      supaMock.enqueue({ data: { id: 'ff111111-1111-4111-8111-111111111111', status: 'accepted' }, error: null }); // addFriendPairInstant: already accepted
 
       const res = await request(app)
         .post('/api/friends/add-after-call')

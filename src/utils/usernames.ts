@@ -1,4 +1,3 @@
-export {};
 function generateUsername() {
   const adjectives = ['Bright', 'Nova', 'Pixel', 'Swift', 'Cobalt', 'Echo', 'Mango', 'Rocket'];
   const nouns = ['Player', 'Ace', 'Quest', 'Byte', 'Rift', 'Spark', 'Orbit', 'Glide'];
@@ -8,4 +7,4 @@ function generateUsername() {
   return `${adjective}${noun}${number}`;
 }
 
-module.exports = { generateUsername };
+export { generateUsername };

@@ -1,4 +1,3 @@
-export {};
 const { supabaseAdmin } = require('../services/supabase');
 
 function create({ id, reporterId, reportedId, reason, details, context, createdAt }: any) {
@@ -13,4 +12,4 @@ function create({ id, reporterId, reportedId, reason, details, context, createdA
   });
 }
 
-module.exports = { create };
+export { create };

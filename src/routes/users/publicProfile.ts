@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
@@ -76,4 +75,4 @@ router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), 
   res.json({ user });
 });
 
-module.exports = router;
+export = router;

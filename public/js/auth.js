@@ -149,7 +149,7 @@ function afterAuth() {
   }
 }
 
-async function bootApp() {
+function bootApp() {
   document.getElementById('authScreen').classList.add('hidden');
   document.getElementById('onboardingOverlay').classList.remove('show');
   document.getElementById('mainNav').style.display = 'flex';

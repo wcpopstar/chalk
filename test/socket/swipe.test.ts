@@ -47,7 +47,7 @@ describe('socket/swipe.js', () => {
     const { socket } = setup('me');
     supaMock.enqueue({ error: null }); // upsert
 
-    await socket.trigger('swipe', { targetUserId: 'other', direction: 'left' });
+    await socket.trigger('swipe', { targetUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', direction: 'left' });
 
     assert.equal(socket.emitted.length, 0);
   });
@@ -57,7 +57,7 @@ describe('socket/swipe.js', () => {
     supaMock.enqueue({ error: null }); // upsert
     supaMock.enqueue({ data: null, error: null }); // mutual check -> none
 
-    await socket.trigger('swipe', { targetUserId: 'other', direction: 'right' });
+    await socket.trigger('swipe', { targetUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', direction: 'right' });
 
     assert.ok(!socket.emitted.some((e: any) => e.event === 'swipe:match'));
   });
@@ -66,14 +66,14 @@ describe('socket/swipe.js', () => {
     const { io, socket } = setup('me');
     const otherSocket = new FakeSocket();
     io.register(otherSocket);
-    await state.setOnline('other', otherSocket.id);
+    await state.setOnline('dddddddd-dddd-4ddd-8ddd-dddddddddddd', otherSocket.id);
 
     supaMock.enqueue({ error: null }); // upsert
     supaMock.enqueue({ data: { id: 'swipe-row' }, error: null }); // mutual check -> found
 
-    await socket.trigger('swipe', { targetUserId: 'other', direction: 'right' });
+    await socket.trigger('swipe', { targetUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', direction: 'right' });
 
-    assert.ok(socket.emitted.some((e: any) => e.event === 'swipe:match' && e.payload.with === 'other'));
+    assert.ok(socket.emitted.some((e: any) => e.event === 'swipe:match' && e.payload.with === 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'));
     assert.ok(otherSocket.emitted.some((e: any) => e.event === 'swipe:match' && e.payload.with === 'me'));
   });
 
@@ -82,18 +82,18 @@ describe('socket/swipe.js', () => {
     supaMock.enqueue({ error: null }); // upsert
     supaMock.enqueue({ data: { id: 'swipe-row' }, error: null }); // mutual check -> found
 
-    await socket.trigger('swipe', { targetUserId: 'other', direction: 'super' });
+    await socket.trigger('swipe', { targetUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', direction: 'super' });
 
     assert.ok(socket.emitted.some((e: any) => e.event === 'swipe:match'));
   });
 
   it('does not error when the matched other user is offline (just skips their emit)', async () => {
     const { socket } = setup('me');
-    // 'other' never calls setOnline() — getOnlineSocket resolves to null.
+    // 'dddddddd-dddd-4ddd-8ddd-dddddddddddd' never calls setOnline() — getOnlineSocket resolves to null.
     supaMock.enqueue({ error: null }); // upsert
     supaMock.enqueue({ data: { id: 'swipe-row' }, error: null }); // mutual check -> found
 
-    await socket.trigger('swipe', { targetUserId: 'other', direction: 'right' });
+    await socket.trigger('swipe', { targetUserId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', direction: 'right' });
 
     assert.ok(socket.emitted.some((e: any) => e.event === 'swipe:match'));
   });
