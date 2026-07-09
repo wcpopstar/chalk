@@ -6,6 +6,7 @@ import { enqueue, dequeue, runMatchCycle, queueSize } from './matchmaking';
 import { saveRoom, deleteRoom, updateRoom, setUserRoom, clearUserRoom, markCallPartners } from './state';
 import { secureOn } from './validation';
 import loggerBase from '../utils/logger';
+import * as analytics from '../services/analytics';
 const logger = loggerBase.child({ module: 'match' });
 
 // ── Persist match to history ──────────────────────────────────────────────
@@ -94,6 +95,7 @@ async function handleMatch(io: TypedServer, participants: any, mode: 'solo' | 'g
 
   await saveMatchHistory(participants, gameId, mode);
   await markCallPartners(participants.map((p: any) => p.userId));
+  for (const p of participants) analytics.capture(p.userId, 'match_found', { mode, gameId });
 
   const participantIds = participants.map((p: any) => p.userId);
   const { data: profiles } = await supabaseAdmin

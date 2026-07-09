@@ -2,6 +2,7 @@ import type { TypedServer, TypedSocket } from './types';
 import { supabaseAdmin } from '../services/supabase';
 import { getOnlineSocket } from './state';
 import { secureOn } from './validation';
+import * as analytics from '../services/analytics';
 
 // ── SWIPE ─────────────────────────────────────────────────────────────
 // Goes through secureOn(): global + per-event rate limiting (see
@@ -20,6 +21,8 @@ function registerSwipeHandlers(io: TypedServer, socket: TypedSocket, userId: str
       created_at:     new Date().toISOString(),
     });
 
+    analytics.capture(userId, 'swipe', { direction });
+
     if (direction === 'right' || direction === 'super') {
       const { data: mutual } = await supabaseAdmin
         .from('swipes')
@@ -30,6 +33,7 @@ function registerSwipeHandlers(io: TypedServer, socket: TypedSocket, userId: str
         .maybeSingle();
 
       if (mutual) {
+        analytics.capture(userId, 'swipe_match');
         socket.emit('swipe:match', { with: targetUserId });
         const targetSocket = await getOnlineSocket(targetUserId);
         if (targetSocket) io.to(targetSocket).emit('swipe:match', { with: userId });

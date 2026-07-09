@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const analytics = require('../../services/analytics');
 const bcrypt = require('bcryptjs');
 const { v4: uuid } = require('uuid');
 const usersRepository = require('../../repositories/usersRepository');
@@ -80,6 +81,8 @@ router.post('/register', authLimiter, async (req: any, res: any) => {
     }
 
     const { token, refreshToken, expiresIn } = await issueSession(user, req);
+    analytics.capture(user.id, 'user_registered');
+    analytics.identify(user.id, { country: user.country || null });
     res.status(201).json({ user, token, refreshToken, expiresIn });
   } catch (error: any) {
     if (error.name === 'ZodError') {

@@ -6,6 +6,7 @@ const { userLimiter } = require('../middleware/rateLimit');
 const { uuidParam } = require('../validation/common');
 const { startCallSchema, endCallSchema } = require('../validation/callSchemas');
 const { supabaseAdmin } = require('../services/supabase');
+const analytics = require('../services/analytics');
 
 // Call lifecycle writes — generous enough for normal use (nobody starts more
 // than a handful of calls a minute) while capping a runaway client/script.
@@ -59,6 +60,7 @@ router.post('/start', requireAuth, callLimiter, validate({ body: startCallSchema
   }).select().single();
 
   if (error) return res.status(500).json({ error: error.message });
+  analytics.capture(req.user.id, 'call_started', { mode: mode || 'solo', participants: (participants || [req.user.id]).length });
   res.status(201).json({ call: data });
 });
 
@@ -102,6 +104,7 @@ router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(
   }).eq('id', req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });
+  analytics.capture(req.user.id, 'call_ended', { durationSeconds: duration_seconds ?? null });
   res.json({ ok: true });
 });
 

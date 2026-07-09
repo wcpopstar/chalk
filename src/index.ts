@@ -1,6 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// OpenTelemetry must be FIRST (before express/http/ioredis are required) —
+// its auto-instrumentation patches those modules at load time. No-op unless
+// OTEL_EXPORTER_OTLP_ENDPOINT is set. See utils/otel.ts.
+import { shutdownTelemetry } from './utils/otel';
+
 // Sentry must be required before anything else gets a chance to throw, so
 // its init (including automatic uncaught-exception hooking) is in place
 // for the rest of the module graph below.
@@ -36,6 +41,7 @@ import { initSocket } from './socket';
 import { startWorkers, closeWorkers } from './workers';
 import { closeQueues } from './queues';
 import * as metrics from './utils/metrics';
+import { shutdownAnalytics } from './services/analytics';
 import { metricsMiddleware } from './middleware/metrics';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
@@ -364,6 +370,11 @@ async function shutdown(signal: any) {
       }
     });
     logger.info('Supabase clients closed');
+
+    // Flush the last analytics events and spans of this instance's life.
+    await shutdownAnalytics();
+    await shutdownTelemetry();
+    logger.info('Analytics and telemetry flushed');
 
     logger.info('✅ Graceful shutdown complete');
     clearTimeout(forceExitTimer);
