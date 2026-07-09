@@ -107,8 +107,17 @@ async function api(path, opts, _isRetry) {
   const data = await r.json().catch(() => ({}));
 
   if (!r.ok) {
-    const tokenStale = r.status === 401 && (data.code === 'TOKEN_EXPIRED' || data.code === 'TOKEN_REVOKED');
-    if (tokenStale && !_isRetry) {
+    // Any 401 gets ONE transparent refresh attempt (guarded by _isRetry +
+    // having a refresh token at all). Previously this matched only
+    // `data.code === 'TOKEN_EXPIRED' | 'TOKEN_REVOKED'` — but the server
+    // nests machine-readable codes under `details` (see src/utils/http.ts
+    // sendError: `{ error, details: { code } }`), so the check NEVER
+    // matched, no refresh was attempted, and any page load with a
+    // >15-min-old access token logged the user out. Being code-agnostic
+    // also survives a JWT_SECRET rotation, where the server answers a
+    // generic 401 with no code — the refresh token is opaque and
+    // DB-backed, so it renews the session either way.
+    if (r.status === 401 && !_isRetry && refreshToken) {
       const renewed = await refreshSession();
       if (renewed) return api(path, opts, true);
       forceLogout();
