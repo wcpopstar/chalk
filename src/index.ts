@@ -76,7 +76,29 @@ const io = new Server(server, {
 // correctly when there's exactly one server process.
 io.adapter(createAdapter(pubClient, subClient));
 
-app.use(helmet({ contentSecurityPolicy: false }));
+// CSP: locked to what public/index.html actually needs. The frontend is
+// vanilla JS with ~230 inline onclick= handlers, so script-src-attr must
+// allow 'unsafe-inline' — but <script> ELEMENTS are still restricted to
+// self + the two CDNs (Socket.IO client, Agora SDK), which is the part
+// that blocks an injected <script src="https://evil..."> outright.
+// 'wasm-unsafe-eval' is for the Agora SDK's WebAssembly audio pipeline.
+// img/media/connect are broad (https:/wss:/blob:/data:) because avatars
+// come from Supabase storage, GIFs from Giphy CDNs, voice notes play from
+// blobs, and Agora signaling connects to its own wss endpoints.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', "'wasm-unsafe-eval'"],
+      'script-src-attr': ["'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'"],
+      'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+      'media-src': ["'self'", 'blob:', 'data:'],
+      'connect-src': ["'self'", 'https:', 'wss:'],
+      'worker-src': ["'self'", 'blob:'],
+    },
+  },
+}));
 app.use(cors({ origin: clientOrigin, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(rateLimit({

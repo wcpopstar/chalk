@@ -11,6 +11,7 @@
     "worker:dev": "tsx watch src/worker.ts",
     "migrate": "node supabase/migrate.js",
     "test": "node --import tsx --test --test-force-exit \"test/**/*.test.ts\"",
+    "test:coverage": "node --import tsx --experimental-test-coverage --test --test-force-exit \"test/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
