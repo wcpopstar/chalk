@@ -4,8 +4,8 @@ const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
 const { userLimiter } = require('../../middleware/rateLimit');
 const { uuidParam } = require('../../validation/common');
-const usersRepository = require('../../repositories/usersRepository');
-const blocksRepository = require('../../repositories/blocksRepository');
+import * as usersRepository from '../../repositories/usersRepository';
+import * as blocksRepository from '../../repositories/blocksRepository';
 const { cached } = require('../../utils/cache');
 const { profileCacheKey, PROFILE_CACHE_TTL_SECONDS } = require('./shared');
 
@@ -54,8 +54,8 @@ router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), 
   // blocked_by_me is merged below instead of widening the cache TTL down.
   let user: any;
   try {
-    user = await cached(profileCacheKey(req.params.id), PROFILE_CACHE_TTL_SECONDS, async () => {
-      const { data, error } = await usersRepository.findPublicProfileById(req.params.id);
+    user = await cached(profileCacheKey(req.params.id!), PROFILE_CACHE_TTL_SECONDS, async () => {
+      const { data, error } = await usersRepository.findPublicProfileById(req.params.id!);
       if (error || !data) throw error || new Error('User not found');
       return data;
     });
@@ -68,10 +68,10 @@ router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), 
   // (possibly cached) profile object. JSON.parse inside cached() already
   // hands back a fresh object per call, so mutating it here doesn't leak
   // between different viewers' requests.
-  const { data: blockRows } = await blocksRepository.findPairBetween(req.user.id, req.params.id);
+  const { data: blockRows } = await blocksRepository.findPairBetween(req.user.id, req.params.id!);
 
-  user.blocked_by_me = !!(blockRows || []).find((r: any) => r.blocker_id === req.user.id);
-  user.has_blocked_me = !!(blockRows || []).find((r: any) => r.blocker_id === req.params.id);
+  user.blocked_by_me = !!(blockRows || []).find((r) => r.blocker_id === req.user.id);
+  user.has_blocked_me = !!(blockRows || []).find((r) => r.blocker_id === req.params.id);
 
   return res.json({ user });
 });

@@ -7,7 +7,7 @@ const { validate } = require('../middleware/validate');
 const { uuidParam } = require('../validation/common');
 const { targetUserBodySchema } = require('../validation/friendSchemas');
 const { userLimiter } = require('../middleware/rateLimit');
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 const { addFriendPairInstant } = require('../services/friendsHelper');
 const { areUsersBlocked } = require('../services/blockHelper');
 const { wereRecentCallPartners } = require('../socket/state');
@@ -58,7 +58,7 @@ router.get('/', requireAuth, friendsReadLimiter, async (req: Request, res: Respo
   if (error) return res.status(500).json({ error: error.message });
 
   // Normalise so "friend" is always the other person
-  const friends = (data || []).map((row: any) => {
+  const friends = (data || []).map((row) => {
     const isA   = row.user_a_profile.id === uid;
     const other = isA ? row.user_b_profile : row.user_a_profile;
     // For pending requests: incoming = true means *this* user is the recipient (user_b)
@@ -176,7 +176,7 @@ router.patch('/:id/accept', requireAuth, friendActionLimiter, validate({ params:
   const { data: row } = await supabaseAdmin
     .from('friends')
     .select('id, user_a, user_b, status')
-    .eq('id', req.params.id)
+    .eq('id', req.params.id!)
     .eq('user_b', req.user.id) // only the recipient can accept
     .eq('status', 'pending')
     .single();
@@ -186,7 +186,7 @@ router.patch('/:id/accept', requireAuth, friendActionLimiter, validate({ params:
   const { error } = await supabaseAdmin
     .from('friends')
     .update({ status: 'accepted' })
-    .eq('id', req.params.id);
+    .eq('id', req.params.id!);
 
   if (error) return res.status(500).json({ error: error.message });
   analytics.capture(req.user.id, 'friend_request_accepted');
@@ -222,7 +222,7 @@ router.delete('/:id', requireAuth, friendActionLimiter, validate({ params: uuidP
   const { error } = await supabaseAdmin
     .from('friends')
     .delete()
-    .eq('id', req.params.id)
+    .eq('id', req.params.id!)
     .or(`user_a.eq.${uid},user_b.eq.${uid}`);
 
   if (error) return res.status(500).json({ error: error.message });

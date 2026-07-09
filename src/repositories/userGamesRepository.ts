@@ -1,10 +1,12 @@
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 
 /**
  * Replaces a user's full game list (delete-then-insert, since the client
  * always sends the complete desired list rather than a diff).
  */
-async function replaceForUser(userId: string, games: Array<{ game_id?: string; id?: string; rank?: string | null; hours_played?: number | null }>) {
+// game_id is guaranteed by gameEntry in validation/userSchemas.ts — both
+// callers (routes/users/profile.ts) run the payload through it first.
+async function replaceForUser(userId: string, games: Array<{ game_id: string; rank?: string | null; hours_played?: number | null }>) {
   await supabaseAdmin.from('user_games').delete().eq('user_id', userId);
   if (games && games.length) {
     const rows = games.map((g) => ({

@@ -45,8 +45,8 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     const youtubeLink = isYouTubeUrl(text);
     const preview = youtubeLink ? await getYouTubePreviewData(text) : null;
     const payload = youtubeLink
-      ? { conversationId, senderId: userId, text, type: 'youtube', mediaUrl: null, preview }
-      : { conversationId, senderId: userId, text, type: 'text' };
+      ? { conversationId, senderId: userId, text, type: 'youtube' as const, mediaUrl: null, preview }
+      : { conversationId, senderId: userId, text, type: 'text' as const };
 
     const msg = await saveMessage(payload);
     io.to(`chat:${conversationId}`).emit('chat:message', msg);
