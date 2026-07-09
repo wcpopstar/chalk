@@ -161,11 +161,14 @@ jobs:
         # service container in this job) is reported healthy.
         run: |
           set -e
-          timeout 20s node dist/index.js &
+          timeout 30s node dist/index.js &
           PID=$!
-          for i in $(seq 1 10); do
-            code=$(curl -s -o health.json -w "%{http_code}" http://localhost:3000/health || echo 000)
-            if [ "$code" != "000" ]; then
+          for i in $(seq 1 15); do
+            # On connection failure curl itself prints 000 via -w, so no
+            # `|| echo` fallback here — that would append a SECOND 000 and
+            # make the "did the server answer yet" check pass spuriously.
+            code=$(curl -s -o health.json -w "%{http_code}" http://localhost:3000/health || true)
+            if [ -n "$code" ] && [ "$code" != "000" ]; then
               echo "Server booted, /health HTTP $code: $(cat health.json)"
               if node -e "const h=require('./health.json'); process.exit(h.services.redis.status === 'ok' ? 0 : 1)"; then
                 echo "Redis reported healthy."
@@ -178,7 +181,7 @@ jobs:
             fi
             sleep 1
           done
-          echo "::error::Server did not answer /health within 10s"
+          echo "::error::Server did not answer /health within 15s"
           kill $PID 2>/dev/null || true
           exit 1
         env:
