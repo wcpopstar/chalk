@@ -113,7 +113,7 @@ router.get(
           thumb;
         return { id: g.id, thumb, full };
       })
-      .filter((r: any) => r.thumb);
+      .filter((r: { id: string; thumb: string; full: string }) => r.thumb);
 
     return res.json({ results });
   },

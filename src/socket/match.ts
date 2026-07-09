@@ -45,12 +45,12 @@ async function promoteRoomToFriends(participantIds: string[]) {
   // Get-or-create the conversation.
   try {
     if (ids.length === 2) {
-      const [a, b] = ids;
+      const [a, b] = [ids[0]!, ids[1]!]; // guarded by the length check
       const { data: existing } = await supabaseAdmin.rpc('find_direct_conversation', {
         user_a: a,
         user_b: b,
       });
-      if (existing && existing.length) return existing[0].id;
+      if (existing && existing.length && existing[0]) return existing[0].id;
 
       const convId = uuid();
       const { error: convErr } = await supabaseAdmin

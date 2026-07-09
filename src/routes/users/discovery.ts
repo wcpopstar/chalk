@@ -2,10 +2,10 @@ import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
-const usersRepository = require('../../repositories/usersRepository');
-const swipesRepository = require('../../repositories/swipesRepository');
-const blocksRepository = require('../../repositories/blocksRepository');
-const userGamesRepository = require('../../repositories/userGamesRepository');
+import * as usersRepository from '../../repositories/usersRepository';
+import * as swipesRepository from '../../repositories/swipesRepository';
+import * as blocksRepository from '../../repositories/blocksRepository';
+import * as userGamesRepository from '../../repositories/userGamesRepository';
 const { searchLimiter } = require('./shared');
 const { discoverQuerySchema, searchQuerySchema } = require('../../validation/userSchemas');
 const { isEnabled } = require('../../services/featureFlags');
@@ -56,22 +56,23 @@ router.get('/discover', requireAuth, validate({ query: discoverQuerySchema }), a
   if (!(await isEnabled('discovery.enabled', { userId: req.user.id }))) {
     return res.status(404).json({ error: 'Not found' });
   }
-  const { game_id, limit } = req.query;
+  // Parsed by discoverQuerySchema in validate().
+  const { game_id, limit } = req.query as unknown as { game_id?: string; limit: number };
   const uid = req.user.id;
 
   const { data: swipes } = await swipesRepository.findSwipedTargetIds(uid);
-  const excludeIds = (swipes || []).map((s: any) => s.target_user_id);
+  const excludeIds = (swipes || []).map((s) => s.target_user_id);
   excludeIds.push(uid); // exclude self
 
   const { data: blockRows } = await blocksRepository.findPairsInvolving(uid);
-  (blockRows || []).forEach((r: any) => {
+  (blockRows || []).forEach((r) => {
     excludeIds.push(r.blocker_id === uid ? r.blocked_id : r.blocker_id);
   });
 
   let gameFilterIds: any = null;
   if (game_id) {
     const { data: gameUsers } = await userGamesRepository.findUserIdsByGame(game_id);
-    gameFilterIds = (gameUsers || []).map((r: any) => r.user_id).filter((id: any) => !excludeIds.includes(id));
+    gameFilterIds = (gameUsers || []).map((r) => r.user_id).filter((id) => !excludeIds.includes(id));
     if (!gameFilterIds.length) return res.json({ users: [] });
   }
 
@@ -148,7 +149,7 @@ router.get('/search', requireAuth, searchLimiter, validate({ query: searchQueryS
   }
 
   // Escape % and _ so they aren't treated as SQL wildcards by the user's input.
-  const escaped = raw.replace(/[%_]/g, (ch: any) => '\\' + ch);
+  const escaped = raw.replace(/[%_]/g, (ch) => '\\' + ch);
 
   const { data: users, error } = await usersRepository.searchByUsername(`%${escaped}%`, req.user.id, 30);
 
@@ -156,7 +157,7 @@ router.get('/search', requireAuth, searchLimiter, validate({ query: searchQueryS
 
   const q = raw.toLowerCase();
   const ranked = (users || [])
-    .map((u: any) => {
+    .map((u) => {
       const name = (u.username || '').toLowerCase();
       let rank = 3; // plain substring match
       if (name === q) rank = 0;            // exact
@@ -164,9 +165,9 @@ router.get('/search', requireAuth, searchLimiter, validate({ query: searchQueryS
       else if (name.includes(q)) rank = 2;   // word-ish/other substring
       return { u, rank };
     })
-    .sort((a: any, b: any) => a.rank - b.rank || a.u.username.length - b.u.username.length)
+    .sort((a, b) => a.rank - b.rank || a.u.username.length - b.u.username.length)
     .slice(0, limit)
-    .map((r: any) => r.u);
+    .map((r) => r.u);
 
   return res.json({ users: ranked });
 });

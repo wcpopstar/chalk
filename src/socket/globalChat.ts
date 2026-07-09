@@ -21,8 +21,8 @@ function registerGlobalChatHandlers(io: TypedServer, socket: TypedSocket, userId
     const youtubeLink = isYouTubeUrl(text);
     const preview = youtubeLink ? await getYouTubePreviewData(text) : null;
     const payload = youtubeLink
-      ? { senderId: userId, text, type: 'youtube', mediaUrl: null, preview }
-      : { senderId: userId, text, type: 'text' };
+      ? { senderId: userId, text, type: 'youtube' as const, mediaUrl: null, preview }
+      : { senderId: userId, text, type: 'text' as const };
 
     const msg = await saveGlobalMessage(payload);
     io.to('global').emit('global:message', msg);

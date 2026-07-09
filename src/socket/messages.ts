@@ -13,10 +13,12 @@ const GLOBAL_MESSAGE_SELECT = `
 `;
 
 // ── Persist chat message to DB ────────────────────────────────────────────
+import type { MessageType } from '../types/supabase';
+
 interface MessageInput {
   senderId: string;
   text?: string | null;
-  type?: string;
+  type?: MessageType;
   mediaUrl?: string | null;
   duration?: number | null;
   preview?: { title?: string; url?: string; thumbnail?: string; videoId?: string } | null;
