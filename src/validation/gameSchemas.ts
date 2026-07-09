@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 const submitScoreSchema = z.object({
   score: z.coerce.number().min(0).max(1_000_000),

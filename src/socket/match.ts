@@ -7,17 +7,18 @@ import { saveRoom, deleteRoom, updateRoom, setUserRoom, clearUserRoom, markCallP
 import { secureOn } from './validation';
 import loggerBase from '../utils/logger';
 import * as analytics from '../services/analytics';
+import type { QueueEntry } from '../services/matchmakingRedis';
 const logger = loggerBase.child({ module: 'match' });
 
 // ── Persist match to history ──────────────────────────────────────────────
-async function saveMatchHistory(participants: any, gameId: any, mode: any) {
+async function saveMatchHistory(participants: QueueEntry[], gameId: string, mode: string) {
   const rows = [];
   for (let i = 0; i < participants.length; i++) {
     for (let j = i + 1; j < participants.length; j++) {
       rows.push({
         id: uuid(),
-        user_a: participants[i].userId,
-        user_b: participants[j].userId,
+        user_a: participants[i]!.userId,
+        user_b: participants[j]!.userId,
         game_id: gameId,
         mode,
         created_at: new Date().toISOString(),
@@ -29,14 +30,15 @@ async function saveMatchHistory(participants: any, gameId: any, mode: any) {
 
 // ── On unanimous trial-call promotion: befriend everyone in the room and
 //    get-or-create the conversation they'll chat in ─────────────────────────
-async function promoteRoomToFriends(participantIds: any) {
+async function promoteRoomToFriends(participantIds: string[]) {
   const ids = [...new Set(participantIds)];
 
   // Pairwise befriend everyone in the room (covers group trial calls too).
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      try { await addFriendPairInstant(ids[i], ids[j]); }
-      catch (err: any) { logger.error({ err, userA: ids[i], userB: ids[j] }, 'Failed to add friend pair during trial promotion'); }
+      const [a, b] = [ids[i]!, ids[j]!];
+      try { await addFriendPairInstant(a, b); }
+      catch (err: any) { logger.error({ err, userA: a, userB: b }, 'Failed to add friend pair during trial promotion'); }
     }
   }
 
@@ -80,12 +82,12 @@ async function promoteRoomToFriends(participantIds: any) {
 }
 
 // ── Emit a match to the matched players ──────────────────────────────────
-async function handleMatch(io: TypedServer, participants: any, mode: 'solo' | 'group') {
+async function handleMatch(io: TypedServer, participants: QueueEntry[], mode: 'solo' | 'group') {
   const roomId = uuid();
-  const gameId = participants[0].gameId;
+  const gameId = participants[0]!.gameId; // a match always has >= 2 participants
 
   await saveRoom(roomId, {
-    participants: participants.map((p: any) => p.userId),
+    participants: participants.map((p) => p.userId),
     mode,
     gameId,
     trialStart: Date.now(),
@@ -94,10 +96,10 @@ async function handleMatch(io: TypedServer, participants: any, mode: 'solo' | 'g
   });
 
   await saveMatchHistory(participants, gameId, mode);
-  await markCallPartners(participants.map((p: any) => p.userId));
+  await markCallPartners(participants.map((p) => p.userId));
   for (const p of participants) analytics.capture(p.userId, 'match_found', { mode, gameId });
 
-  const participantIds = participants.map((p: any) => p.userId);
+  const participantIds = participants.map((p) => p.userId);
   const { data: profiles } = await supabaseAdmin
     .from('users')
     .select('id, username, avatar_emoji, avatar_url')
@@ -130,7 +132,7 @@ async function handleMatch(io: TypedServer, participants: any, mode: 'solo' | 'g
     await setUserRoom(io, p.userId, roomId);
   }
 
-  logger.info({ mode, roomId, participantIds: participants.map((p: any) => p.userId) }, 'Match room created');
+  logger.info({ mode, roomId, participantIds: participants.map((p) => p.userId) }, 'Match room created');
 }
 
 // ── Runs matchmaking once a second, pairing up whoever is in the queue ─────
@@ -143,7 +145,8 @@ function startMatchLoop(io: TypedServer) {
       const { soloMatch, groupMatch } = await runMatchCycle();
       if (soloMatch) await handleMatch(io, soloMatch, 'solo');
       if (groupMatch) await handleMatch(io, groupMatch, 'group');
-      io.emit('queue:size', await queueSize());
+      const size = await queueSize();
+      io.emit('queue:size', typeof size === 'number' ? size : size.solo + size.group);
     } catch (err: any) {
       logger.error({ err }, 'Match cycle failed');
     }
@@ -192,7 +195,7 @@ function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: str
     // Record this vote atomically — concurrent voters (each hitting a
     // different server instance, potentially) must not clobber each other's
     // votes.votes[otherUserId] via a naive read-modify-write.
-    const room = await updateRoom(roomId, (r: any) => {
+    const room = await updateRoom(roomId, (r) => {
       if (!r) return null;
       if (!r.participants.includes(userId)) return r;
       if (!r.votes) r.votes = {};
@@ -204,8 +207,9 @@ function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: str
     io.to(roomId).emit('trial:voted', { userId, vote });
 
     const total    = room.participants.length;
-    const yesCount = Object.values(room.votes).filter(v => v === 'yes').length;
-    const noCount  = Object.values(room.votes).filter(v => v === 'no').length;
+    const votes    = room.votes ?? {};
+    const yesCount = Object.values(votes).filter(v => v === 'yes').length;
+    const noCount  = Object.values(votes).filter(v => v === 'no').length;
 
     // Resolve only when ALL participants have voted (not on first 'no').
     const allVoted = yesCount + noCount === total;
@@ -215,7 +219,7 @@ function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: str
     io.to(roomId).emit('trial:result', { promote });
 
     if (promote) {
-      await updateRoom(roomId, (r: any) => {
+      await updateRoom(roomId, (r) => {
         if (!r) return null;
         r.promoted = true;
         return r;
@@ -225,7 +229,7 @@ function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: str
       const conversationId = await promoteRoomToFriends(room.participants);
       io.to(roomId).emit('call:promoted', { roomId, conversationId });
     } else {
-      await Promise.all(room.participants.map((pid: any) => clearUserRoom(io, pid)));
+      await Promise.all(room.participants.map((pid) => clearUserRoom(io, pid)));
       await deleteRoom(roomId);
     }
   });

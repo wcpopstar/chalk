@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 // The route independently re-checks `channel === 'voice-' + myRoomId`
 // server-side (see agora.ts) before ever using this value, so this schema

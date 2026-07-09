@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
@@ -38,7 +39,7 @@ const readLimiter  = userLimiter({ windowMs: 60 * 1000, max: 90, message: 'Сл�
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 // All conversations for current user
-router.get('/', requireAuth, readLimiter, async (req: any, res: any) => {
+router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) => {
   const uid = req.user.id;
 
   const { data, error } = await supabaseAdmin
@@ -90,7 +91,7 @@ router.get('/', requireAuth, readLimiter, async (req: any, res: any) => {
     };
   });
 
-  res.json({ conversations });
+  return res.json({ conversations });
 });
 
 /**
@@ -131,7 +132,7 @@ router.get('/', requireAuth, readLimiter, async (req: any, res: any) => {
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 // Get or create a DM conversation with another user
-router.post('/direct', requireAuth, dmLimiter, validate({ body: createDirectSchema }), async (req: any, res: any) => {
+router.post('/direct', requireAuth, dmLimiter, validate({ body: createDirectSchema }), async (req: Request, res: Response) => {
   const { targetUserId } = req.body;
   const uid = req.user.id;
 
@@ -161,7 +162,7 @@ router.post('/direct', requireAuth, dmLimiter, validate({ body: createDirectSche
     { conversation_id: convId, user_id: targetUserId },
   ]);
 
-  res.status(201).json({ conversation: conv });
+  return res.status(201).json({ conversation: conv });
 });
 
 /**
@@ -194,7 +195,7 @@ router.post('/direct', requireAuth, dmLimiter, validate({ body: createDirectSche
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/group', requireAuth, groupLimiter, validate({ body: createGroupSchema }), async (req: any, res: any) => {
+router.post('/group', requireAuth, groupLimiter, validate({ body: createGroupSchema }), async (req: Request, res: Response) => {
   const { name, memberIds } = req.body;
   const uid = req.user.id;
 
@@ -212,7 +213,7 @@ router.post('/group', requireAuth, groupLimiter, validate({ body: createGroupSch
     allMembers.map(user_id => ({ conversation_id: convId, user_id }))
   );
 
-  res.status(201).json({ conversation: conv });
+  return res.status(201).json({ conversation: conv });
 });
 
 /**
@@ -244,7 +245,7 @@ router.post('/group', requireAuth, groupLimiter, validate({ body: createGroupSch
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/global/messages', requireAuth, readLimiter, validate({ query: messagesQuerySchema }), async (req: any, res: any) => {
+router.get('/global/messages', requireAuth, readLimiter, validate({ query: messagesQuerySchema }), async (req: Request, res: Response) => {
   const { limit, before } = req.query;
 
   let query = supabaseAdmin
@@ -262,7 +263,7 @@ router.get('/global/messages', requireAuth, readLimiter, validate({ query: messa
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  res.json({ messages: (data || []).reverse() });
+  return res.json({ messages: (data || []).reverse() });
 });
 
 /**
@@ -302,7 +303,7 @@ router.get('/global/messages', requireAuth, readLimiter, validate({ query: messa
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidParam(), query: messagesQuerySchema }), async (req: any, res: any) => {
+router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidParam(), query: messagesQuerySchema }), async (req: Request, res: Response) => {
   const { limit, before } = req.query;
   const uid  = req.user.id;
   const convId = req.params.id;
@@ -333,7 +334,7 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  res.json({ messages: (data || []).reverse() });
+  return res.json({ messages: (data || []).reverse() });
 });
 
 /**
@@ -366,7 +367,7 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/:id/members', requireAuth, readLimiter, validate({ params: uuidParam() }), async (req: any, res: any) => {
+router.get('/:id/members', requireAuth, readLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   const { data: member } = await supabaseAdmin
     .from('conversation_members')
     .select('user_id')
@@ -382,7 +383,7 @@ router.get('/:id/members', requireAuth, readLimiter, validate({ params: uuidPara
     .eq('conversation_id', req.params.id);
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ members: (data || []).map((r: any) => r.users) });
+  return res.json({ members: (data || []).map((r: any) => r.users) });
 });
 
 export = router;

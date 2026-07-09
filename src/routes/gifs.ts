@@ -14,6 +14,7 @@
  * other third-party credential in this app — Supabase, Agora, SMTP) and
  * lets us rate-limit per-account on top of Giphy's own per-key limit.
  */
+import type { Request, Response } from 'express';
 const express = require('express');
 const router = express.Router();
 const { requireAuth } = require('../middleware/auth');
@@ -72,12 +73,14 @@ router.get(
   requireAuth,
   searchLimiter,
   validate({ query: gifSearchQuerySchema }),
-  async (req: any, res: any) => {
+  async (req: Request, res: Response) => {
     if (!config.giphy.apiKey) {
       return res.status(503).json({ error: 'GIF search is not configured' });
     }
 
-    const { q, limit } = req.query;
+    // Parsed by gifSearchQuerySchema in validate() — q is a bounded
+    // string, limit a coerced number with a default.
+    const { q, limit } = req.query as unknown as { q: string; limit: number };
     const url =
       `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(config.giphy.apiKey)}` +
       `&q=${encodeURIComponent(q)}&limit=${limit}&rating=pg-13`;
@@ -112,7 +115,7 @@ router.get(
       })
       .filter((r: any) => r.thumb);
 
-    res.json({ results });
+    return res.json({ results });
   },
 );
 

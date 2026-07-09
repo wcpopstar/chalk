@@ -1,3 +1,5 @@
+import type { Request, Response, NextFunction } from 'express';
+import type { JwtPayload } from '../socket/types';
 import { verifyAccessToken } from '../utils/jwt';
 import tokenBlacklist from '../services/tokenBlacklist';
 import { sendError } from '../utils/http';
@@ -5,7 +7,7 @@ import loggerBase from '../utils/logger';
 const logger = loggerBase.child({ module: 'auth-middleware' });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function extractBearerToken(req: any) {
+function extractBearerToken(req: Request): string | null {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) return null;
   const token = header.slice(7).trim();
@@ -16,7 +18,7 @@ function extractBearerToken(req: any) {
 // blacklist for tokens that were explicitly revoked (logout, logout-all,
 // refresh-token-reuse response) before their natural expiry. Async because
 // the blacklist check may round-trip to Redis (cross-instance revocation).
-async function verify(token: any) {
+async function verify(token: string): Promise<JwtPayload> {
   const payload = verifyAccessToken(token); // throws JsonWebTokenError / TokenExpiredError
   if (await tokenBlacklist.isRevoked(payload.jti)) {
     const err: any = new Error('Token has been revoked');
@@ -27,7 +29,7 @@ async function verify(token: any) {
 }
 
 // ── requireAuth ──────────────────────────────────────────────────────────────
-async function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const token = extractBearerToken(req);
   if (!token) {
     return sendError(res, 401, 'Missing or malformed Authorization header');
@@ -53,7 +55,7 @@ async function requireAuth(req: any, res: any, next: any) {
 // request — used by endpoints that behave differently for logged-in users
 // without requiring login (e.g. logout, which should still 200 for a client
 // whose token already expired).
-async function optionalAuth(req: any, _res: any, next: any) {
+async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
   const token = extractBearerToken(req);
   if (token) {
     try {

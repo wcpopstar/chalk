@@ -41,8 +41,8 @@ const { redis } = require('../socket/redisClient');
 const logger = require('./logger').child({ module: 'cache' });
 const metrics = require('./metrics');
 
-function keyPrefixOf(key: any) {
-  return key.split(':')[0];
+function keyPrefixOf(key: string): string {
+  return key.split(':')[0] ?? key;
 }
 
 /**
@@ -52,7 +52,7 @@ function keyPrefixOf(key: any) {
  * real error from the underlying data fetch, only errors talking to the
  * cache itself.
  */
-async function cached(key: any, ttlSeconds: any, fn: any) {
+async function cached<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
   const keyPrefix = keyPrefixOf(key);
 
   try {
@@ -87,7 +87,7 @@ async function cached(key: any, ttlSeconds: any, fn: any) {
  * cached response stale. Best-effort: if Redis is down, the write itself
  * still succeeded and the old cache entry will simply expire on its own
  * TTL, so a failed invalidation is logged, not thrown. */
-async function invalidate(key: any) {
+async function invalidate(key: string): Promise<void> {
   try {
     await redis.del(key);
   } catch (err) {

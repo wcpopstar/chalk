@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const usersRepository = require('../../repositories/usersRepository');
 const { requireAuth, optionalAuth } = require('../../middleware/auth');
@@ -64,7 +65,7 @@ const sessionActionLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/refresh', refreshLimiter, async (req: any, res: any) => {
+router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
   const { refreshToken } = req.body || {};
   if (!refreshToken || typeof refreshToken !== 'string') {
     return res.status(400).json({ error: 'refreshToken is required' });
@@ -80,7 +81,7 @@ router.post('/refresh', refreshLimiter, async (req: any, res: any) => {
     }
 
     const { token, expiresIn } = signAccessToken({ id: user.id, username: user.username });
-    res.json({ token, refreshToken: newRefreshToken, expiresIn });
+    return res.json({ token, refreshToken: newRefreshToken, expiresIn });
   } catch (err: any) {
     if (err instanceof TokenReuseError) {
       req.log.warn('Refresh token reuse detected — session family revoked');
@@ -90,7 +91,7 @@ router.post('/refresh', refreshLimiter, async (req: any, res: any) => {
       return res.status(401).json({ error: 'Invalid or expired refresh token' });
     }
     req.log.error({ err }, 'Token refresh failed');
-    res.status(500).json({ error: 'Could not refresh session' });
+    return res.status(500).json({ error: 'Could not refresh session' });
   }
 });
 
@@ -122,7 +123,7 @@ router.post('/refresh', refreshLimiter, async (req: any, res: any) => {
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Ok' }
  */
-router.post('/logout', optionalAuth, sessionActionLimiter, async (req: any, res: any) => {
+router.post('/logout', optionalAuth, sessionActionLimiter, async (req: Request, res: Response) => {
   const { refreshToken } = req.body || {};
 
   if (refreshToken && typeof refreshToken === 'string') {
@@ -133,7 +134,7 @@ router.post('/logout', optionalAuth, sessionActionLimiter, async (req: any, res:
   if (req.user) {
     await usersRepository.setStatus(req.user.id, 'offline');
   }
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 // ── POST /api/auth/logout-all ───────────────────────────────────────────────
@@ -158,11 +159,11 @@ router.post('/logout', optionalAuth, sessionActionLimiter, async (req: any, res:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/logout-all', requireAuth, sessionActionLimiter, async (req: any, res: any) => {
+router.post('/logout-all', requireAuth, sessionActionLimiter, async (req: Request, res: Response) => {
   await revokeAllForUser(req.user.id);
   blacklistCurrentAccessToken(req);
   await usersRepository.setStatus(req.user.id, 'offline');
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 /**
@@ -186,9 +187,9 @@ router.post('/logout-all', requireAuth, sessionActionLimiter, async (req: any, r
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/me', requireAuth, sessionActionLimiter, async (req: any, res: any) => {
+router.get('/me', requireAuth, sessionActionLimiter, async (req: Request, res: Response) => {
   const { data: user } = await usersRepository.findFullProfileById(req.user.id);
-  res.json({ user });
+  return res.json({ user });
 });
 
 export = router;

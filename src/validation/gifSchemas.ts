@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 // `q` is sent straight through to Giphy as a search term — bounded length
 // only (no character allowlist) since Giphy's own search endpoint already

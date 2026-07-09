@@ -44,7 +44,12 @@ const logger = require('./logger');
 const Sentry = require('./sentry');
 const metrics = require('./metrics');
 
-async function safeAsync(fn: any, { label = 'Background operation', context = {} }: any = {}) {
+interface SafeAsyncOptions {
+  label?: string;
+  context?: Record<string, unknown>;
+}
+
+async function safeAsync<T>(fn: () => T | Promise<T>, { label = 'Background operation', context = {} }: SafeAsyncOptions = {}): Promise<T | undefined> {
   try {
     return await fn();
   } catch (err: any) {

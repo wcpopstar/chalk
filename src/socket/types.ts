@@ -12,6 +12,7 @@
 import type { Server, Socket } from 'socket.io';
 import type { Logger } from 'pino';
 import type { ClientToServerPayloadMap } from '../validation/socketSchemas';
+import type { QueueTotals } from '../services/matchmakingRedis';
 export type { ClientToServerPayloadMap };
 
 // Every event name secureOn() can ever be called with — i.e. every
@@ -105,7 +106,7 @@ export interface ServerToClientEvents {
   'global:message:deleted': (data: { messageId: string }) => void;
 
   // ── matchmaking / trial calls ──
-  'match:searching': (data: { position: number }) => void;
+  'match:searching': (data: { position: number | QueueTotals }) => void;
   'match:cancelled': () => void;
   'match:error': (data: { error: string }) => void;
   'match:found': (data: {

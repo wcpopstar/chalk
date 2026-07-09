@@ -71,7 +71,7 @@ class TokenBlacklist {
 
   // expiresAtMs: when the underlying JWT itself expires — no point keeping
   // the blacklist entry around any longer than that.
-  revoke(jti: any, expiresAtMs: any) {
+  revoke(jti: string, expiresAtMs: number) {
     if (!jti) return;
     const ttl = Number.isFinite(expiresAtMs) ? expiresAtMs : Date.now() + 15 * 60 * 1000;
     this.store.set(jti, ttl);
@@ -88,7 +88,7 @@ class TokenBlacklist {
     }
   }
 
-  async isRevoked(jti: any) {
+  async isRevoked(jti: string) {
     if (!jti) return false;
     if (this.store.has(jti)) return true;
     if (!this._redis) return false;

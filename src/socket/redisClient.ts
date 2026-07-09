@@ -20,13 +20,13 @@ const logger = loggerBase.child({ module: 'redis' });
 
 const REDIS_URL = config.redis.url;
 
-function createClient(label: any) {
+function createClient(label: string) {
   const client = new Redis(REDIS_URL, {
     // Fail fast instead of buffering commands forever if Redis is down —
     // we'd rather a socket event error out than hang the event loop.
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
-    retryStrategy(times: any) {
+    retryStrategy(times: number) {
       // capped exponential-ish backoff, 200ms → 2s
       return Math.min(times * 200, 2000);
     },
@@ -37,7 +37,7 @@ function createClient(label: any) {
   });
   client.on('connect', () => logger.info({ connection: label }, 'Redis connecting…'));
   client.on('ready', () => logger.info({ connection: label }, 'Redis ready'));
-  client.on('reconnecting', (delay: any) => logger.warn({ connection: label, delay }, 'Redis reconnecting'));
+  client.on('reconnecting', (delay: number) => logger.warn({ connection: label, delay }, 'Redis reconnecting'));
 
   return client;
 }
@@ -51,7 +51,7 @@ subClient.on('error', (err: any) => logger.error({ err, connection: 'adapter-sub
 // HTTP/socket server doesn't start accepting traffic before Redis-backed
 // state is actually usable.
 function waitForRedisReady() {
-  const ready = (client: any) =>
+  const ready = (client: Redis) =>
     client.status === 'ready' ? Promise.resolve() : new Promise((res) => client.once('ready', res));
   return Promise.all([ready(redis), ready(pubClient), ready(subClient)]);
 }

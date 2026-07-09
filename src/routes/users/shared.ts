@@ -4,7 +4,7 @@ const { GENDERS, PRESENCE_STATES, REPORT_REASONS } = require('../../validation/u
 // Only the VIEWER-INDEPENDENT part of a profile lives under this key — see
 // GET /:id in publicProfile.ts and utils/cache.ts's header comment for why
 // blocked_by_me/has_blocked_me can never be part of a shared cache entry.
-const profileCacheKey = (userId: any) => `user_profile:${userId}`;
+const profileCacheKey = (userId: string) => `user_profile:${userId}`;
 // 30s: profile fields change rarely (a nickname/bio/avatar edit), but this
 // is one of the most-requested endpoints on the platform (viewed on every
 // profile card, match, friend list entry click). Explicitly invalidated in

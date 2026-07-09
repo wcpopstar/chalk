@@ -21,7 +21,12 @@ const { queueConnection: redis } = require('../queues/connection');
  * a percentage of users. Add a real vendor (LaunchDarkly, etc.) if this ever
  * needs targeting rules more complex than "on/off" + "X% of users".
  */
-const REGISTRY: any = {
+export interface FlagOverride {
+  enabled?: boolean;
+  rolloutPercent?: number;
+}
+
+const REGISTRY: Record<string, { default: boolean; description: string }> = {
   'discovery.enabled': { default: true, description: 'Свайп-подбор игроков (вкладка Discover)' },
   'games.tetris.enabled': { default: true, description: 'Мини-игра Tetris и её лидерборд' },
   'chat.videoNotes.enabled': { default: true, description: 'Кружки — видео-сообщения в чате' },
@@ -31,10 +36,10 @@ const REGISTRY: any = {
 const REDIS_HASH_KEY = 'feature_flags';
 const CACHE_TTL_MS = 15_000; // how stale a runtime toggle is allowed to be across instances
 
-let cache: any = null; // { data: { [key]: { enabled, rolloutPercent } }, fetchedAt: number }
+let cache: { data: Record<string, FlagOverride>; fetchedAt: number } | null = null;
 let loggedRedisWarning = false;
 
-function envOverride(key: any) {
+function envOverride(key: string) {
   const envKey = 'FEATURE_' + key.toUpperCase().replace(/[.\-]/g, '_');
   const raw = process.env[envKey];
   if (raw === undefined) return undefined;
@@ -44,7 +49,7 @@ function envOverride(key: any) {
 async function fetchOverridesFromRedis() {
   try {
     const raw = await redis.hgetall(REDIS_HASH_KEY);
-    const parsed: any = {};
+    const parsed: Record<string, FlagOverride> = {};
     for (const [key, value] of Object.entries(raw || {})) {
       try {
         parsed[key] = JSON.parse(value as any);
@@ -73,7 +78,7 @@ async function getRuntimeOverrides() {
 // Deterministic per-user rollout bucket, stable across requests (same user
 // always lands in the same bucket for a given flag) without storing
 // anything per-user.
-function bucketFor(userId: any, key: any) {
+function bucketFor(userId: string, key: string) {
   const hash = crypto.createHash('sha1').update(`${key}:${userId}`).digest();
   return hash.readUInt32BE(0) % 100;
 }
@@ -82,7 +87,7 @@ function bucketFor(userId: any, key: any) {
  * Resolves whether `key` is enabled, optionally for a specific user
  * (needed only if the flag has a rolloutPercent override in Redis).
  */
-async function isEnabled(key: any, { userId }: any = {}) {
+async function isEnabled(key: string, { userId }: { userId?: string } = {}) {
   if (!(key in REGISTRY)) {
     logger.warn({ key }, 'isEnabled() called with an unregistered flag key');
     return false;
@@ -100,11 +105,11 @@ async function isEnabled(key: any, { userId }: any = {}) {
   const fromEnv = envOverride(key);
   if (fromEnv !== undefined) return fromEnv;
 
-  return REGISTRY[key].default;
+  return REGISTRY[key]!.default;
 }
 
 /** Sets (or clears, with `null`) a live Redis override for a flag. */
-async function setOverride(key: any, override: any) {
+async function setOverride(key: string, override: FlagOverride | null) {
   if (!(key in REGISTRY)) throw new Error(`Unknown feature flag: ${key}`);
   if (override === null) {
     await redis.hdel(REDIS_HASH_KEY, key);
@@ -115,13 +120,13 @@ async function setOverride(key: any, override: any) {
 }
 
 /** All registered flags with their currently-resolved state — for an admin UI or a client bootstrap call. */
-async function listFlags({ userId }: any = {}) {
+async function listFlags({ userId }: { userId?: string } = {}) {
   const overrides = await getRuntimeOverrides();
   const entries = await Promise.all(
     Object.keys(REGISTRY).map(async (key) => ({
       key,
-      description: REGISTRY[key].description,
-      default: REGISTRY[key].default,
+      description: REGISTRY[key]!.description,
+      default: REGISTRY[key]!.default,
       override: overrides[key] || null,
       enabled: await isEnabled(key, { userId }),
     }))

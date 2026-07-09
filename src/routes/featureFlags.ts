@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireAdminKey } = require('../middleware/requireAdminKey');
@@ -34,19 +35,19 @@ const adminLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Too m
  *                   additionalProperties: { type: boolean }
  *                   example: { 'discovery.enabled': true, 'games.tetris.enabled': true }
  */
-router.get('/', requireAuth, bootstrapLimiter, async (req: any, res: any) => {
+router.get('/', requireAuth, bootstrapLimiter, async (req: Request, res: Response) => {
   const flags = await listFlags({ userId: req.user.id });
   const resolved: any = {};
   flags.forEach((f: any) => { resolved[f.key] = f.enabled; });
-  res.json({ flags: resolved });
+  return res.json({ flags: resolved });
 });
 
 // ── GET /api/flags/admin ─────────────────────────────────────────────────────
 // Full detail (defaults, active overrides) — for an internal ops tool/CLI,
 // not the client app.
-router.get('/admin', requireAdminKey, adminLimiter, async (_req: any, res: any) => {
+router.get('/admin', requireAdminKey, adminLimiter, async (_req: Request, res: Response) => {
   const flags = await listFlags();
-  res.json({ flags });
+  return res.json({ flags });
 });
 
 // ── PATCH /api/flags/admin/:key ──────────────────────────────────────────────
@@ -56,24 +57,24 @@ router.patch(
   requireAdminKey,
   adminLimiter,
   validate({ params: flagKeyParam, body: setFlagBodySchema }),
-  async (req: any, res: any) => {
+  async (req: Request, res: Response) => {
     try {
       await setOverride(req.params.key, req.body);
-      res.json({ ok: true });
+      return res.json({ ok: true });
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: err.message });
     }
   }
 );
 
 // ── DELETE /api/flags/admin/:key ─────────────────────────────────────────────
 // Removes any live override, falling back to the env var / code default.
-router.delete('/admin/:key', requireAdminKey, adminLimiter, validate({ params: flagKeyParam }), async (req: any, res: any) => {
+router.delete('/admin/:key', requireAdminKey, adminLimiter, validate({ params: flagKeyParam }), async (req: Request, res: Response) => {
   try {
     await setOverride(req.params.key, null);
-    res.json({ ok: true });
+    return res.json({ ok: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 

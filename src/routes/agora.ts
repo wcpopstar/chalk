@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const express = require('express');
 const router  = express.Router();
 const { requireAuth } = require('../middleware/auth');
@@ -37,7 +38,7 @@ const APP_CERTIFICATE = config.agora.appCertificate;
  * in the token won't match the uid the client joins with, and Agora will
  * reject the token with "invalid token, authorized failed".
  */
-function toNumericUid(rawUid: any) {
+function toNumericUid(rawUid: string | number | null | undefined): number {
   if (rawUid === null || rawUid === undefined || rawUid === '') {
     return 0;
   }
@@ -93,7 +94,7 @@ function toNumericUid(rawUid: any) {
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/token', requireAuth, tokenLimiter, validate({ query: tokenQuerySchema }), async (req: any, res: any) => {
+router.get('/token', requireAuth, tokenLimiter, validate({ query: tokenQuerySchema }), async (req: Request, res: Response) => {
   const channel = req.query.channel;
 
   // The caller may only request a token for the voice channel of the call
@@ -130,7 +131,7 @@ router.get('/token', requireAuth, tokenLimiter, validate({ query: tokenQuerySche
     privilegeExpiredTs,
   );
 
-  res.json({ token, appId: APP_ID, channel, uid });
+  return res.json({ token, appId: APP_ID, channel, uid });
 });
 
 export = router;

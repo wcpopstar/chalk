@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
@@ -51,7 +52,7 @@ const { isEnabled } = require('../../services/featureFlags');
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/discover', requireAuth, validate({ query: discoverQuerySchema }), async (req: any, res: any) => {
+router.get('/discover', requireAuth, validate({ query: discoverQuerySchema }), async (req: Request, res: Response) => {
   if (!(await isEnabled('discovery.enabled', { userId: req.user.id }))) {
     return res.status(404).json({ error: 'Not found' });
   }
@@ -80,7 +81,7 @@ router.get('/discover', requireAuth, validate({ query: discoverQuerySchema }), a
     limit,
   });
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ users: users || [] });
+  return res.json({ users: users || [] });
 });
 
 /**
@@ -134,8 +135,9 @@ router.get('/discover', requireAuth, validate({ query: discoverQuerySchema }), a
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 // Must stay above /:id (mounted in users/index.ts) so it isn't swallowed by that route.
-router.get('/search', requireAuth, searchLimiter, validate({ query: searchQuerySchema }), async (req: any, res: any) => {
-  const { username: raw, exact, limit } = req.query;
+router.get('/search', requireAuth, searchLimiter, validate({ query: searchQuerySchema }), async (req: Request, res: Response) => {
+  // Parsed by searchQuerySchema in validate().
+  const { username: raw, exact, limit } = req.query as unknown as { username: string; exact?: string; limit: number };
 
   if (exact) {
     const { data: user, error } = await usersRepository.findByUsernameExact(raw, req.user.id);
@@ -166,7 +168,7 @@ router.get('/search', requireAuth, searchLimiter, validate({ query: searchQueryS
     .slice(0, limit)
     .map((r: any) => r.u);
 
-  res.json({ users: ranked });
+  return res.json({ users: ranked });
 });
 
 export = router;

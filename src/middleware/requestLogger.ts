@@ -33,25 +33,25 @@ const requestLogger = pinoHttp({
 
   // Reuse an inbound request id (e.g. set by a proxy/load balancer or the
   // frontend) so logs correlate across hops; otherwise mint a new uuid.
-  genReqId(req: any, res: any) {
-    const existingId = req.headers[REQUEST_ID_HEADER];
-    const id = existingId || randomUUID();
+  genReqId(req, res) {
+    const inbound = req.headers[REQUEST_ID_HEADER];
+    const id = (Array.isArray(inbound) ? inbound[0] : inbound) || randomUUID();
     res.setHeader(REQUEST_ID_HEADER, id);
     return id;
   },
 
   // Custom log level per response status, so 4xx/5xx are actually visible
   // as warn/error instead of getting lost among info-level 200s.
-  customLogLevel(req: any, res: any, err: any) {
+  customLogLevel(req, res, err) {
     if (err || res.statusCode >= 500) return 'error';
     if (res.statusCode >= 400) return 'warn';
     return 'info';
   },
 
-  customSuccessMessage(req: any, _res: any) {
+  customSuccessMessage(req, _res) {
     return `${req.method} ${req.url} completed`;
   },
-  customErrorMessage(req: any, _res: any, err: any) {
+  customErrorMessage(req, _res, err) {
     return `${req.method} ${req.url} failed: ${err.message}`;
   },
 
@@ -59,7 +59,7 @@ const requestLogger = pinoHttp({
   // useful day-to-day; headers/body are covered by redact rules already,
   // but we don't want to log full headers on every single line by default.
   serializers: {
-    req(req: any) {
+    req(req) {
       return {
         id: req.id,
         method: req.method,
@@ -67,7 +67,7 @@ const requestLogger = pinoHttp({
         remoteAddress: req.remoteAddress,
       };
     },
-    res(res: any) {
+    res(res) {
       return {
         statusCode: res.statusCode,
       };
@@ -76,7 +76,7 @@ const requestLogger = pinoHttp({
 
   // Skip noisy health checks / metrics scrapes so they don't drown out real traffic.
   autoLogging: {
-    ignore: (req: any) => req.url === '/health' || req.url === '/metrics',
+    ignore: (req) => req.url === '/health' || req.url === '/metrics',
   },
 });
 

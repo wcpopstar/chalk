@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 const { REGISTRY } = require('../services/featureFlags');
 
 const flagKeyParam = z.object({

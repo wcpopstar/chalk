@@ -12,7 +12,7 @@ const { supabaseAdmin } = require('./supabase');
  * other inserting (A,B) and (B,A), which used to slip past the
  * UNIQUE(user_a, user_b) constraint and create duplicate friendships.
  */
-async function addFriendPairInstant(userIdA: any, userIdB: any) {
+async function addFriendPairInstant(userIdA: string, userIdB: string) {
   if (!userIdA || !userIdB) throw new Error('Both user ids are required');
   if (userIdA === userIdB) return { ok: false, reason: 'self' };
 

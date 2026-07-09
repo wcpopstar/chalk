@@ -10,7 +10,7 @@ const { getEmailQueue, closeEmailQueue, enqueuePasswordResetEmail } = require('.
 const closers = [closeEmailQueue];
 
 async function closeQueues() {
-  await Promise.allSettled(closers.map((close: any) => close()));
+  await Promise.allSettled(closers.map((close: () => Promise<unknown>) => close()));
   await queueConnection.quit().catch((err: any) => {
     logger.warn({ err }, 'Queue Redis connection did not close cleanly');
   });
