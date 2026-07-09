@@ -10,7 +10,7 @@ import tokenBlacklist from '../services/tokenBlacklist';
 // naturally expires, instead of letting a long-lived socket connection
 // outlive the credential that authenticated it — sockets don't get to be an
 // exception to token expiry just because they're long-lived.
-function authenticateSocket(socket: TypedSocket, next: (err?: Error) => void) {
+async function authenticateSocket(socket: TypedSocket, next: (err?: Error) => void) {
   const token = socket.handshake.auth?.token || socket.handshake.query?.token;
 
   if (!token || typeof token !== 'string') {
@@ -27,7 +27,7 @@ function authenticateSocket(socket: TypedSocket, next: (err?: Error) => void) {
     return next(new Error('Invalid token'));
   }
 
-  if (tokenBlacklist.isRevoked(payload.jti)) {
+  if (await tokenBlacklist.isRevoked(payload.jti)) {
     return next(new Error('TOKEN_REVOKED'));
   }
 
@@ -37,7 +37,7 @@ function authenticateSocket(socket: TypedSocket, next: (err?: Error) => void) {
   // token (after hitting POST /api/auth/refresh) without a full socket
   // reconnect. The client should call this proactively before the token
   // in use expires.
-  socket.on('auth:refresh', (newToken, ack) => {
+  socket.on('auth:refresh', async (newToken, ack) => {
     const respond = (result: { ok: boolean; error?: string; expiresAt?: number }) => {
       if (typeof ack === 'function') ack(result);
     };
@@ -53,7 +53,7 @@ function authenticateSocket(socket: TypedSocket, next: (err?: Error) => void) {
       return respond({ ok: false, error: err.name === 'TokenExpiredError' ? 'TOKEN_EXPIRED' : 'INVALID_TOKEN' });
     }
 
-    if (tokenBlacklist.isRevoked(newPayload.jti)) {
+    if (await tokenBlacklist.isRevoked(newPayload.jti)) {
       return respond({ ok: false, error: 'TOKEN_REVOKED' });
     }
 

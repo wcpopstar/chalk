@@ -35,7 +35,7 @@
        actually catches bugs — see README note in the PR description) */
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false
+    "noUncheckedIndexedAccess": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist", "public", "test"]
