@@ -1,3 +1,4 @@
+import type { UserRow } from '../types/db';
 const { supabaseAdmin } = require('../services/supabase');
 
 /**
@@ -19,7 +20,7 @@ const FULL_PROFILE_FIELDS =
   'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, presence, created_at';
 
 // ── register.js ──────────────────────────────────────────────────────────
-function existsByEmailOrUsername(email: any, username: any) {
+function existsByEmailOrUsername(email: string, username: string) {
   return supabaseAdmin
     .from('users')
     .select('id')
@@ -27,12 +28,12 @@ function existsByEmailOrUsername(email: any, username: any) {
     .maybeSingle();
 }
 
-function createUser(record: any, selectFields: any = FULL_PROFILE_FIELDS) {
+function createUser(record: Partial<UserRow> & { id: string }, selectFields: string = FULL_PROFILE_FIELDS) {
   return supabaseAdmin.from('users').insert(record).select(selectFields).single();
 }
 
 // ── login.js ─────────────────────────────────────────────────────────────
-function findForLogin(email: any) {
+function findForLogin(email: string) {
   return supabaseAdmin
     .from('users')
     .select(
@@ -43,7 +44,7 @@ function findForLogin(email: any) {
 }
 
 // ── login.js / session.js (logout, logout-all) ──────────────────────────
-function setStatus(userId: any, status: any) {
+function setStatus(userId: string, status: string) {
   return supabaseAdmin
     .from('users')
     .update({ status, last_seen: new Date().toISOString() })
@@ -51,12 +52,12 @@ function setStatus(userId: any, status: any) {
 }
 
 // ── session.js: /refresh ─────────────────────────────────────────────────
-function findBasicById(userId: any) {
+function findBasicById(userId: string) {
   return supabaseAdmin.from('users').select('id, username').eq('id', userId).maybeSingle();
 }
 
 // ── session.js: GET /me ───────────────────────────────────────────────────
-function findFullProfileById(userId: any) {
+function findFullProfileById(userId: string) {
   return supabaseAdmin
     .from('users')
     .select(
@@ -67,16 +68,16 @@ function findFullProfileById(userId: any) {
 }
 
 // ── passwordReset.js ─────────────────────────────────────────────────────
-function findByEmailForPasswordReset(email: any) {
+function findByEmailForPasswordReset(email: string) {
   return supabaseAdmin.from('users').select('id, email').eq('email', email.toLowerCase()).maybeSingle();
 }
 
-function updatePasswordHash(userId: any, passwordHash: any) {
+function updatePasswordHash(userId: string, passwordHash: string) {
   return supabaseAdmin.from('users').update({ password_hash: passwordHash }).eq('id', userId);
 }
 
 // ── users/profile.js ──────────────────────────────────────────────────────
-function existsByUsernameExcludingId(username: any, excludeUserId: any) {
+function existsByUsernameExcludingId(username: string, excludeUserId: string) {
   return supabaseAdmin
     .from('users')
     .select('id')
@@ -85,7 +86,7 @@ function existsByUsernameExcludingId(username: any, excludeUserId: any) {
     .maybeSingle();
 }
 
-function updateProfile(userId: any, updates: any, selectFields: any) {
+function updateProfile(userId: string, updates: Partial<UserRow>, selectFields: string) {
   return supabaseAdmin.from('users').update(updates).eq('id', userId).select(selectFields).single();
 }
 
@@ -94,7 +95,7 @@ function updateProfile(userId: any, updates: any, selectFields: any) {
 // route already builds, rather than trying to be a general-purpose filter
 // builder — this is the one query /discover needs, and it stays readable at
 // the call site because the params map 1:1 to what the route computed.
-function findDiscoverCandidates({ excludeIds, gameFilterIds, limit }: any) {
+function findDiscoverCandidates({ excludeIds, gameFilterIds, limit }: { excludeIds: string[]; gameFilterIds: string[] | null; limit: number }) {
   let query = supabaseAdmin
     .from('users')
     .select(
@@ -111,7 +112,7 @@ function findDiscoverCandidates({ excludeIds, gameFilterIds, limit }: any) {
   return query;
 }
 
-function findByUsernameExact(username: any, excludeUserId: any) {
+function findByUsernameExact(username: string, excludeUserId: string) {
   return supabaseAdmin
     .from('users')
     .select('id, username, avatar_emoji, avatar_url, status, presence')
@@ -120,7 +121,7 @@ function findByUsernameExact(username: any, excludeUserId: any) {
     .maybeSingle();
 }
 
-function searchByUsername(likePattern: any, excludeUserId: any, limit: any) {
+function searchByUsername(likePattern: string, excludeUserId: string, limit: number) {
   return supabaseAdmin
     .from('users')
     .select('id, username, avatar_emoji, avatar_url, status, presence')
@@ -130,7 +131,7 @@ function searchByUsername(likePattern: any, excludeUserId: any, limit: any) {
 }
 
 // ── users/publicProfile.js ────────────────────────────────────────────────
-function findPublicProfileById(userId: any) {
+function findPublicProfileById(userId: string) {
   return supabaseAdmin
     .from('users')
     .select(

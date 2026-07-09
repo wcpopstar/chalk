@@ -8,7 +8,12 @@ class TokenReuseError extends Error {}
 // ── Issue a brand new refresh token ─────────────────────────────────────────
 // Used at login/register (new family) and internally by rotateRefreshToken
 // (same family, so the whole lineage can be revoked together).
-async function issueRefreshToken(userId: any, meta: any = {}, familyId = crypto.randomUUID()) {
+interface SessionMeta {
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+async function issueRefreshToken(userId: string, meta: SessionMeta = {}, familyId = crypto.randomUUID()) {
   const raw = generateOpaqueToken();
   const tokenHash = hashOpaqueToken(raw);
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS).toISOString();
@@ -32,7 +37,7 @@ async function issueRefreshToken(userId: any, meta: any = {}, familyId = crypto.
 // presented a second time, that's a strong signal it was stolen (the
 // legitimate client would already be using the rotated one), so we kill the
 // entire family — every session descended from that original login.
-async function rotateRefreshToken(rawToken: any, meta: any = {}) {
+async function rotateRefreshToken(rawToken: string, meta: SessionMeta = {}) {
   const tokenHash = hashOpaqueToken(rawToken);
 
   const { data: row, error } = await supabaseAdmin
@@ -64,7 +69,7 @@ async function rotateRefreshToken(rawToken: any, meta: any = {}) {
   return { raw: newRaw, userId: row.user_id, familyId: row.family_id };
 }
 
-async function revokeFamily(familyId: any) {
+async function revokeFamily(familyId: string) {
   await supabaseAdmin
     .from('refresh_tokens')
     .update({ revoked_at: new Date().toISOString() })
@@ -73,7 +78,7 @@ async function revokeFamily(familyId: any) {
 }
 
 // Single-token logout (e.g. "log out this device").
-async function revokeRefreshToken(rawToken: any) {
+async function revokeRefreshToken(rawToken: string) {
   const tokenHash = hashOpaqueToken(rawToken);
   await supabaseAdmin
     .from('refresh_tokens')
@@ -83,7 +88,7 @@ async function revokeRefreshToken(rawToken: any) {
 }
 
 // Global logout (e.g. "log out everywhere" / password reset / compromise response).
-async function revokeAllForUser(userId: any) {
+async function revokeAllForUser(userId: string) {
   await supabaseAdmin
     .from('refresh_tokens')
     .update({ revoked_at: new Date().toISOString() })

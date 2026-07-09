@@ -25,7 +25,7 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     const room = await getRoom(roomId);
     if (!room) return;
     io.to(roomId).emit('call:ended', { by: userId });
-    await Promise.all(room.participants.map((pid: any) => clearUserRoom(io, pid)));
+    await Promise.all(room.participants.map((pid) => clearUserRoom(io, pid)));
     await deleteRoom(roomId);
   });
 
@@ -64,7 +64,7 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     if (inviterSocket) io.to(inviterSocket).emit('call:accepted', { roomId, by: userId });
     socket.join(roomId);
 
-    await updateRoom(roomId, (room: any) => {
+    await updateRoom(roomId, (room) => {
       if (!room) return { participants: [inviterId, userId], mode: 'direct', votes: {} };
       if (!room.participants.includes(userId)) room.participants.push(userId);
       return room;
@@ -101,7 +101,7 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       .single();
 
     await addPendingJoinRequest(targetRoomId, userId);
-    await Promise.all(room.participants.map(async (pid: any) => {
+    await Promise.all(room.participants.map(async (pid) => {
       const pSocket = await getOnlineSocket(pid);
       if (pSocket) io.to(pSocket).emit('call:join_requested', {
         roomId: targetRoomId,
@@ -131,7 +131,7 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       return;
     }
 
-    const updatedRoom = await updateRoom(roomId, (r: any) => {
+    const updatedRoom = await updateRoom(roomId, (r) => {
       if (!r) return null; // room vanished between our read above and now
       if (!r.participants.includes(requesterId)) r.participants.push(requesterId);
       return r;
@@ -170,7 +170,7 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       .eq('status', 'accepted');
 
     const result: Record<string, any> = {};
-    await Promise.all((friendRows || []).map(async (row: any) => {
+    await Promise.all((friendRows || []).map(async (row: { user_a: string; user_b: string }) => {
       const friendId = row.user_a === userId ? row.user_b : row.user_a;
       const roomId = await getUserCurrentRoom(friendId);
       if (roomId) result[friendId] = { inCall: true, roomSize: await roomSize(roomId) };

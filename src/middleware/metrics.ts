@@ -13,9 +13,10 @@
  * raw path, for the same cardinality reason.
  */
 
+import type { Request, Response, NextFunction } from 'express';
 import * as metrics from '../utils/metrics';
 
-function metricsMiddleware(req: any, res: any, next: any) {
+function metricsMiddleware(req: Request, res: Response, next: NextFunction) {
   const startNs = process.hrtime.bigint();
   metrics.httpActiveRequests.inc();
 

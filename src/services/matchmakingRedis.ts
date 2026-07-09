@@ -1,4 +1,4 @@
-const { redis } = require('../socket/redisClient');
+import { redis } from '../socket/redisClient';
 const logger = require('../utils/logger').child({ module: 'matchmakingRedis' });
 
 /**
@@ -54,14 +54,37 @@ const LOCK_TTL_MS = 900; // < the 1s tick interval, so a lock can never outlive 
 const LOC_SEP = ':::';
 
 // ── Key helpers ───────────────────────────────────────────────────────────
-const queueSetKey = (mode: any, gameId: any) => `${NS}:queue:${mode}:${gameId}`;
-const entryKey = (mode: any, gameId: any, userId: any) => `${NS}:entry:${mode}:${gameId}:${userId}`;
-const userLocKey = (userId: any) => `${NS}:userloc:${userId}`;
+// Aggregate queue sizes returned by queueSize() with no arguments.
+export interface QueueTotals {
+  solo: number;
+  group: number;
+  byQueue: Array<{ mode: string; gameId: string; size: number }>;
+}
+
+// A player waiting in a matchmaking queue — the JSON stored under entryKey().
+export interface QueueEntry {
+  userId: string;
+  socketId: string;
+  gameId: string;
+  mode: 'solo' | 'group';
+  squadSize?: number;
+  /** Stamped by enqueue(); present on every entry read back from Redis. */
+  joinedAt?: number;
+  rank?: string | null;
+  rankScore?: number;
+  languages?: string[];
+  region?: string | null;
+  enqueuedAt?: number;
+}
+
+const queueSetKey = (mode: string, gameId: string) => `${NS}:queue:${mode}:${gameId}`;
+const entryKey = (mode: string, gameId: string, userId: string) => `${NS}:entry:${mode}:${gameId}:${userId}`;
+const userLocKey = (userId: string) => `${NS}:userloc:${userId}`;
 const gamesIndexKey = () => `${NS}:games`;
 
-const encodeLoc = (mode: any, gameId: any) => `${mode}${LOC_SEP}${gameId}`;
-const decodeLoc = (loc: any) => {
-  const [mode, gameId] = loc.split(LOC_SEP);
+const encodeLoc = (mode: string, gameId: string) => `${mode}${LOC_SEP}${gameId}`;
+const decodeLoc = (loc: string): { mode: string; gameId: string } => {
+  const [mode = '', gameId = ''] = loc.split(LOC_SEP);
   return { mode, gameId };
 };
 
@@ -72,7 +95,7 @@ async function acquireMatchLoopLock() {
 }
 
 // ── Remove a user's queue entry no matter which mode/gameId it's in ────
-async function removeUserEverywhere(userId: any) {
+async function removeUserEverywhere(userId: string) {
   const loc = await redis.get(userLocKey(userId));
   if (!loc) return false;
 
@@ -89,7 +112,7 @@ async function removeUserEverywhere(userId: any) {
 // entry must include userId, mode ('solo'|'group'), gameId. Everything else
 // (socketId, rankScore, rank, languages, region, squadSize, ...) is stored
 // as-is so consumers can read it back untouched.
-async function enqueue(entry: any) {
+async function enqueue(entry: QueueEntry) {
   const { userId, mode, gameId } = entry || {};
   if (!userId) throw new Error('matchmakingRedis.enqueue: userId is required');
   if (mode !== 'solo' && mode !== 'group') {
@@ -114,31 +137,31 @@ async function enqueue(entry: any) {
 }
 
 // ── Remove player from queue (any mode/game) ─────────────────────────────
-async function dequeue(userId: any) {
+async function dequeue(userId: string) {
   return removeUserEverywhere(userId);
 }
 
 // ── Load all live entries for one mode+gameId queue, cleaning up any
 //    membership whose entry already expired (TTL) as we go ──────────────
-async function loadQueue(mode: any, gameId: any) {
+async function loadQueue(mode: string, gameId: string) {
   const setKey = queueSetKey(mode, gameId);
   const userIds = await redis.smembers(setKey);
   if (!userIds.length) return [];
 
-  const raws = await redis.mget(userIds.map((id: any) => entryKey(mode, gameId, id)));
+  const raws = await redis.mget(userIds.map((id) => entryKey(mode, gameId, id)));
 
-  const entries: any[] = [];
-  const staleIds: any[] = [];
-  raws.forEach((raw: any, i: any) => {
+  const entries: QueueEntry[] = [];
+  const staleIds: string[] = [];
+  raws.forEach((raw, i) => {
     if (raw) {
       try {
         entries.push(JSON.parse(raw));
       } catch (err: any) {
         logger.warn({ err, userId: userIds[i] }, 'Dropping unparsable queue entry');
-        staleIds.push(userIds[i]);
+        staleIds.push(userIds[i]!);
       }
     } else {
-      staleIds.push(userIds[i]); // TTL-expired, membership is now stale
+      staleIds.push(userIds[i]!); // TTL-expired, membership is now stale
     }
   });
 
@@ -148,7 +171,7 @@ async function loadQueue(mode: any, gameId: any) {
 }
 
 // ── Remove matched players from a specific mode+gameId queue ────────────
-async function removeMatched(mode: any, gameId: any, userIds: any) {
+async function removeMatched(mode: string, gameId: string, userIds: string[]) {
   if (!userIds.length) return;
   const pipeline = redis.pipeline();
   pipeline.srem(queueSetKey(mode, gameId), ...userIds);
@@ -161,9 +184,9 @@ async function removeMatched(mode: any, gameId: any, userIds: any) {
 
 // ── Score compatibility between two entries (higher = better match) ──────
 // Pure function, unchanged from the previous in-memory/Redis-hash version.
-function compatibility(a: any, b: any) {
+function compatibility(a: QueueEntry, b: QueueEntry) {
   let score = 0;
-  const wait = Math.min(Date.now() - a.joinedAt, Date.now() - b.joinedAt);
+  const wait = Math.min(Date.now() - (a.joinedAt ?? Date.now()), Date.now() - (b.joinedAt ?? Date.now()));
   const relaxed = wait > RELAX_AFTER_MS;
 
   // Queues are already partitioned per gameId, but keep this as a defensive
@@ -175,7 +198,7 @@ function compatibility(a: any, b: any) {
     else if (!relaxed) return -1;
   }
 
-  const sharedLang = (a.languages || []).some((l: any) => (b.languages || []).includes(l));
+  const sharedLang = (a.languages || []).some((l) => (b.languages || []).includes(l));
   if (sharedLang) score += 20;
   else if (!relaxed) return -1;
 
@@ -188,7 +211,7 @@ function compatibility(a: any, b: any) {
 }
 
 // ── Try to form a solo match (2 players) within one gameId queue ────────
-async function tryMatchSolo(gameId: any) {
+async function tryMatchSolo(gameId: string) {
   const q = await loadQueue('solo', gameId);
   if (q.length < 2) return null;
 
@@ -197,10 +220,10 @@ async function tryMatchSolo(gameId: any) {
 
   for (let i = 0; i < q.length; i++) {
     for (let j = i + 1; j < q.length; j++) {
-      const score = compatibility(q[i], q[j]);
+      const score = compatibility(q[i]!, q[j]!);
       if (score > bestScore) {
         bestScore = score;
-        bestPair = [q[i], q[j]];
+        bestPair = [q[i]!, q[j]!];
       }
     }
   }
@@ -212,12 +235,12 @@ async function tryMatchSolo(gameId: any) {
 }
 
 // ── Try to form a group match (squadSize players) within one gameId queue
-async function tryMatchGroup(gameId: any, squadSize: any) {
+async function tryMatchGroup(gameId: string, squadSize: number) {
   const all = await loadQueue('group', gameId);
   const q = all.filter((e) => e.squadSize === squadSize);
   if (q.length < squadSize) return null;
 
-  const anchor = q[0];
+  const anchor = q[0]!; // guarded by the q.length check above
   const group = [anchor];
 
   for (const entry of q.slice(1)) {
@@ -249,7 +272,7 @@ async function activeQueues() {
 // creating a call room, enriching with profile data — see
 // src/socket/match.js) can omit `io` and use the returned matches instead,
 // exactly like before.
-async function runMatchCycle(io?: any) {
+async function runMatchCycle(io?: { to(target: string): { emit(event: string, payload: unknown): unknown } }) {
   const gotLock = await acquireMatchLoopLock();
   if (!gotLock) return { soloMatch: null, groupMatch: null, matches: [] };
 
@@ -293,20 +316,20 @@ async function runMatchCycle(io?: any) {
 // ── Queue size, for monitoring / UI ──────────────────────────────────────
 // queueSize()                -> { solo, group } totals across all games (old shape, back-compat)
 // queueSize(mode, gameId)    -> number, size of that one queue
-async function queueSize(mode?: any, gameId?: any) {
+async function queueSize(mode?: string, gameId?: string): Promise<number | QueueTotals> {
   if (mode && gameId) {
     return redis.scard(queueSetKey(mode, gameId));
   }
 
   const queues = await activeQueues();
   const sizes = await Promise.all(
-    queues.map(async (q: any) => ({ ...q, size: await redis.scard(queueSetKey(q.mode, q.gameId)) }))
+    queues.map(async (q) => ({ ...q, size: await redis.scard(queueSetKey(q.mode, q.gameId)) }))
   );
 
   const totals: Record<string, number> = { solo: 0, group: 0 };
   for (const q of sizes) totals[q.mode] = (totals[q.mode] || 0) + q.size;
 
-  return { ...totals, byQueue: sizes.filter((q) => q.size > 0) };
+  return { solo: totals.solo ?? 0, group: totals.group ?? 0, byQueue: sizes.filter((q) => q.size > 0) };
 }
 
 export {

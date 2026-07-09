@@ -1,6 +1,6 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
-const passwordSchema = z.string().trim().min(8).refine((value: any) => {
+const passwordSchema = z.string().trim().min(8).refine((value: string) => {
   const hasLower = /[a-z]/.test(value);
   const hasUpper = /[A-Z]/.test(value);
   const hasDigit = /\d/.test(value);

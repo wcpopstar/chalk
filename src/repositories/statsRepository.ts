@@ -4,7 +4,7 @@ const { supabaseAdmin } = require('../services/supabase');
 // repository function (rather than three separately-named ones) because
 // the route always wants all three together via Promise.all, and they
 // share no logic worth splitting apart.
-function getUserStats(userId: any) {
+function getUserStats(userId: string) {
   return Promise.all([
     supabaseAdmin
       .from('match_history')

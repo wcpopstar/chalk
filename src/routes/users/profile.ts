@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
@@ -61,7 +62,7 @@ const statsReadLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Ð
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.patch('/me', requireAuth, profileWriteLimiter, validate({ body: updateProfileSchema }), async (req: any, res: any) => {
+router.patch('/me', requireAuth, profileWriteLimiter, validate({ body: updateProfileSchema }), async (req: Request, res: Response) => {
   const updates = req.body;
 
   // Nickname must stay unique
@@ -78,7 +79,7 @@ router.patch('/me', requireAuth, profileWriteLimiter, validate({ body: updatePro
 
   if (error) return res.status(500).json({ error: error.message });
   invalidate(profileCacheKey(req.user.id));
-  res.json({ user: data });
+  return res.json({ user: data });
 });
 
 /**
@@ -130,7 +131,7 @@ router.patch('/me', requireAuth, profileWriteLimiter, validate({ body: updatePro
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/me/onboarding', requireAuth, profileWriteLimiter, validate({ body: onboardingSchema }), async (req: any, res: any) => {
+router.post('/me/onboarding', requireAuth, profileWriteLimiter, validate({ body: onboardingSchema }), async (req: Request, res: Response) => {
   const { games, ...profileFields } = req.body;
   const updates = { ...profileFields, onboarding_completed: true };
 
@@ -156,7 +157,7 @@ router.post('/me/onboarding', requireAuth, profileWriteLimiter, validate({ body:
   }
 
   invalidate(profileCacheKey(req.user.id));
-  res.json({ user });
+  return res.json({ user });
 });
 
 /**
@@ -196,7 +197,7 @@ router.post('/me/onboarding', requireAuth, profileWriteLimiter, validate({ body:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.put('/me/games', requireAuth, profileWriteLimiter, validate({ body: updateGamesSchema }), async (req: any, res: any) => {
+router.put('/me/games', requireAuth, profileWriteLimiter, validate({ body: updateGamesSchema }), async (req: Request, res: Response) => {
   try {
     await userGamesRepository.replaceForUser(req.user.id, req.body.games);
   } catch (err: any) {
@@ -204,7 +205,7 @@ router.put('/me/games', requireAuth, profileWriteLimiter, validate({ body: updat
   }
 
   invalidate(profileCacheKey(req.user.id));
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 /**
@@ -220,10 +221,10 @@ router.put('/me/games', requireAuth, profileWriteLimiter, validate({ body: updat
  *           application/json:
  *             schema: { $ref: '#/components/schemas/UserStats' }
  */
-router.get('/me/stats', requireAuth, statsReadLimiter, async (req: any, res: any) => {
+router.get('/me/stats', requireAuth, statsReadLimiter, async (req: Request, res: Response) => {
   const [{ count: matchCount }, { data: ratingRow }, { count: friendCount }] = await statsRepository.getUserStats(req.user.id);
 
-  res.json({
+  return res.json({
     matches_found: matchCount || 0,
     avg_rating: ratingRow?.avg_rating || null,
     friends_count: friendCount || 0,

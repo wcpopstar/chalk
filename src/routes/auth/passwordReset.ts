@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -44,7 +45,7 @@ const { forgotPasswordSchema, resetPasswordSchema } = require('../../validation/
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, validate({ body: forgotPasswordSchema }), async (req: any, res: any) => {
+router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, validate({ body: forgotPasswordSchema }), async (req: Request, res: Response) => {
   const { email } = req.body;
 
   // Always respond with the same generic message, whether or not the email
@@ -85,7 +86,7 @@ router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, validat
     // Don't reveal the failure to the client — still respond generically.
   }
 
-  res.json(genericResponse);
+  return res.json(genericResponse);
 });
 
 // ── POST /api/auth/reset-password ──────────────────────────────────────────
@@ -119,7 +120,7 @@ router.post('/forgot-password', authLimiter, forgotPasswordEmailLimiter, validat
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/reset-password', authLimiter, validate({ body: resetPasswordSchema }), async (req: any, res: any) => {
+router.post('/reset-password', authLimiter, validate({ body: resetPasswordSchema }), async (req: Request, res: Response) => {
   const { token, password } = req.body;
 
   const tokenHash = hashToken(token);
@@ -145,7 +146,7 @@ router.post('/reset-password', authLimiter, validate({ body: resetPasswordSchema
   // logged out — revoke every existing session for the account.
   await revokeAllForUser(resetRow.user_id);
 
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 export = router;

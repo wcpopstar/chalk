@@ -46,7 +46,7 @@ function getEmailQueue() {
  * still catch and log, same as they would have caught a mailer failure
  * before, since a generic response is returned to the client regardless.
  */
-async function enqueuePasswordResetEmail(to: any, resetUrl: any) {
+async function enqueuePasswordResetEmail(to: string, resetUrl: string) {
   await getEmailQueue().add(JOBS.PASSWORD_RESET, { to, resetUrl });
 }
 

@@ -72,7 +72,7 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       return ack({ error: 'Нельзя отправить сообщение — пользователь заблокирован' });
     }
     const buffer = Buffer.isBuffer(audio) ? audio : Buffer.from(audio as any);
-    const url = await uploadVoiceNote(userId, buffer, mime);
+    const url = await uploadVoiceNote(userId, buffer, mime ?? '');
     const msg = await saveMessage({
       conversationId, senderId: userId, type: 'voice',
       mediaUrl: url, duration: Math.round(duration ?? 0) || null,
@@ -88,7 +88,7 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       return ack({ error: 'Нельзя отправить сообщение — пользователь заблокирован' });
     }
     const buffer = Buffer.isBuffer(video) ? video : Buffer.from(video as any);
-    const url = await uploadVideoNote(userId, buffer, mime);
+    const url = await uploadVideoNote(userId, buffer, mime ?? '');
     const msg = await saveMessage({
       conversationId, senderId: userId, type: 'video_note',
       mediaUrl: url, duration: Math.round(duration ?? 0) || null,

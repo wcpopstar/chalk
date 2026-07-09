@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 const GENDERS = ['male', 'female', 'other', 'prefer_not_to_say'];
 const PRESENCE_STATES = ['online', 'away', 'busy'];
@@ -40,7 +40,7 @@ const updateProfileSchema = z
     gender: z.enum(GENDERS as any).optional(),
     presence: z.enum(PRESENCE_STATES as any).optional(),
   })
-  .refine((body: any) => Object.keys(body).length > 0, { message: 'Nothing to update' });
+  .refine((body: Record<string, unknown>) => Object.keys(body).length > 0, { message: 'Nothing to update' });
 
 // ── POST /api/users/me/onboarding ────────────────────────────────────────
 const onboardingSchema = z.object({

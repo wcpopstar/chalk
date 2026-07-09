@@ -46,7 +46,7 @@ function getClient() {
  * Records one product event for a user. Fire-and-forget: never throws,
  * never awaited by callers.
  */
-function capture(userId: any, event: string, properties: Record<string, any> = {}) {
+function capture(userId: string, event: string, properties: Record<string, any> = {}) {
   const c = getClient();
   if (!c || !userId) return;
   try {
@@ -57,7 +57,7 @@ function capture(userId: any, event: string, properties: Record<string, any> = {
 }
 
 /** Attaches profile properties to a user (called on register/profile update). */
-function identify(userId: any, properties: Record<string, any> = {}) {
+function identify(userId: string, properties: Record<string, any> = {}) {
   const c = getClient();
   if (!c || !userId) return;
   try {

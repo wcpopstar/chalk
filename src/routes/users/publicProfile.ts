@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
@@ -39,7 +40,7 @@ const viewLimiter = userLimiter({ windowMs: 60 * 1000, max: 60, message: 'Сли
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 // Must be mounted LAST so it doesn't swallow /me, /me/stats, /discover, etc.
-router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), async (req: any, res: any) => {
+router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   // Only the viewer-independent fields are cached — same behavior as
   // before on error/not-found (any failure here still surfaces as a 404,
   // matching this route's pre-existing behavior; not changing that here).
@@ -72,7 +73,7 @@ router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), 
   user.blocked_by_me = !!(blockRows || []).find((r: any) => r.blocker_id === req.user.id);
   user.has_blocked_me = !!(blockRows || []).find((r: any) => r.blocker_id === req.params.id);
 
-  res.json({ user });
+  return res.json({ user });
 });
 
 export = router;

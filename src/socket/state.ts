@@ -50,16 +50,16 @@ const INVITE_TTL_MS = 2 * 60 * 1000;
 // each other as friends via the post-call button.
 const CALL_PARTNER_TTL_MS = 30 * 60 * 1000;
 
-function inviteKey(roomId: any, targetUserId: any) {
+function inviteKey(roomId: string, targetUserId: string) {
   return `${NS}:invite:${roomId}:${targetUserId}`;
 }
-function joinReqKey(roomId: any, requesterId: any) {
+function joinReqKey(roomId: string, requesterId: string) {
   return `${NS}:joinreq:${roomId}:${requesterId}`;
 }
-function pairKey(userIdA: any, userIdB: any) {
+function pairKey(userIdA: string, userIdB: string) {
   return [userIdA, userIdB].sort().join(':');
 }
-function callPartnersKey(userIdA: any, userIdB: any) {
+function callPartnersKey(userIdA: string, userIdB: string) {
   return `${NS}:callpartners:${pairKey(userIdA, userIdB)}`;
 }
 
@@ -71,20 +71,20 @@ local v = redis.call('GET', KEYS[1])
 if v then redis.call('DEL', KEYS[1]) end
 return v
 `;
-async function atomicGetDel(key: any) {
+async function atomicGetDel(key: string) {
   return redis.eval(GETDEL_SCRIPT, 1, key);
 }
 
 // ── Online presence ─────────────────────────────────────────────────────
-async function setOnline(userId: any, socketId: any) {
+async function setOnline(userId: string, socketId: string) {
   await redis.hset(KEY_ONLINE, userId, socketId);
 }
 
-async function getOnlineSocket(userId: any) {
+async function getOnlineSocket(userId: string) {
   return redis.hget(KEY_ONLINE, userId);
 }
 
-async function removeOnline(userId: any) {
+async function removeOnline(userId: string) {
   await redis.hdel(KEY_ONLINE, userId);
 }
 
@@ -92,22 +92,35 @@ async function onlineCount() {
   return redis.hlen(KEY_ONLINE);
 }
 
+// The JSON blob stored per room. Trial-call rooms carry the trial fields;
+// direct-call rooms only need participants — the index signature keeps
+// room shapes forward-compatible with ad-hoc fields.
+export interface RoomState {
+  participants: string[];
+  mode?: string;
+  gameId?: string;
+  trialStart?: number;
+  promoted?: boolean;
+  votes?: Record<string, 'yes' | 'no'>;
+  [key: string]: unknown;
+}
+
 // ── Rooms ────────────────────────────────────────────────────────────────
-async function getRoom(roomId: any) {
+async function getRoom(roomId: string): Promise<RoomState | null> {
   const raw = await redis.hget(KEY_ROOMS, roomId);
   return raw ? JSON.parse(raw) : null;
 }
 
-async function hasRoom(roomId: any) {
+async function hasRoom(roomId: string) {
   return (await redis.hexists(KEY_ROOMS, roomId)) === 1;
 }
 
-async function saveRoom(roomId: any, room: any) {
+async function saveRoom(roomId: string, room: RoomState) {
   await redis.hset(KEY_ROOMS, roomId, JSON.stringify(room));
   return room;
 }
 
-async function deleteRoom(roomId: any) {
+async function deleteRoom(roomId: string) {
   await redis.hdel(KEY_ROOMS, roomId);
 }
 
@@ -130,7 +143,7 @@ async function deleteRoom(roomId: any) {
 // connection-scoped, and the shared `redis` client is used concurrently by
 // unrelated commands throughout this module, so reusing it here would let
 // unrelated transactions interfere with each other's watched keys.
-async function updateRoom(roomId: any, updater: any, retries = 5) {
+async function updateRoom(roomId: string, updater: (current: RoomState | null) => RoomState | null | undefined, retries = 5) {
   const conn = redis.duplicate();
   try {
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -154,13 +167,13 @@ async function updateRoom(roomId: any, updater: any, retries = 5) {
   }
 }
 
-async function roomSize(roomId: any) {
+async function roomSize(roomId: string) {
   const room = await getRoom(roomId);
   return room ? room.participants.length : 0;
 }
 
 // ── userCurrentRoom ──────────────────────────────────────────────────────
-async function getUserCurrentRoom(userId: any) {
+async function getUserCurrentRoom(userId: string) {
   return redis.hget(KEY_USER_ROOM, userId);
 }
 
@@ -178,7 +191,7 @@ async function broadcastCallStatus(io: TypedServer, userId: string) {
     const roomId = await getUserCurrentRoom(userId);
     const payload = { userId, inCall: !!roomId, roomSize: roomId ? await roomSize(roomId) : 0 };
 
-    await Promise.all(friendRows.map(async (row: any) => {
+    await Promise.all(friendRows.map(async (row: { user_a: string; user_b: string }) => {
       const friendId = row.user_a === userId ? row.user_b : row.user_a;
       const fSocket = await getOnlineSocket(friendId);
       if (fSocket) io.to(fSocket).emit('friend:call_status', payload);
@@ -186,37 +199,37 @@ async function broadcastCallStatus(io: TypedServer, userId: string) {
   }, { label: 'broadcast call status to friends', context: { userId } });
 }
 
-async function setUserRoom(io: TypedServer, userId: any, roomId: any) {
+async function setUserRoom(io: TypedServer, userId: string, roomId: string) {
   await redis.hset(KEY_USER_ROOM, userId, roomId);
   await broadcastCallStatus(io, userId);
 }
 
-async function clearUserRoom(io: TypedServer, userId: any) {
+async function clearUserRoom(io: TypedServer, userId: string) {
   const removed = await redis.hdel(KEY_USER_ROOM, userId);
   if (!removed) return;
   await broadcastCallStatus(io, userId);
 }
 
 // ── Pending invites ──────────────────────────────────────────────────────
-async function addPendingInvite(roomId: any, targetUserId: any, inviterId: any) {
+async function addPendingInvite(roomId: string, targetUserId: string, inviterId: string) {
   await redis.set(inviteKey(roomId, targetUserId), inviterId, 'PX', INVITE_TTL_MS);
 }
 
 // Returns true (and consumes the entry) only if a matching, non-expired
 // invite from `inviterId` to `targetUserId` for `roomId` actually exists.
-async function consumePendingInvite(roomId: any, targetUserId: any, inviterId: any) {
+async function consumePendingInvite(roomId: string, targetUserId: string, inviterId: string) {
   const stored = await atomicGetDel(inviteKey(roomId, targetUserId));
   return stored === inviterId;
 }
 
 // ── Pending join requests ────────────────────────────────────────────────
-async function addPendingJoinRequest(roomId: any, requesterId: any) {
+async function addPendingJoinRequest(roomId: string, requesterId: string) {
   await redis.set(joinReqKey(roomId, requesterId), '1', 'PX', INVITE_TTL_MS);
 }
 
 // Returns true (and consumes the entry) only if a matching, non-expired
 // join request from `requesterId` for `roomId` actually exists.
-async function consumePendingJoinRequest(roomId: any, requesterId: any) {
+async function consumePendingJoinRequest(roomId: string, requesterId: string) {
   const stored = await atomicGetDel(joinReqKey(roomId, requesterId));
   return stored === '1';
 }
@@ -224,7 +237,7 @@ async function consumePendingJoinRequest(roomId: any, requesterId: any) {
 // ── Recent call partners ─────────────────────────────────────────────────
 // Record that these users are (or just were) co-participants of the same
 // call room. Call this any time a room's participant list changes.
-async function markCallPartners(participantIds: any) {
+async function markCallPartners(participantIds: string[]) {
   const ids = [...new Set(participantIds)].filter(Boolean);
   if (ids.length < 2) return;
 
@@ -232,7 +245,7 @@ async function markCallPartners(participantIds: any) {
   const pipeline = redis.pipeline();
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      pipeline.set(callPartnersKey(ids[i], ids[j]), now, 'PX', CALL_PARTNER_TTL_MS);
+      pipeline.set(callPartnersKey(ids[i]!, ids[j]!), now, 'PX', CALL_PARTNER_TTL_MS);
     }
   }
   await pipeline.exec();
@@ -240,7 +253,7 @@ async function markCallPartners(participantIds: any) {
 
 // True if userIdA and userIdB are currently in the same room together, or
 // were within the last CALL_PARTNER_TTL_MS.
-async function wereRecentCallPartners(userIdA: any, userIdB: any) {
+async function wereRecentCallPartners(userIdA: string, userIdB: string) {
   if (!userIdA || !userIdB || userIdA === userIdB) return false;
 
   const [roomA, roomB] = await Promise.all([

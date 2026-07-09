@@ -1,4 +1,4 @@
-const { z } = require('zod');
+import { z } from 'zod';
 
 // `calls.mode` has no DB-level CHECK constraint (unlike e.g. messages.type),
 // so this bounds shape/length rather than inventing an enum that might

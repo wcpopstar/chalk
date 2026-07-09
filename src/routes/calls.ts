@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router  = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
@@ -47,7 +48,7 @@ const callLimiter = userLimiter({ windowMs: 60 * 1000, max: 20, message: 'Сли
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 // Logs a call start in the DB
-router.post('/start', requireAuth, callLimiter, validate({ body: startCallSchema }), async (req: any, res: any) => {
+router.post('/start', requireAuth, callLimiter, validate({ body: startCallSchema }), async (req: Request, res: Response) => {
   const { roomId, participants, mode } = req.body;
 
   const { data, error } = await supabaseAdmin.from('calls').insert({
@@ -61,7 +62,7 @@ router.post('/start', requireAuth, callLimiter, validate({ body: startCallSchema
 
   if (error) return res.status(500).json({ error: error.message });
   analytics.capture(req.user.id, 'call_started', { mode: mode || 'solo', participants: (participants || [req.user.id]).length });
-  res.status(201).json({ call: data });
+  return res.status(201).json({ call: data });
 });
 
 /**
@@ -94,7 +95,7 @@ router.post('/start', requireAuth, callLimiter, validate({ body: startCallSchema
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(), body: endCallSchema }), async (req: any, res: any) => {
+router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(), body: endCallSchema }), async (req: Request, res: Response) => {
   const { duration_seconds } = req.body;
 
   const { error } = await supabaseAdmin.from('calls').update({
@@ -105,7 +106,7 @@ router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(
 
   if (error) return res.status(500).json({ error: error.message });
   analytics.capture(req.user.id, 'call_ended', { durationSeconds: duration_seconds ?? null });
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 export = router;

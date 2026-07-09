@@ -1,6 +1,6 @@
 const { supabaseAdmin } = require('../services/supabase');
 
-function create({ userId, tokenHash, expiresAt }: any) {
+function create({ userId, tokenHash, expiresAt }: { userId: string; tokenHash: string; expiresAt: string }) {
   return supabaseAdmin.from('password_resets').insert({
     user_id: userId,
     token_hash: tokenHash,
@@ -8,7 +8,7 @@ function create({ userId, tokenHash, expiresAt }: any) {
   });
 }
 
-function findByTokenHash(tokenHash: any) {
+function findByTokenHash(tokenHash: string) {
   return supabaseAdmin
     .from('password_resets')
     .select('id, user_id, expires_at, used_at')
@@ -16,7 +16,7 @@ function findByTokenHash(tokenHash: any) {
     .maybeSingle();
 }
 
-function markUsed(id: any) {
+function markUsed(id: string) {
   return supabaseAdmin.from('password_resets').update({ used_at: new Date().toISOString() }).eq('id', id);
 }
 
