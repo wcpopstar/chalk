@@ -1,4 +1,3 @@
-export {};
 const Redis = require('ioredis');
 const logger = require('../utils/logger').child({ module: 'queue-redis' });
 const { config } = require('../config/env');
@@ -32,4 +31,4 @@ queueConnection.on('error', (err: any) => {
 });
 queueConnection.on('ready', () => logger.info('Queue Redis ready'));
 
-module.exports = { queueConnection };
+export { queueConnection };

@@ -1,4 +1,3 @@
-export {};
 const { supabaseAdmin } = require('../services/supabase');
 
 /**
@@ -142,7 +141,7 @@ function findPublicProfileById(userId: any) {
     .single();
 }
 
-module.exports = {
+export {
   FULL_PROFILE_FIELDS,
   existsByEmailOrUsername,
   createUser,

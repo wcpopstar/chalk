@@ -1,4 +1,3 @@
-export {};
 // ── Access-token blacklist ───────────────────────────────────────────────────
 // Access tokens are short-lived JWTs (15 min) identified by a `jti` claim.
 // "Revoking" one just means remembering its jti until the token would have
@@ -44,4 +43,6 @@ class TokenBlacklist {
   }
 }
 
-module.exports = new TokenBlacklist();
+const tokenBlacklist = new TokenBlacklist();
+
+export = tokenBlacklist;

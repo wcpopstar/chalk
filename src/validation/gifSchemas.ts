@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 
 // `q` is sent straight through to Giphy as a search term — bounded length
@@ -10,4 +9,4 @@ const gifSearchQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(24).default(12),
 });
 
-module.exports = { gifSearchQuerySchema };
+export { gifSearchQuerySchema };

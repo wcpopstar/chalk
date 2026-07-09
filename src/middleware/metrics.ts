@@ -13,7 +13,7 @@
  * raw path, for the same cardinality reason.
  */
 
-import metrics from '../utils/metrics';
+import * as metrics from '../utils/metrics';
 
 function metricsMiddleware(req: any, res: any, next: any) {
   const startNs = process.hrtime.bigint();

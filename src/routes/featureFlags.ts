@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
 const { requireAdminKey } = require('../middleware/requireAdminKey');
@@ -78,4 +77,4 @@ router.delete('/admin/:key', requireAdminKey, adminLimiter, validate({ params: f
   }
 });
 
-module.exports = router;
+export = router;

@@ -1,4 +1,3 @@
-export {};
 const { Queue } = require('bullmq');
 const logger = require('../utils/logger').child({ module: 'email-queue' });
 const { queueConnection } = require('./connection');
@@ -58,4 +57,4 @@ async function closeEmailQueue() {
   if (_emailQueue) await _emailQueue.close();
 }
 
-module.exports = { getEmailQueue, closeEmailQueue, JOBS, enqueuePasswordResetEmail };
+export { getEmailQueue, closeEmailQueue, JOBS, enqueuePasswordResetEmail };

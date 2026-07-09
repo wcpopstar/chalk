@@ -1,1 +1,0 @@
-{"version":3,"file":"friendSchemas.js","sourceRoot":"","sources":["../../src/validation/friendSchemas.ts"],"names":[],"mappings":";;AACA,MAAM,EAAE,CAAC,EAAE,GAAG,OAAO,CAAC,KAAK,CAAC,CAAC;AAE7B,MAAM,oBAAoB,GAAG,CAAC,CAAC,MAAM,CAAC;IACpC,YAAY,EAAE,CAAC,CAAC,MAAM,EAAE,CAAC,IAAI,EAAE;CAChC,CAAC,CAAC;AAEH,MAAM,CAAC,OAAO,GAAG,EAAE,oBAAoB,EAAE,CAAC"}

@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const { v4: uuid } = require('uuid');
@@ -91,4 +90,4 @@ router.post('/register', authLimiter, async (req: any, res: any) => {
   }
 });
 
-module.exports = router;
+export = router;

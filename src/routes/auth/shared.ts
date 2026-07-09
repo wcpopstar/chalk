@@ -1,4 +1,3 @@
-export {};
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const { signAccessToken, ACCESS_TOKEN_TTL_SECONDS } = require('../../utils/jwt');
@@ -71,7 +70,7 @@ function blacklistCurrentAccessToken(req: any) {
   }
 }
 
-module.exports = {
+export {
   USER_FIELDS,
   authLimiter,
   loginEmailLimiter,

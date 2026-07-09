@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 
 const GENDERS = ['male', 'female', 'other', 'prefer_not_to_say'];
@@ -83,7 +82,7 @@ const reportBodySchema = z.object({
   context: z.string().trim().max(50).optional(),
 });
 
-module.exports = {
+export {
   GENDERS,
   PRESENCE_STATES,
   REPORT_REASONS,

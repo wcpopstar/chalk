@@ -1,4 +1,3 @@
-export {};
 /**
  * OpenAPI spec assembly (swagger-jsdoc).
  *
@@ -296,4 +295,6 @@ const options = {
   ],
 };
 
-module.exports = swaggerJsdoc(options);
+const swaggerSpec = swaggerJsdoc(options);
+
+export = swaggerSpec;

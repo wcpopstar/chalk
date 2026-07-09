@@ -1,4 +1,3 @@
-export {};
 const { createClient } = require('@supabase/supabase-js');
 const ws = require('ws');
 const { config } = require('../config/env');
@@ -18,4 +17,4 @@ const supabaseAdmin = createClient(
   }
 );
 
-module.exports = { supabase, supabaseAdmin };
+export { supabase, supabaseAdmin };

@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const usersRepository = require('../../repositories/usersRepository');
 const { requireAuth, optionalAuth } = require('../../middleware/auth');
@@ -192,4 +191,4 @@ router.get('/me', requireAuth, sessionActionLimiter, async (req: any, res: any) 
   res.json({ user });
 });
 
-module.exports = router;
+export = router;

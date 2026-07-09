@@ -1,4 +1,3 @@
-export {};
 const router  = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
@@ -106,4 +105,4 @@ router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(
   res.json({ ok: true });
 });
 
-module.exports = router;
+export = router;

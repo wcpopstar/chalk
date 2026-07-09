@@ -208,7 +208,7 @@ describe('matchmakingRedis', () => {
       await matchmaking.enqueue(makeEntry({ userId: 'p1', socketId: 'sock-p1' }));
       await matchmaking.enqueue(makeEntry({ userId: 'p2', socketId: 'sock-p2' }));
 
-      const emitted = [];
+      const emitted: any = [];
       const fakeIo = { to: (socketId: any) => ({ emit: (event: any, payload: any) => emitted.push({ socketId, event, payload }) }) };
 
       await matchmaking.runMatchCycle(fakeIo);

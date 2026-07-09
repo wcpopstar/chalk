@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 
 // `calls.mode` has no DB-level CHECK constraint (unlike e.g. messages.type),
@@ -19,4 +18,4 @@ const endCallSchema = z.object({
   duration_seconds: z.coerce.number().int().min(0).max(24 * 60 * 60).optional(),
 });
 
-module.exports = { startCallSchema, endCallSchema };
+export { startCallSchema, endCallSchema };

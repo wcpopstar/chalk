@@ -34,7 +34,7 @@ import gifRoutes from './routes/gifs';
 import { initSocket } from './socket';
 import { startWorkers, closeWorkers } from './workers';
 import { closeQueues } from './queues';
-import metrics from './utils/metrics';
+import * as metrics from './utils/metrics';
 import { metricsMiddleware } from './middleware/metrics';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';

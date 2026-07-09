@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const usersRepository = require('../../repositories/usersRepository');
@@ -75,4 +74,4 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req: any, res: any)
   }
 });
 
-module.exports = router;
+export = router;

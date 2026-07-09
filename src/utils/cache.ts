@@ -1,4 +1,3 @@
-export {};
 /**
  * Redis-backed response cache for read-heavy, staleness-tolerant endpoints.
  *
@@ -96,4 +95,4 @@ async function invalidate(key: any) {
   }
 }
 
-module.exports = { cached, invalidate };
+export { cached, invalidate };

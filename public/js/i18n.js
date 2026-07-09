@@ -94,39 +94,30 @@ currentLang = detectInitialLang();
 document.documentElement.setAttribute('lang', currentLang);
 
 // Auto-translate any HTML inserted later via innerHTML (chat lists, friend lists, etc.)
+function collectI18nTargets(node, attr) {
+  const targets = [];
+  if (node.hasAttribute && node.hasAttribute(attr)) targets.push(node);
+  if (node.querySelectorAll) {
+    const found = node.querySelectorAll(`[${attr}]`);
+    for (let i = 0; i < found.length; i++) targets.push(found[i]);
+  }
+  return targets;
+}
+
+function applyI18nAttr(node, dict, attr, applyValue) {
+  const targets = collectI18nTargets(node, attr);
+  for (let i = 0; i < targets.length; i++) {
+    const key = targets[i].getAttribute(attr);
+    if (Object.prototype.hasOwnProperty.call(dict, key)) applyValue(targets[i], dict[key]);
+  }
+}
+
 function applyI18nToNode(node) {
   if (!node || node.nodeType !== 1) return;
   const dict = I18N_DATA[currentLang] || I18N_DATA.ru;
-  const targets = [];
-  if (node.hasAttribute && node.hasAttribute('data-i18n')) targets.push(node);
-  if (node.querySelectorAll) {
-    const found = node.querySelectorAll('[data-i18n]');
-    for (let i = 0; i < found.length; i++) targets.push(found[i]);
-  }
-  for (let j = 0; j < targets.length; j++) {
-    const key = targets[j].getAttribute('data-i18n');
-    if (Object.prototype.hasOwnProperty.call(dict, key)) targets[j].textContent = dict[key];
-  }
-  const phTargets = [];
-  if (node.hasAttribute && node.hasAttribute('data-i18n-placeholder')) phTargets.push(node);
-  if (node.querySelectorAll) {
-    const foundPh = node.querySelectorAll('[data-i18n-placeholder]');
-    for (let k = 0; k < foundPh.length; k++) phTargets.push(foundPh[k]);
-  }
-  for (let m = 0; m < phTargets.length; m++) {
-    const pkey = phTargets[m].getAttribute('data-i18n-placeholder');
-    if (Object.prototype.hasOwnProperty.call(dict, pkey)) phTargets[m].setAttribute('placeholder', dict[pkey]);
-  }
-  const titleTargets = [];
-  if (node.hasAttribute && node.hasAttribute('data-i18n-title')) titleTargets.push(node);
-  if (node.querySelectorAll) {
-    const foundTitle = node.querySelectorAll('[data-i18n-title]');
-    for (let n = 0; n < foundTitle.length; n++) titleTargets.push(foundTitle[n]);
-  }
-  for (let p = 0; p < titleTargets.length; p++) {
-    const tkey = titleTargets[p].getAttribute('data-i18n-title');
-    if (Object.prototype.hasOwnProperty.call(dict, tkey)) titleTargets[p].setAttribute('title', dict[tkey]);
-  }
+  applyI18nAttr(node, dict, 'data-i18n', (el, value) => { el.textContent = value; });
+  applyI18nAttr(node, dict, 'data-i18n-placeholder', (el, value) => el.setAttribute('placeholder', value));
+  applyI18nAttr(node, dict, 'data-i18n-title', (el, value) => el.setAttribute('title', value));
 }
 
 if (typeof MutationObserver !== 'undefined') {

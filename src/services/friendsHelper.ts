@@ -1,4 +1,3 @@
-export {};
 const { v4: uuid } = require('uuid');
 const { supabaseAdmin } = require('./supabase');
 
@@ -52,4 +51,4 @@ async function addFriendPairInstant(userIdA: any, userIdB: any) {
   return { ok: true, already: false };
 }
 
-module.exports = { addFriendPairInstant };
+export { addFriendPairInstant };

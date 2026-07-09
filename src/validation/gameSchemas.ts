@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 
 const submitScoreSchema = z.object({
@@ -6,7 +5,9 @@ const submitScoreSchema = z.object({
 });
 
 const leaderboardQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(50).default(10),
+  // Out-of-range values are clamped into [1, 50] rather than rejected —
+  // a client asking for ?limit=9999 gets the max page size, not a 400.
+  limit: z.coerce.number().int().default(10).transform((n: number) => Math.min(Math.max(n, 1), 50)),
 });
 
-module.exports = { submitScoreSchema, leaderboardQuerySchema };
+export { submitScoreSchema, leaderboardQuerySchema };

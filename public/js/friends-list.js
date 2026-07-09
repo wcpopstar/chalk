@@ -37,15 +37,17 @@ function renderFriendsList() {
     const rowClass = !isOnline ? 'friend-item friend-offline' : (cs.inCall ? 'friend-item friend-incall' : 'friend-item friend-online');
     const uname = escHtml(f.friend.username).replace(/'/g,"\\'");
     const emoji = (f.friend.avatar_emoji || '🎮');
-    return `<div class="${  rowClass  }" onclick="openFriendMenu(event,'${  f.friend.id  }','${  uname  }','${  emoji  }',${  Boolean(cs.inCall)  },${  cs.roomSize||0  })"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">${  avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url)  }</div><div><div class="friend-name">${  escHtml(f.friend.username)  }</div><div class="friend-game">${  statusLine  }</div></div></div>`;
+    return `<div class="${  rowClass  }" onclick="openFriendMenu(event,'${  f.friend.id  }','${  uname  }','${  emoji  }',{inCall:${  Boolean(cs.inCall)  },roomSize:${  cs.roomSize||0  }})"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">${  avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url)  }</div><div><div class="friend-name">${  escHtml(f.friend.username)  }</div><div class="friend-game">${  statusLine  }</div></div></div>`;
   }).join('');
 }
 
 // ── Friend context menu: Позвонить / Написать / Профиль ────────────────────
 var famTarget = null;
 
-function openFriendMenu(e, id, username, emoji, inCall, roomSize) {
+function openFriendMenu(e, id, username, emoji, callStatus) {
   e.stopPropagation();
+  const inCall = Boolean(callStatus && callStatus.inCall);
+  const roomSize = (callStatus && callStatus.roomSize) || 0;
   famTarget = { id, username, emoji, inCall, roomSize };
 
   const menu = document.getElementById('friendActionMenu');
