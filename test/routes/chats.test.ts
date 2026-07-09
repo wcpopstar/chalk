@@ -52,8 +52,8 @@ describe('Chats routes (/api/chats)', () => {
               type: 'direct',
               name: null,
               created_at: '2026-01-01T00:00:00Z',
+              // newest-first and capped at 1 by the embedded order+limit
               messages: [
-                { id: 'm1', text: 'hi', created_at: '2026-01-01T00:00:00Z' },
                 { id: 'm2', text: 'hey!', created_at: '2026-01-01T00:01:00Z' },
               ],
             },
@@ -87,7 +87,7 @@ describe('Chats routes (/api/chats)', () => {
       const direct = res.body.conversations.find((c: any) => c.id === 'cc000001-0000-4000-8000-000000000001');
       assert.equal(direct.name, 'Buddy');
       assert.equal(direct.other_user.username, 'Buddy');
-      assert.equal(direct.last_message.text, 'hey!'); // last of the two messages
+      assert.equal(direct.last_message.text, 'hey!'); // the newest message
 
       const group = res.body.conversations.find((c: any) => c.id === 'cc000002-0000-4000-8000-000000000002');
       assert.equal(group.name, 'Squad');
