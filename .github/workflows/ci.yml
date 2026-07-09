@@ -108,10 +108,10 @@ jobs:
           AGORA_APP_CERTIFICATE: ci-placeholder-app-certificate
 
   # ---------------------------------------------------------------------
-  # Build check — Chalk ships plain Node.js (no bundler/transpiler), so
-  # "build" means: every source file parses cleanly, the app boots far
-  # enough to prove wiring is correct, and (if present) the Dockerfile
-  # produces a valid image.
+  # Build check — the app is TypeScript compiled to dist/ (tsc), so
+  # "build" means: the whole project typechecks, tsc emits dist/ cleanly,
+  # the compiled app boots far enough to prove wiring is correct, and
+  # (if present) the Dockerfile produces a valid image.
   # ---------------------------------------------------------------------
   build:
     name: Build check
@@ -138,29 +138,42 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install production dependencies
-        run: npm ci --omit=dev
+      - name: Install dependencies
+        # Full install (not --omit=dev): tsc itself is a devDependency.
+        run: npm ci
 
-      - name: Syntax check all source files
-        run: |
-          set -e
-          find src -name '*.js' -print0 | xargs -0 -n1 node --check
-          echo "All source files parse cleanly."
+      - name: Typecheck (src + tests)
+        run: npm run typecheck
+
+      - name: Compile TypeScript
+        run: npm run build
 
       - name: Boot smoke test
+        # Boots the COMPILED app (dist/, same artifact the production image
+        # runs). Supabase is a placeholder here, so /health legitimately
+        # answers 503 with services.supabase down — what this step asserts
+        # is that the server boots, serves HTTP, and that Redis (a real
+        # service container in this job) is reported healthy.
         run: |
           set -e
-          timeout 15s node src/index.js &
+          timeout 20s node dist/index.js &
           PID=$!
           for i in $(seq 1 10); do
-            if curl -sf http://localhost:3000/health > /dev/null; then
-              echo "Server booted and /health responded OK."
+            code=$(curl -s -o health.json -w "%{http_code}" http://localhost:3000/health || echo 000)
+            if [ "$code" != "000" ]; then
+              echo "Server booted, /health HTTP $code: $(cat health.json)"
+              if node -e "const h=require('./health.json'); process.exit(h.services.redis.status === 'ok' ? 0 : 1)"; then
+                echo "Redis reported healthy."
+                kill $PID 2>/dev/null || true
+                exit 0
+              fi
+              echo "::error::/health says Redis is unhealthy"
               kill $PID 2>/dev/null || true
-              exit 0
+              exit 1
             fi
             sleep 1
           done
-          echo "::error::Server did not become healthy within 10s"
+          echo "::error::Server did not answer /health within 10s"
           kill $PID 2>/dev/null || true
           exit 1
         env:
