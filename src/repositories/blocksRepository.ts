@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 
 // All block pairs where userId is either the blocker or the blocked side —
 // used by /discover to exclude both directions of a block.

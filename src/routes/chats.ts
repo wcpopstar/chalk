@@ -6,7 +6,7 @@ const { validate } = require('../middleware/validate');
 const { uuidParam } = require('../validation/common');
 const { createDirectSchema, createGroupSchema, messagesQuerySchema } = require('../validation/chatSchemas');
 const { userLimiter } = require('../middleware/rateLimit');
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 
 // "Message" buttons get-or-create a DM, so this is hit a lot legitimately —
 // keep it loose. Group creation actually writes new rows, so keep it tighter.
@@ -59,8 +59,8 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
   // For direct (1:1) conversations the client needs to know *who* the other
   // person is — both to show a real name and to be able to call them.
   const directConvIds = (data || [])
-    .filter((row: any) => row.conversations?.type === 'direct')
-    .map((row: any) => row.conversation_id);
+    .filter((row) => row.conversations?.type === 'direct')
+    .map((row) => row.conversation_id);
 
   const otherUserByConv: Record<string, any> = {};
   if (directConvIds.length) {
@@ -70,13 +70,13 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
       .in('conversation_id', directConvIds)
       .neq('user_id', uid);
 
-    (memberRows || []).forEach((row: any) => {
+    (memberRows || []).forEach((row) => {
       otherUserByConv[row.conversation_id] = row.users;
     });
   }
 
   // Attach last message and the other participant (for direct chats)
-  const conversations = (data || []).map((row: any) => {
+  const conversations = (data || []).map((row) => {
     const conv  = row.conversations;
     const msgs  = conv?.messages || [];
     const last  = msgs[msgs.length - 1] || null;
@@ -246,7 +246,7 @@ router.post('/group', requireAuth, groupLimiter, validate({ body: createGroupSch
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 router.get('/global/messages', requireAuth, readLimiter, validate({ query: messagesQuerySchema }), async (req: Request, res: Response) => {
-  const { limit, before } = req.query;
+  const { limit, before } = req.query as unknown as { limit: number; before?: string };
 
   let query = supabaseAdmin
     .from('global_messages')
@@ -304,9 +304,9 @@ router.get('/global/messages', requireAuth, readLimiter, validate({ query: messa
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidParam(), query: messagesQuerySchema }), async (req: Request, res: Response) => {
-  const { limit, before } = req.query;
+  const { limit, before } = req.query as unknown as { limit: number; before?: string };
   const uid  = req.user.id;
-  const convId = req.params.id;
+  const convId = req.params.id!; // validated by uuidParam()
 
   // Verify membership
   const { data: member } = await supabaseAdmin
@@ -371,7 +371,7 @@ router.get('/:id/members', requireAuth, readLimiter, validate({ params: uuidPara
   const { data: member } = await supabaseAdmin
     .from('conversation_members')
     .select('user_id')
-    .eq('conversation_id', req.params.id)
+    .eq('conversation_id', req.params.id!)
     .eq('user_id', req.user.id)
     .maybeSingle();
 
@@ -380,10 +380,10 @@ router.get('/:id/members', requireAuth, readLimiter, validate({ params: uuidPara
   const { data, error } = await supabaseAdmin
     .from('conversation_members')
     .select('users ( id, username, avatar_emoji, avatar_url, status )')
-    .eq('conversation_id', req.params.id);
+    .eq('conversation_id', req.params.id!);
 
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ members: (data || []).map((r: any) => r.users) });
+  return res.json({ members: (data || []).map((r) => r.users) });
 });
 
 export = router;

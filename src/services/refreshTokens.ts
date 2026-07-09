@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const { supabaseAdmin } = require('./supabase');
+import { supabaseAdmin } from './supabase';
 const { generateOpaqueToken, hashOpaqueToken, REFRESH_TOKEN_TTL_MS } = require('../utils/jwt');
 
 class InvalidRefreshTokenError extends Error {}

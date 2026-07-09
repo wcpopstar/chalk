@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 
 // Three independent counts for a user's profile stats card. Kept as one
 // repository function (rather than three separately-named ones) because
