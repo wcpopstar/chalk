@@ -104,7 +104,7 @@ let failureLoggedRecently = false;
  * app's Redis error handling (see index.ts health checks / graceful
  * shutdown, state.ts).
  */
-async function checkSlidingWindow(key: any, windowMs: any, limit: any, warnRatio: any = 0.8) {
+async function checkSlidingWindow(key: string, windowMs: number, limit: number, warnRatio: number = 0.8) {
   const now = Date.now();
   const warnThreshold = Math.max(1, Math.ceil(limit * warnRatio));
   const member = `${now}-${Math.random().toString(36).slice(2, 10)}`;

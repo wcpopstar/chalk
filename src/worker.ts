@@ -26,7 +26,7 @@ const { redis, waitForRedisReady } = require('./socket/redisClient');
 
 validateEnv();
 
-process.on('unhandledRejection', (reason: any) => {
+process.on('unhandledRejection', (reason: string) => {
   logger.error({ err: reason }, 'Unhandled promise rejection in worker process');
 });
 process.on('uncaughtException', (err: any) => {
@@ -52,7 +52,7 @@ waitForRedisReady()
 const SHUTDOWN_TIMEOUT_MS = 15_000;
 let isShuttingDown = false;
 
-async function shutdown(signal: any) {
+async function shutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   logger.info({ signal }, '🛑 Worker process received shutdown signal, draining…');

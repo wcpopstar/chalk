@@ -117,7 +117,7 @@ const logger = pino({
   formatters: {
     // Keep level as a string ("info") instead of pino's default numeric
     // level — much friendlier when eyeballing raw JSON in production logs.
-    level(label: any) {
+    level(label: string) {
       return { level: label };
     },
   },

@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const analytics = require('../services/analytics');
 const { v4: uuid } = require('uuid');
@@ -42,7 +43,7 @@ const friendsReadLimiter = userLimiter({ windowMs: 60 * 1000, max: 60, message: 
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/', requireAuth, friendsReadLimiter, async (req: any, res: any) => {
+router.get('/', requireAuth, friendsReadLimiter, async (req: Request, res: Response) => {
   const uid = req.user.id;
   const { data, error } = await supabaseAdmin
     .from('friends')
@@ -64,7 +65,7 @@ router.get('/', requireAuth, friendsReadLimiter, async (req: any, res: any) => {
     return { id: row.id, status: row.status, friend: other, incoming: !isA, created_at: row.created_at };
   });
 
-  res.json({ friends });
+  return res.json({ friends });
 });
 
 /**
@@ -106,7 +107,7 @@ router.get('/', requireAuth, friendsReadLimiter, async (req: any, res: any) => {
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/request', requireAuth, friendRequestLimiter, validate({ body: targetUserBodySchema }), async (req: any, res: any) => {
+router.post('/request', requireAuth, friendRequestLimiter, validate({ body: targetUserBodySchema }), async (req: Request, res: Response) => {
   const { targetUserId } = req.body;
   const uid = req.user.id;
 
@@ -144,7 +145,7 @@ router.post('/request', requireAuth, friendRequestLimiter, validate({ body: targ
 
   if (error) return res.status(500).json({ error: error.message });
   analytics.capture(req.user.id, 'friend_request_sent');
-  res.status(201).json({ request: data });
+  return res.status(201).json({ request: data });
 });
 
 /**
@@ -171,7 +172,7 @@ router.post('/request', requireAuth, friendRequestLimiter, validate({ body: targ
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.patch('/:id/accept', requireAuth, friendActionLimiter, validate({ params: uuidParam() }), async (req: any, res: any) => {
+router.patch('/:id/accept', requireAuth, friendActionLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   const { data: row } = await supabaseAdmin
     .from('friends')
     .select('id, user_a, user_b, status')
@@ -189,7 +190,7 @@ router.patch('/:id/accept', requireAuth, friendActionLimiter, validate({ params:
 
   if (error) return res.status(500).json({ error: error.message });
   analytics.capture(req.user.id, 'friend_request_accepted');
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 /**
@@ -216,7 +217,7 @@ router.patch('/:id/accept', requireAuth, friendActionLimiter, validate({ params:
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.delete('/:id', requireAuth, friendActionLimiter, validate({ params: uuidParam() }), async (req: any, res: any) => {
+router.delete('/:id', requireAuth, friendActionLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   const uid = req.user.id;
   const { error } = await supabaseAdmin
     .from('friends')
@@ -225,7 +226,7 @@ router.delete('/:id', requireAuth, friendActionLimiter, validate({ params: uuidP
     .or(`user_a.eq.${uid},user_b.eq.${uid}`);
 
   if (error) return res.status(500).json({ error: error.message });
-  res.json({ ok: true });
+  return res.json({ ok: true });
 });
 
 /**
@@ -270,7 +271,7 @@ router.delete('/:id', requireAuth, friendActionLimiter, validate({ params: uuidP
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/add-after-call', requireAuth, friendRequestLimiter, validate({ body: targetUserBodySchema }), async (req: any, res: any) => {
+router.post('/add-after-call', requireAuth, friendRequestLimiter, validate({ body: targetUserBodySchema }), async (req: Request, res: Response) => {
   const { targetUserId } = req.body;
   const uid = req.user.id;
 
@@ -286,9 +287,9 @@ router.post('/add-after-call', requireAuth, friendRequestLimiter, validate({ bod
 
   try {
     const result = await addFriendPairInstant(uid, targetUserId);
-    res.status(result.already ? 200 : 201).json({ ok: true, already: result.already });
+    return res.status(result.already ? 200 : 201).json({ ok: true, already: result.already });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 

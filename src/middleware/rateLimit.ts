@@ -1,3 +1,4 @@
+import type { Request } from 'express';
 import rateLimit from 'express-rate-limit';
 import Redis from 'ioredis';
 import loggerBase from '../utils/logger';
@@ -139,14 +140,20 @@ function createRateLimitStore() {
  *
  * requireAuth() must run BEFORE this middleware on the route so req.user is set.
  */
-function userLimiter({ windowMs, max, message }: any) {
+interface UserLimiterOptions {
+  windowMs: number;
+  max: number;
+  message?: string;
+}
+
+function userLimiter({ windowMs, max, message }: UserLimiterOptions) {
   return rateLimit({
     windowMs,
     max,
     standardHeaders: true,
     legacyHeaders: false,
     store: createRateLimitStore(),
-    keyGenerator: (req: any) => (req.user && req.user.id) ? `u:${req.user.id}` : req.ip,
+    keyGenerator: (req: Request) => (req.user && req.user.id) ? `u:${req.user.id}` : (req.ip as string),
     message: { error: message || 'Слишком много запросов, попробуй немного позже.' },
   });
 }

@@ -13,7 +13,16 @@ const GLOBAL_MESSAGE_SELECT = `
 `;
 
 // ── Persist chat message to DB ────────────────────────────────────────────
-async function saveMessage({ conversationId, senderId, text, type, mediaUrl, duration, preview }: any) {
+interface MessageInput {
+  senderId: string;
+  text?: string | null;
+  type?: string;
+  mediaUrl?: string | null;
+  duration?: number | null;
+  preview?: { title?: string; url?: string; thumbnail?: string; videoId?: string } | null;
+}
+
+async function saveMessage({ conversationId, senderId, text, type, mediaUrl, duration, preview }: MessageInput & { conversationId: string }) {
   const { data, error } = await supabaseAdmin
     .from('messages')
     .insert({
@@ -38,7 +47,7 @@ async function saveMessage({ conversationId, senderId, text, type, mediaUrl, dur
 }
 
 // ── Persist a global (platform-wide) chat message ─────────────────────────
-async function saveGlobalMessage({ senderId, text, type, mediaUrl, duration, preview }: any) {
+async function saveGlobalMessage({ senderId, text, type, mediaUrl, duration, preview }: MessageInput) {
   const { data, error } = await supabaseAdmin
     .from('global_messages')
     .insert({
@@ -61,7 +70,7 @@ async function saveGlobalMessage({ senderId, text, type, mediaUrl, duration, pre
 }
 
 // ── Edit / delete (soft) for either message table ─────────────────────────
-async function editMessageRow(table: any, select: any, id: any, senderId: any, text: any) {
+async function editMessageRow(table: 'messages' | 'global_messages', select: string, id: string, senderId: string, text: string) {
   const { data, error } = await supabaseAdmin
     .from(table)
     .update({ text, edited_at: new Date().toISOString() })
@@ -76,7 +85,7 @@ async function editMessageRow(table: any, select: any, id: any, senderId: any, t
   return data;
 }
 
-async function deleteMessageRow(table: any, id: any, senderId: any) {
+async function deleteMessageRow(table: 'messages' | 'global_messages', id: string, senderId: string) {
   const { data, error } = await supabaseAdmin
     .from(table)
     .update({ deleted_at: new Date().toISOString(), text: null, media_url: null })
@@ -92,7 +101,7 @@ async function deleteMessageRow(table: any, id: any, senderId: any) {
 
 // ── Is the *other* member of a direct conversation blocked (either way)? ───
 // Group conversations aren't checked — blocking only affects 1:1 DMs here.
-async function directPartnerBlocked(conversationId: any, senderId: any) {
+async function directPartnerBlocked(conversationId: string, senderId: string) {
   const { data: conv } = await supabaseAdmin
     .from('conversations')
     .select('type')
@@ -112,7 +121,7 @@ async function directPartnerBlocked(conversationId: any, senderId: any) {
 }
 
 // ── Is this user actually a member of this conversation? ──────────────────
-async function isConversationMember(conversationId: any, userId: any) {
+async function isConversationMember(conversationId: string, userId: string) {
   if (!conversationId || !userId) return false;
   const { data } = await supabaseAdmin
     .from('conversation_members')

@@ -1,3 +1,4 @@
+import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import loggerBase from '../utils/logger';
 import { config } from '../config/env';
@@ -10,7 +11,7 @@ const logger = loggerBase.child({ module: 'admin-auth' });
  * (fail closed, not open) — safer default for something that toggles
  * production behavior.
  */
-function requireAdminKey(req: any, res: any, next: any) {
+function requireAdminKey(req: Request, res: Response, next: NextFunction) {
   const configuredKey = config.admin.apiKey;
   if (!configuredKey) {
     return res.status(503).json({ error: 'Admin endpoints are disabled (ADMIN_API_KEY not configured)' });
@@ -28,7 +29,7 @@ function requireAdminKey(req: any, res: any, next: any) {
     logger.warn({ ip: req.ip }, 'Rejected admin request with missing/invalid x-admin-key');
     return res.status(401).json({ error: 'Invalid or missing admin key' });
   }
-  next();
+  return next();
 }
 
 export { requireAdminKey };

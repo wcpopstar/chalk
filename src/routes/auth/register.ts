@@ -1,3 +1,4 @@
+import type { Request, Response } from 'express';
 const router = require('express').Router();
 const analytics = require('../../services/analytics');
 const bcrypt = require('bcryptjs');
@@ -45,7 +46,7 @@ const { USER_FIELDS, authLimiter, issueSession } = require('./shared');
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/register', authLimiter, async (req: any, res: any) => {
+router.post('/register', authLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = registerSchema.parse({ ...req.body, languages: req.body.languages || ['en'] });
     const { email, password, country, languages } = parsed;
@@ -83,13 +84,13 @@ router.post('/register', authLimiter, async (req: any, res: any) => {
     const { token, refreshToken, expiresIn } = await issueSession(user, req);
     analytics.capture(user.id, 'user_registered');
     analytics.identify(user.id, { country: user.country || null });
-    res.status(201).json({ user, token, refreshToken, expiresIn });
+    return res.status(201).json({ user, token, refreshToken, expiresIn });
   } catch (error: any) {
     if (error.name === 'ZodError') {
-      return res.status(400).json({ error: 'Invalid request payload', details: error.issues.map((e: any) => e.message) });
+      return res.status(400).json({ error: 'Invalid request payload', details: error.issues.map((e: { message: string }) => e.message) });
     }
     req.log.error({ err: error }, 'Registration failed');
-    res.status(500).json({ error: 'Could not create account' });
+    return res.status(500).json({ error: 'Could not create account' });
   }
 });
 

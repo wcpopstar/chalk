@@ -1,3 +1,4 @@
+import type { Request, Response, NextFunction } from 'express';
 const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
@@ -23,11 +24,11 @@ const leaderboardLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 
 // Kill-switch: if games.tetris.enabled is turned off (e.g. during an
 // incident with the leaderboard query), both endpoints below respond 404
 // instead of hitting the DB — same as if the feature didn't exist.
-async function requireTetrisEnabled(req: any, res: any, next: any) {
+async function requireTetrisEnabled(req: Request, res: Response, next: NextFunction) {
   if (!(await isEnabled('games.tetris.enabled', { userId: req.user?.id }))) {
     return res.status(404).json({ error: 'Not found' });
   }
-  next();
+  return next();
 }
 
 /**
@@ -70,7 +71,7 @@ async function requireTetrisEnabled(req: any, res: any, next: any) {
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.post('/tetris/score', requireAuth, requireTetrisEnabled, scoreLimiter, validate({ body: submitScoreSchema }), async (req: any, res: any) => {
+router.post('/tetris/score', requireAuth, requireTetrisEnabled, scoreLimiter, validate({ body: submitScoreSchema }), async (req: Request, res: Response) => {
   const { score } = req.body;
   const uid = req.user.id;
 
@@ -109,7 +110,7 @@ router.post('/tetris/score', requireAuth, requireTetrisEnabled, scoreLimiter, va
     .from('tetris_scores')
     .select('user_id', { count: 'exact', head: true });
 
-  res.json({
+  return res.json({
     score,
     bestScore,
     gamesPlayed,
@@ -152,7 +153,7 @@ router.post('/tetris/score', requireAuth, requireTetrisEnabled, scoreLimiter, va
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
-router.get('/tetris/leaderboard', requireAuth, requireTetrisEnabled, leaderboardLimiter, validate({ query: leaderboardQuerySchema }), async (req: any, res: any) => {
+router.get('/tetris/leaderboard', requireAuth, requireTetrisEnabled, leaderboardLimiter, validate({ query: leaderboardQuerySchema }), async (req: Request, res: Response) => {
   const { limit } = req.query;
 
   // Cache the full top-50 as ONE key regardless of the requested limit, and
@@ -198,7 +199,7 @@ router.get('/tetris/leaderboard', requireAuth, requireTetrisEnabled, leaderboard
     .select('user_id', { count: 'exact', head: true });
   totalPlayers = total || 0;
 
-  res.json({
+  return res.json({
     top: (top || []).map((row: any, i: any) => ({
       rank: i + 1,
       userId: row.user_id,

@@ -5,7 +5,7 @@ const { EMAIL } = require('../queues/queueNames');
 const { JOBS } = require('../queues/emailQueue');
 const { sendPasswordResetEmail } = require('../services/mailer');
 
-async function processEmailJob(job: any) {
+async function processEmailJob(job: { name: string; data: { to: string; resetUrl: string } }) {
   switch (job.name) {
     case JOBS.PASSWORD_RESET: {
       const { to, resetUrl } = job.data;

@@ -17,7 +17,7 @@ async function notifyFriendsPresence(io: TypedServer, userId: string, status: 'o
 
     if (!friendRows) return;
 
-    await Promise.all(friendRows.map(async (row: any) => {
+    await Promise.all(friendRows.map(async (row: { user_a: string; user_b: string }) => {
       const friendId = row.user_a === userId ? row.user_b : row.user_a;
       const fSocket = await getOnlineSocket(friendId);
       if (fSocket) io.to(fSocket).emit('presence', { userId, status });

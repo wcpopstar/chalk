@@ -3,7 +3,7 @@ const { supabaseAdmin } = require('../services/supabase');
 // Tears down any friendship/pending request between two users, in either
 // direction — used by services/blockHelper.js when a block should also end
 // an existing friendship.
-function deleteBetween(userIdA: any, userIdB: any) {
+function deleteBetween(userIdA: string, userIdB: string) {
   return supabaseAdmin
     .from('friends')
     .delete()

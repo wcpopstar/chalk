@@ -24,7 +24,7 @@ const MAX_MEDIA_BYTES = 8 * 1024 * 1024; // 8MB, matches upload limits in media.
 // Array (`Array.isArray(buffer)` is false), so it's its own branch here.
 // The string/array branches stay as a fallback for any client that instead
 // sends base64 or a plain byte array.
-const isBinaryLike = (v: any) =>
+const isBinaryLike = (v: unknown) =>
   (Buffer.isBuffer(v) || v instanceof Uint8Array || v instanceof ArrayBuffer) &&
   ((v as any).byteLength ?? (v as any).length ?? 0) <= MAX_MEDIA_BYTES;
 
@@ -37,7 +37,7 @@ const mediaBlob = z.union([
 const mimeField = z.string().trim().min(3).max(100).optional();
 const durationField = z.number().finite().nonnegative().max(600).optional(); // 10 min cap
 
-const messageText = (max: any) => z.string().trim().min(1).max(max);
+const messageText = (max: number) => z.string().trim().min(1).max(max);
 const gifUrl = z.string().trim().url().startsWith('https://').max(2000);
 
 const GAME_IDS = ['valorant', 'csgo', 'dota2', 'lol', 'apex', 'fortnite', 'overwatch2', 'rust', 'minecraft', 'other'];

@@ -34,7 +34,7 @@ async function isFlooding(socket: TypedSocket, key: string, windowMs: number, ma
 // Scoped to the authenticated user — survives reconnects/multiple tabs, so
 // it's what actually closes the "just open a new connection" loophole that
 // a pure per-socket check has.
-async function isFloodingUser(userId: any, key: any, windowMs: any, max: any) {
+async function isFloodingUser(userId: string, key: string, windowMs: number, max: number) {
   const res = await checkSlidingWindow(`user:${userId}:${key}`, windowMs, max);
   return !res.allowed;
 }
@@ -44,7 +44,7 @@ async function isFloodingUser(userId: any, key: any, windowMs: any, max: any) {
 // (chat:gif / chat:voice / chat:edit each individually under its own limit,
 // but adding up to a flood), not the primary per-event limit.
 const GLOBAL_EVENT_BUDGET = { windowMs: 10_000, max: 120 };
-async function isFloodingGlobal(userId: any) {
+async function isFloodingGlobal(userId: string) {
   return isFloodingUser(userId, '__global__', GLOBAL_EVENT_BUDGET.windowMs, GLOBAL_EVENT_BUDGET.max);
 }
 
@@ -83,13 +83,13 @@ async function checkConnectionBudget(socket: TypedSocket) {
 // and is treated as such: all of it shares ONE combined 60/min budget, per
 // spec. Any event actually named `signal:...` (e.g. if raw WebRTC signaling
 // is added later) is covered automatically too — see resolveNamedLimit().
-const NAMED_LIMITS: any = {
+const NAMED_LIMITS = {
   'match:join': { windowMs: 60_000, max: Number(process.env.RATE_LIMIT_MATCH_JOIN_MAX) || 6 },
   'chat:message': { windowMs: 60_000, max: Number(process.env.RATE_LIMIT_CHAT_MESSAGE_MAX) || 25 },
   signal: { windowMs: 60_000, max: Number(process.env.RATE_LIMIT_SIGNAL_MAX) || 60 },
 };
 
-function resolveNamedLimit(eventName: any) {
+function resolveNamedLimit(eventName: string) {
   if (eventName === 'match:join') return { limitKey: 'match:join', ...NAMED_LIMITS['match:join'] };
   if (eventName === 'chat:message') return { limitKey: 'chat:message', ...NAMED_LIMITS['chat:message'] };
   if (eventName.startsWith('signal:') || eventName.startsWith('call:')) {
@@ -100,7 +100,7 @@ function resolveNamedLimit(eventName: any) {
 
 // Returns null if `eventName` isn't covered by a named hard limit, else the
 // checkSlidingWindow() result plus `limitKey` (for logging/emit payloads).
-async function checkNamedLimit(userId: any, eventName: any) {
+async function checkNamedLimit(userId: string, eventName: string) {
   const cfg = resolveNamedLimit(eventName);
   if (!cfg) return null;
   const res = await checkSlidingWindow(`named:${cfg.limitKey}:${userId}`, cfg.windowMs, cfg.max, 0.8);
