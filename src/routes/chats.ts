@@ -52,7 +52,14 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
       )
     `)
     .eq('user_id', uid)
-    .order('created_at', { referencedTable: 'conversations', ascending: false });
+    .order('created_at', { referencedTable: 'conversations', ascending: false })
+    // Only the LAST message of each conversation is ever used (the list
+    // preview) — without this order+limit the embed shipped the ENTIRE
+    // message history of every chat on every open of the Chats tab, so the
+    // endpoint got slower as histories grew. messages_conv_idx
+    // (conversation_id, created_at DESC) serves this exactly.
+    .order('created_at', { referencedTable: 'conversations.messages', ascending: false })
+    .limit(1, { referencedTable: 'conversations.messages' });
 
   if (error) return res.status(500).json({ error: error.message });
 
@@ -79,7 +86,7 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
   const conversations = (data || []).map((row) => {
     const conv  = row.conversations;
     const msgs  = conv?.messages || [];
-    const last  = msgs[msgs.length - 1] || null;
+    const last  = msgs[0] || null; // newest-first + limit 1 in the query above
     const otherUser = conv?.type === 'direct' ? (otherUserByConv[conv.id] || null) : null;
     return {
       id: conv.id,
