@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 
 function create({ userId, tokenHash, expiresAt }: { userId: string; tokenHash: string; expiresAt: string }) {
   return supabaseAdmin.from('password_resets').insert({

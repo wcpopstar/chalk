@@ -6,7 +6,7 @@ const { validate } = require('../../middleware/validate');
 const { uuidParam } = require('../../validation/common');
 const { reportBodySchema } = require('../../validation/userSchemas');
 const { userLimiter } = require('../../middleware/rateLimit');
-const blocksRepository = require('../../repositories/blocksRepository');
+import * as blocksRepository from '../../repositories/blocksRepository';
 const reportsRepository = require('../../repositories/reportsRepository');
 const { blockUser, unblockUser } = require('../../services/blockHelper');
 const { moderationLimiter } = require('./shared');
@@ -46,7 +46,7 @@ router.get('/me/blocked', requireAuth, blockedListLimiter, async (req: Request, 
   const { data, error } = await blocksRepository.listBlockedByUser(req.user.id);
 
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ blocked: (data || []).filter((r: any) => r.blocked) });
+  return res.json({ blocked: (data || []).filter((r) => r.blocked) });
 });
 
 /**

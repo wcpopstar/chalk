@@ -1,5 +1,5 @@
 const { v4: uuid } = require('uuid');
-const { supabaseAdmin } = require('./supabase');
+import { supabaseAdmin } from './supabase';
 
 /**
  * Instantly (mutually) befriends two users — used by "add friend during/after
@@ -16,7 +16,7 @@ async function addFriendPairInstant(userIdA: string, userIdB: string) {
   if (!userIdA || !userIdB) throw new Error('Both user ids are required');
   if (userIdA === userIdB) return { ok: false, reason: 'self' };
 
-  const [a, b] = [userIdA, userIdB].sort();
+  const [a, b] = [userIdA, userIdB].sort() as [string, string];
 
   const { data: existing, error: selectErr } = await supabaseAdmin
     .from('friends')

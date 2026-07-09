@@ -1,5 +1,5 @@
-import type { UserRow } from '../types/db';
-const { supabaseAdmin } = require('../services/supabase');
+import type { UserInsert, UserUpdate } from '../types/db';
+import { supabaseAdmin } from '../services/supabase';
 
 /**
  * Repository layer for the `users` table.
@@ -28,7 +28,7 @@ function existsByEmailOrUsername(email: string, username: string) {
     .maybeSingle();
 }
 
-function createUser(record: Partial<UserRow> & { id: string }, selectFields: string = FULL_PROFILE_FIELDS) {
+function createUser(record: UserInsert, selectFields: string = FULL_PROFILE_FIELDS) {
   return supabaseAdmin.from('users').insert(record).select(selectFields).single();
 }
 
@@ -86,7 +86,7 @@ function existsByUsernameExcludingId(username: string, excludeUserId: string) {
     .maybeSingle();
 }
 
-function updateProfile(userId: string, updates: Partial<UserRow>, selectFields: string) {
+function updateProfile(userId: string, updates: UserUpdate, selectFields: string) {
   return supabaseAdmin.from('users').update(updates).eq('id', userId).select(selectFields).single();
 }
 

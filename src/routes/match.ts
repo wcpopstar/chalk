@@ -6,7 +6,7 @@ const { validate } = require('../middleware/validate');
 const { userLimiter } = require('../middleware/rateLimit');
 const { uuidParam } = require('../validation/common');
 const { historyQuerySchema, recordCallSchema, rateMatchSchema } = require('../validation/matchSchemas');
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 
 // History is just a read, so it's kept loose. record-call and rate both
 // write, and record-call in particular is triggered by the call-ending flow
@@ -106,11 +106,11 @@ router.get('/history', requireAuth, historyLimiter, validate({ query: historyQue
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCallSchema }), async (req: Request, res: Response) => {
-  const { participants, mode, gameId } = req.body;
+  const { participants, mode, gameId } = req.body as { participants: string[]; mode?: string; gameId?: string | null };
 
   const rows = participants
-    .filter((pid: any) => pid !== req.user.id)
-    .map((pid: any) => ({
+    .filter((pid) => pid !== req.user.id)
+    .map((pid) => ({
       id: uuid(),
       user_a: req.user.id,
       user_b: pid,
@@ -128,7 +128,7 @@ router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCa
 
   if (error) return res.status(500).json({ error: error.message });
 
-  const matches = (data || []).map((row: any) => ({
+  const matches = (data || []).map((row) => ({
     id: row.id,
     participantId: row.user_a === req.user.id ? row.user_b : row.user_a,
   }));
@@ -187,7 +187,7 @@ router.post('/:matchId/rate', requireAuth, writeLimiter, validate({ params: uuid
   const { data: match } = await supabaseAdmin
     .from('match_history')
     .select('user_a, user_b')
-    .eq('id', req.params.matchId)
+    .eq('id', req.params.matchId!)
     .or(`user_a.eq.${req.user.id},user_b.eq.${req.user.id}`)
     .single();
 
@@ -196,7 +196,7 @@ router.post('/:matchId/rate', requireAuth, writeLimiter, validate({ params: uuid
   const ratedUserId = match.user_a === req.user.id ? match.user_b : match.user_a;
 
   const { error } = await supabaseAdmin.from('ratings').upsert({
-    match_id:       req.params.matchId,
+    match_id:       req.params.matchId!,
     rater_user_id:  req.user.id,
     rated_user_id:  ratedUserId,
     rating,
@@ -213,7 +213,7 @@ router.post('/:matchId/rate', requireAuth, writeLimiter, validate({ params: uuid
     .eq('rated_user_id', ratedUserId);
 
   if (avgRow && avgRow.length) {
-    const avg = avgRow.reduce((s: any, r: any) => s + r.rating, 0) / avgRow.length;
+    const avg = avgRow.reduce((s, r) => s + r.rating, 0) / avgRow.length;
     await supabaseAdmin.from('users').update({ avg_rating: parseFloat(avg.toFixed(2)) }).eq('id', ratedUserId);
   }
 

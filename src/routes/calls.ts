@@ -6,7 +6,7 @@ const { validate } = require('../middleware/validate');
 const { userLimiter } = require('../middleware/rateLimit');
 const { uuidParam } = require('../validation/common');
 const { startCallSchema, endCallSchema } = require('../validation/callSchemas');
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 const analytics = require('../services/analytics');
 
 // Call lifecycle writes — generous enough for normal use (nobody starts more
@@ -102,7 +102,7 @@ router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(
     ended_at: new Date().toISOString(),
     duration_seconds: duration_seconds ?? null,
     status: 'ended',
-  }).eq('id', req.params.id);
+  }).eq('id', req.params.id!);
 
   if (error) return res.status(500).json({ error: error.message });
   analytics.capture(req.user.id, 'call_ended', { durationSeconds: duration_seconds ?? null });

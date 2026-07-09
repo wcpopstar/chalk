@@ -7,7 +7,7 @@ const { userLimiter } = require('../middleware/rateLimit');
 
 // Bootstrap call fired once per session — loose, but not unbounded.
 const bootstrapLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Too many requests, slow down.' });
-const { setOverride, listFlags } = require('../services/featureFlags');
+import { setOverride, listFlags } from '../services/featureFlags';
 const { flagKeyParam, setFlagBodySchema } = require('../validation/featureFlagSchemas');
 
 // Toggling flags is an ops action, not something that needs to survive a
@@ -38,7 +38,7 @@ const adminLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Too m
 router.get('/', requireAuth, bootstrapLimiter, async (req: Request, res: Response) => {
   const flags = await listFlags({ userId: req.user.id });
   const resolved: any = {};
-  flags.forEach((f: any) => { resolved[f.key] = f.enabled; });
+  flags.forEach((f) => { resolved[f.key] = f.enabled; });
   return res.json({ flags: resolved });
 });
 
@@ -59,7 +59,7 @@ router.patch(
   validate({ params: flagKeyParam, body: setFlagBodySchema }),
   async (req: Request, res: Response) => {
     try {
-      await setOverride(req.params.key, req.body);
+      await setOverride(req.params.key!, req.body);
       return res.json({ ok: true });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
@@ -71,7 +71,7 @@ router.patch(
 // Removes any live override, falling back to the env var / code default.
 router.delete('/admin/:key', requireAdminKey, adminLimiter, validate({ params: flagKeyParam }), async (req: Request, res: Response) => {
   try {
-    await setOverride(req.params.key, null);
+    await setOverride(req.params.key!, null);
     return res.json({ ok: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

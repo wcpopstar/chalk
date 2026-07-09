@@ -1,4 +1,4 @@
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 
 // Tears down any friendship/pending request between two users, in either
 // direction — used by services/blockHelper.js when a block should also end

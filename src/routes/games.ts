@@ -4,7 +4,7 @@ const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { userLimiter } = require('../middleware/rateLimit');
 const { submitScoreSchema, leaderboardQuerySchema } = require('../validation/gameSchemas');
-const { supabaseAdmin } = require('../services/supabase');
+import { supabaseAdmin } from '../services/supabase';
 const { cached, invalidate } = require('../utils/cache');
 const { isEnabled } = require('../services/featureFlags');
 
@@ -200,7 +200,7 @@ router.get('/tetris/leaderboard', requireAuth, requireTetrisEnabled, leaderboard
   totalPlayers = total || 0;
 
   return res.json({
-    top: (top || []).map((row: any, i: any) => ({
+    top: (top || []).map((row: any, i: number) => ({
       rank: i + 1,
       userId: row.user_id,
       username: row.users?.username || 'Игрок',
