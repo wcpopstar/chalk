@@ -73,6 +73,23 @@ redis.defineCommand('slidingWindowCheck', {
   lua: SLIDING_WINDOW_SCRIPT,
 });
 
+// defineCommand() registers the method at runtime only — ioredis's types
+// don't know about it, so declare it here (same signature the Lua script
+// returns: [count, allowed(0/1), warn(0/1)]).
+declare module 'ioredis' {
+  interface RedisCommander<Context> {
+    slidingWindowCheck(
+      zsetKey: string,
+      warnKey: string,
+      now: number,
+      windowMs: number,
+      limit: number,
+      warnThreshold: number,
+      member: string,
+    ): Promise<[number, number, number]>;
+  }
+}
+
 // Only log a Redis-unavailable warning once every 30s (not on every single
 // socket event) so an outage doesn't itself flood the logs.
 let failureLoggedRecently = false;

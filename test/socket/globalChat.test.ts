@@ -54,9 +54,9 @@ describe('socket/globalChat.js', () => {
     io.register(other);
     other.join('global');
 
-    supaMock.enqueue({ data: { id: 'g1', text: 'hi everyone', type: 'text' }, error: null });
+    supaMock.enqueue({ data: { id: 'bb000001-0000-4000-8000-000000000001', text: 'hi everyone', type: 'text' }, error: null });
 
-    let ackResult;
+    let ackResult: any;
     await socket.trigger('global:message', { text: 'hi everyone' }, (r: any) => { ackResult = r; });
 
     assert.deepEqual(ackResult, { ok: true });
@@ -72,7 +72,7 @@ describe('socket/globalChat.js', () => {
     const { socket } = setup('me');
     supaMock.enqueue({ data: { id: 'g2', type: 'gif', media_url: 'https://example.com/x.gif' }, error: null });
 
-    let ackResult;
+    let ackResult: any;
     await socket.trigger('global:gif', { gifUrl: 'https://example.com/x.gif' }, (r: any) => { ackResult = r; });
 
     assert.deepEqual(ackResult, { ok: true });
@@ -87,7 +87,7 @@ describe('socket/globalChat.js', () => {
     supaMock.enqueue({ error: null }); // storage upload
     supaMock.enqueue({ data: { id: 'v1', type: 'voice' }, error: null }); // saveGlobalMessage
 
-    let ackResult;
+    let ackResult: any;
     await socket.trigger('global:voice', { audio: FAKE_WEBM, mime: 'audio/webm', duration: 3.2 }, (r: any) => { ackResult = r; });
 
     assert.deepEqual(ackResult, { ok: true });
@@ -96,10 +96,10 @@ describe('socket/globalChat.js', () => {
 
   it('global:edit broadcasts the edited message', async () => {
     const { socket } = setup('me');
-    supaMock.enqueue({ data: { id: 'g1', text: 'edited' }, error: null });
+    supaMock.enqueue({ data: { id: 'bb000001-0000-4000-8000-000000000001', text: 'edited' }, error: null });
 
-    let ackResult;
-    await socket.trigger('global:edit', { messageId: 'g1', text: 'edited' }, (r: any) => { ackResult = r; });
+    let ackResult: any;
+    await socket.trigger('global:edit', { messageId: 'bb000001-0000-4000-8000-000000000001', text: 'edited' }, (r: any) => { ackResult = r; });
 
     assert.deepEqual(ackResult, { ok: true });
     assert.ok(socket.emitted.some((e: any) => e.event === 'global:message:edited' && e.payload.text === 'edited'));
@@ -107,20 +107,20 @@ describe('socket/globalChat.js', () => {
 
   it('global:delete broadcasts a deletion notice', async () => {
     const { socket } = setup('me');
-    supaMock.enqueue({ data: { id: 'g1' }, error: null });
+    supaMock.enqueue({ data: { id: 'bb000001-0000-4000-8000-000000000001' }, error: null });
 
-    let ackResult;
-    await socket.trigger('global:delete', { messageId: 'g1' }, (r: any) => { ackResult = r; });
+    let ackResult: any;
+    await socket.trigger('global:delete', { messageId: 'bb000001-0000-4000-8000-000000000001' }, (r: any) => { ackResult = r; });
 
     assert.deepEqual(ackResult, { ok: true });
-    assert.ok(socket.emitted.some((e: any) => e.event === 'global:message:deleted' && e.payload.messageId === 'g1'));
+    assert.ok(socket.emitted.some((e: any) => e.event === 'global:message:deleted' && e.payload.messageId === 'bb000001-0000-4000-8000-000000000001'));
   });
 
   it('acks an error instead of throwing when the DB insert fails', async () => {
     const { socket } = setup('me');
     supaMock.enqueue({ data: null, error: { message: 'insert failed' } });
 
-    let ackResult;
+    let ackResult: any;
     await socket.trigger('global:message', { text: 'hello' }, (r: any) => { ackResult = r; });
 
     assert.match(ackResult.error, /insert failed/);

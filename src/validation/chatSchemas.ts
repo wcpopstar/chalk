@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 const { paginationQuery, isoDateTimeOptional } = require('./common');
 
@@ -17,4 +16,4 @@ const messagesQuerySchema = paginationQuery({ limit: 50, maxLimit: 100, offset: 
   before: isoDateTimeOptional,
 });
 
-module.exports = { createDirectSchema, createGroupSchema, messagesQuerySchema };
+export { createDirectSchema, createGroupSchema, messagesQuerySchema };

@@ -1,6 +1,11 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// OpenTelemetry must be FIRST (before express/http/ioredis are required) —
+// its auto-instrumentation patches those modules at load time. No-op unless
+// OTEL_EXPORTER_OTLP_ENDPOINT is set. See utils/otel.ts.
+import { shutdownTelemetry } from './utils/otel';
+
 // Sentry must be required before anything else gets a chance to throw, so
 // its init (including automatic uncaught-exception hooking) is in place
 // for the rest of the module graph below.
@@ -14,6 +19,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import { createRateLimitStore } from './middleware/rateLimit';
 
 import logger from './utils/logger';
 import { requestLogger } from './middleware/requestLogger';
@@ -34,7 +40,8 @@ import gifRoutes from './routes/gifs';
 import { initSocket } from './socket';
 import { startWorkers, closeWorkers } from './workers';
 import { closeQueues } from './queues';
-import metrics from './utils/metrics';
+import * as metrics from './utils/metrics';
+import { shutdownAnalytics } from './services/analytics';
 import { metricsMiddleware } from './middleware/metrics';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
@@ -76,12 +83,35 @@ const io = new Server(server, {
 // correctly when there's exactly one server process.
 io.adapter(createAdapter(pubClient, subClient));
 
-app.use(helmet({ contentSecurityPolicy: false }));
+// CSP: locked to what public/index.html actually needs. The frontend is
+// vanilla JS with ~230 inline onclick= handlers, so script-src-attr must
+// allow 'unsafe-inline' — but <script> ELEMENTS are still restricted to
+// self + the two CDNs (Socket.IO client, Agora SDK), which is the part
+// that blocks an injected <script src="https://evil..."> outright.
+// 'wasm-unsafe-eval' is for the Agora SDK's WebAssembly audio pipeline.
+// img/media/connect are broad (https:/wss:/blob:/data:) because avatars
+// come from Supabase storage, GIFs from Giphy CDNs, voice notes play from
+// blobs, and Agora signaling connects to its own wss endpoints.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', "'wasm-unsafe-eval'"],
+      'script-src-attr': ["'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'"],
+      'img-src': ["'self'", 'data:', 'blob:', 'https:'],
+      'media-src': ["'self'", 'blob:', 'data:'],
+      'connect-src': ["'self'", 'https:', 'wss:'],
+      'worker-src': ["'self'", 'blob:'],
+    },
+  },
+}));
 app.use(cors({ origin: clientOrigin, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
+  store: createRateLimitStore(),
   standardHeaders: true,
   legacyHeaders: false,
   // /health and /metrics are hit by infrastructure (load balancer probes,
@@ -340,6 +370,11 @@ async function shutdown(signal: any) {
       }
     });
     logger.info('Supabase clients closed');
+
+    // Flush the last analytics events and spans of this instance's life.
+    await shutdownAnalytics();
+    await shutdownTelemetry();
+    logger.info('Analytics and telemetry flushed');
 
     logger.info('✅ Graceful shutdown complete');
     clearTimeout(forceExitTimer);

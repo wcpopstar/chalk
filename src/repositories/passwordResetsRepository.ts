@@ -1,4 +1,3 @@
-export {};
 const { supabaseAdmin } = require('../services/supabase');
 
 function create({ userId, tokenHash, expiresAt }: any) {
@@ -21,4 +20,4 @@ function markUsed(id: any) {
   return supabaseAdmin.from('password_resets').update({ used_at: new Date().toISOString() }).eq('id', id);
 }
 
-module.exports = { create, findByTokenHash, markUsed };
+export { create, findByTokenHash, markUsed };

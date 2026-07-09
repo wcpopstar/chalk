@@ -15,16 +15,16 @@ const { signAccessToken } = require('../../src/utils/jwt');
 // getUserCurrentRoom() — and socket/state.js opens a real ioredis
 // connection at require time (src/socket/redisClient.js). Stub it out with
 // a controllable fake, same approach as test/routes/friends.test.js.
-let currentRoomResult = null;
+let currentRoomResult: any = null;
 stubModule(require.resolve('../../src/socket/state'), {
   getUserCurrentRoom: async () => currentRoomResult,
 });
 
-const userId = '11111111-1111-1111-1111-111111111111';
+const userId = '11111111-1111-4111-8111-111111111111';
 
 describe('Agora routes (/api/agora)', () => {
-  let token;
-  let restoreEnv;
+  let token: any;
+  let restoreEnv: any;
 
   before(() => {
     // Isolate AGORA_* env vars per test (dev-fallback vs configured mode)
@@ -46,11 +46,15 @@ describe('Agora routes (/api/agora)', () => {
   });
 
   describe('dev fallback mode (no APP_ID configured)', () => {
-    let devApp;
+    let devApp: any;
 
     before(() => {
       delete process.env.AGORA_APP_ID;
       delete process.env.AGORA_APP_CERTIFICATE;
+      // agora.ts reads AGORA_* through config/env, which snapshots
+      // process.env once at require time — bust BOTH caches so the
+      // re-required route sees the env mutation above.
+      delete require.cache[require.resolve('../../src/config/env')];
       delete require.cache[require.resolve('../../src/routes/agora')];
       const agoraRouter = require('../../src/routes/agora');
       devApp = buildTestApp({ '/api/agora': agoraRouter });
@@ -83,11 +87,13 @@ describe('Agora routes (/api/agora)', () => {
   });
 
   describe('configured mode (APP_ID + certificate set)', () => {
-    let configuredApp;
+    let configuredApp: any;
 
     before(() => {
       process.env.AGORA_APP_ID = 'a'.repeat(32);
       process.env.AGORA_APP_CERTIFICATE = 'b'.repeat(32);
+      // Same double cache-bust as the dev-fallback suite above.
+      delete require.cache[require.resolve('../../src/config/env')];
       delete require.cache[require.resolve('../../src/routes/agora')];
       const agoraRouter = require('../../src/routes/agora');
       configuredApp = buildTestApp({ '/api/agora': agoraRouter });

@@ -1,4 +1,3 @@
-export {};
 const { v4: uuid } = require('uuid');
 const blocksRepository = require('../repositories/blocksRepository');
 const friendsRepository = require('../repositories/friendsRepository');
@@ -43,4 +42,4 @@ async function unblockUser(blockerId: any, blockedId: any) {
   return { ok: true };
 }
 
-module.exports = { areUsersBlocked, blockUser, unblockUser };
+export { areUsersBlocked, blockUser, unblockUser };

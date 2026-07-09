@@ -1,5 +1,5 @@
-export {};
 const router = require('express').Router();
+const analytics = require('../../services/analytics');
 const bcrypt = require('bcryptjs');
 const usersRepository = require('../../repositories/usersRepository');
 const { loginSchema } = require('../../validation/schemas');
@@ -65,6 +65,7 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req: any, res: any)
 
     const { password_hash, ...safeUser } = user;
     const { token, refreshToken, expiresIn } = await issueSession(user, req);
+    analytics.capture(user.id, 'user_logged_in');
     res.json({ user: safeUser, token, refreshToken, expiresIn });
   } catch (error: any) {
     if (error.name === 'ZodError') {
@@ -75,4 +76,4 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req: any, res: any)
   }
 });
 
-module.exports = router;
+export = router;

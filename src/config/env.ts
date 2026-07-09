@@ -1,4 +1,3 @@
-export {};
 /**
  * Single source of truth for every environment variable this app reads.
  *
@@ -131,6 +130,22 @@ const config = Object.freeze({
   workers: Object.freeze({
     runInProcess: process.env.RUN_WORKERS_IN_PROCESS !== 'false',
   }),
+
+  analytics: Object.freeze({
+    // Product analytics (PostHog). Unset = analytics disabled entirely —
+    // services/analytics.ts becomes a no-op, nothing is sent anywhere.
+    posthogKey: process.env.POSTHOG_API_KEY || null,
+    posthogHost: process.env.POSTHOG_HOST || 'https://us.i.posthog.com',
+  }),
+
+  otel: Object.freeze({
+    // Distributed tracing (OpenTelemetry). Enabled ONLY when an OTLP
+    // endpoint is configured — without one, utils/otel.ts registers
+    // nothing and adds zero overhead. Standard OTEL_* names are used so
+    // any collector/vendor documentation applies as-is.
+    exporterEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || null,
+    serviceName: process.env.OTEL_SERVICE_NAME || 'chalk-backend',
+  }),
 });
 
 // ── Fail fast for anything the app truly cannot run without ────────────────
@@ -164,6 +179,9 @@ function validateEnv() {
   if (!config.sentry.dsn && config.server.isProduction) {
     logger.warn('SENTRY_DSN is not set in production — errors will not be reported to Sentry');
   }
+  if (!config.analytics.posthogKey && config.server.isProduction) {
+    logger.warn('POSTHOG_API_KEY is not set in production — product analytics events are disabled');
+  }
   if (!config.metrics.token && config.server.isProduction) {
     logger.warn('METRICS_TOKEN is not set in production — /metrics is publicly readable');
   }
@@ -181,4 +199,4 @@ function validateEnv() {
   }
 }
 
-module.exports = { config, validateEnv };
+export { config, validateEnv };

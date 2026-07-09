@@ -32,8 +32,8 @@ var currentCallMatchIds = {};
 // Access token: short-lived JWT (15 min), kept in memory + localStorage.
 // Refresh token: long-lived opaque secret, only ever used to hit /api/auth/refresh.
 function setSession(data) {
-  if (data.token) token = data.token;
-  if (data.refreshToken) refreshToken = data.refreshToken;
+  token = data.token || token;
+  refreshToken = data.refreshToken || refreshToken;
   if (data.user) currentUser = data.user;
   if (token) localStorage.setItem('chalk_token', token);
   if (refreshToken) localStorage.setItem('chalk_refresh_token', refreshToken);
@@ -52,7 +52,7 @@ function clearSession() {
 // fire a burst of refresh calls. Returns false if the session can no longer
 // be renewed (refresh token missing/expired/reused) — treat that as logged out.
 var _refreshInFlight = null;
-async function refreshSession() {
+function refreshSession() {
   if (!refreshToken) return false;
   if (_refreshInFlight) return _refreshInFlight;
 

@@ -1,4 +1,3 @@
-export {};
 const { supabaseAdmin } = require('../services/supabase');
 
 // All block pairs where userId is either the blocker or the blocked side —
@@ -51,7 +50,7 @@ function deleteBlock(blockerId: any, blockedId: any) {
   return supabaseAdmin.from('blocks').delete().eq('blocker_id', blockerId).eq('blocked_id', blockedId);
 }
 
-module.exports = {
+export {
   findPairsInvolving,
   findPairBetween,
   existsBetween,

@@ -1,4 +1,3 @@
-export {};
 // NOTE: this is a real (typed) `import`, not `const { z } = require('zod')`,
 // specifically so the `z.infer<typeof schema>` types at the bottom of this
 // file actually resolve to real object shapes instead of `any`. TypeScript
@@ -130,7 +129,7 @@ const socketEventSchemas = {
   'friends:call_status': friendsCallStatus,
 };
 
-module.exports = { socketEventSchemas, GAME_IDS };
+export { socketEventSchemas, GAME_IDS };
 
 // ── Inferred payload types ──────────────────────────────────────────────
 // These are derived straight from the Zod schemas above via z.infer<>, so

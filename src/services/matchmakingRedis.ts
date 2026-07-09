@@ -1,4 +1,3 @@
-export {};
 const { redis } = require('../socket/redisClient');
 const logger = require('../utils/logger').child({ module: 'matchmakingRedis' });
 
@@ -250,7 +249,7 @@ async function activeQueues() {
 // creating a call room, enriching with profile data — see
 // src/socket/match.js) can omit `io` and use the returned matches instead,
 // exactly like before.
-async function runMatchCycle(io: any) {
+async function runMatchCycle(io?: any) {
   const gotLock = await acquireMatchLoopLock();
   if (!gotLock) return { soloMatch: null, groupMatch: null, matches: [] };
 
@@ -294,7 +293,7 @@ async function runMatchCycle(io: any) {
 // ── Queue size, for monitoring / UI ──────────────────────────────────────
 // queueSize()                -> { solo, group } totals across all games (old shape, back-compat)
 // queueSize(mode, gameId)    -> number, size of that one queue
-async function queueSize(mode: any, gameId: any) {
+async function queueSize(mode?: any, gameId?: any) {
   if (mode && gameId) {
     return redis.scard(queueSetKey(mode, gameId));
   }
@@ -310,11 +309,11 @@ async function queueSize(mode: any, gameId: any) {
   return { ...totals, byQueue: sizes.filter((q) => q.size > 0) };
 }
 
-module.exports = {
+export {
   enqueue,
   dequeue,
   runMatchCycle,
   queueSize,
   // explicit alias matching the requirement wording ("посмотреть размер очереди")
-  getQueueSize: queueSize,
+  queueSize as getQueueSize,
 };

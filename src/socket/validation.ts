@@ -8,7 +8,7 @@ import {
 } from './rateLimit';
 import fallbackLoggerBase from '../utils/logger';
 import Sentry from '../utils/sentry';
-import metrics from '../utils/metrics';
+import * as metrics from '../utils/metrics';
 const fallbackLogger = fallbackLoggerBase.child({ module: 'socket-validation' });
 
 // ── secureOn() handler/options types ─────────────────────────────────────

@@ -12,7 +12,7 @@ import { registerCallHandlers } from './calls';
 import { registerChatHandlers } from './chat';
 import { registerGlobalChatHandlers } from './globalChat';
 import { registerSwipeHandlers } from './swipe';
-import metrics from '../utils/metrics';
+import * as metrics from '../utils/metrics';
 import { safeAsync } from '../utils/safeAsync';
 
 // ── Main socket initialiser ───────────────────────────────────────────────

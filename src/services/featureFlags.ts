@@ -1,4 +1,3 @@
-export {};
 const crypto = require('crypto');
 const logger = require('../utils/logger').child({ module: 'feature-flags' });
 const { queueConnection: redis } = require('../queues/connection');
@@ -130,4 +129,4 @@ async function listFlags({ userId }: any = {}) {
   return entries;
 }
 
-module.exports = { isEnabled, setOverride, listFlags, REGISTRY };
+export { isEnabled, setOverride, listFlags, REGISTRY };

@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const { v4: uuid } = require('uuid');
 const { requireAuth } = require('../middleware/auth');
@@ -219,4 +218,4 @@ router.post('/:matchId/rate', requireAuth, writeLimiter, validate({ params: uuid
   res.json({ ok: true });
 });
 
-module.exports = router;
+export = router;

@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const { requireAuth } = require('../../middleware/auth');
 const { validate } = require('../../middleware/validate');
@@ -170,4 +169,4 @@ router.get('/search', requireAuth, searchLimiter, validate({ query: searchQueryS
   res.json({ users: ranked });
 });
 
-module.exports = router;
+export = router;

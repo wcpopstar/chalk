@@ -1,4 +1,3 @@
-export {};
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { config } = require('../config/env');
@@ -50,7 +49,7 @@ function hashOpaqueToken(rawToken: any) {
   return crypto.createHash('sha256').update(rawToken).digest('hex');
 }
 
-module.exports = {
+export {
   ISSUER,
   AUDIENCE,
   ACCESS_TOKEN_TTL,

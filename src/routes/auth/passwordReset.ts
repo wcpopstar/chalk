@@ -1,4 +1,3 @@
-export {};
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
@@ -149,4 +148,4 @@ router.post('/reset-password', authLimiter, validate({ body: resetPasswordSchema
   res.json({ ok: true });
 });
 
-module.exports = router;
+export = router;

@@ -23,9 +23,9 @@ stubModule(require.resolve('../../src/services/supabase'), {
 const callsRouter = require('../../src/routes/calls');
 
 describe('Calls routes (/api/calls)', () => {
-  let app;
-  let token;
-  const userId = '11111111-1111-1111-1111-111111111111';
+  let app: any;
+  let token: any;
+  const userId = '11111111-1111-4111-8111-111111111111';
 
   before(() => {
     app = buildTestApp({ '/api/calls': callsRouter });
@@ -60,9 +60,9 @@ describe('Calls routes (/api/calls)', () => {
     it('uses the provided roomId, participants and mode', async () => {
       supaMock.enqueue({
         data: {
-          id: 'room-42',
+          id: 'd0000042-0042-4042-8042-000000000042',
           initiated_by: userId,
-          participants: [userId, 'user-2'],
+          participants: [userId, 'ab222222-2222-4222-8222-222222222222'],
           mode: 'group',
           status: 'active',
         },
@@ -72,10 +72,10 @@ describe('Calls routes (/api/calls)', () => {
       const res = await request(app)
         .post('/api/calls/start')
         .set('Authorization', `Bearer ${token}`)
-        .send({ roomId: 'room-42', participants: [userId, 'user-2'], mode: 'group' });
+        .send({ roomId: 'd0000042-0042-4042-8042-000000000042', participants: [userId, 'ab222222-2222-4222-8222-222222222222'], mode: 'group' });
 
       assert.equal(res.status, 201);
-      assert.equal(res.body.call.id, 'room-42');
+      assert.equal(res.body.call.id, 'd0000042-0042-4042-8042-000000000042');
       assert.equal(res.body.call.mode, 'group');
     });
 
@@ -94,7 +94,7 @@ describe('Calls routes (/api/calls)', () => {
 
   describe('PATCH /api/calls/:id/end', () => {
     it('rejects requests with no access token', async () => {
-      const res = await request(app).patch('/api/calls/room-1/end').send({});
+      const res = await request(app).patch('/api/calls/d0000001-0001-4001-8001-000000000001/end').send({});
       assert.equal(res.status, 401);
     });
 
@@ -102,7 +102,7 @@ describe('Calls routes (/api/calls)', () => {
       supaMock.enqueue({ error: null });
 
       const res = await request(app)
-        .patch('/api/calls/room-1/end')
+        .patch('/api/calls/d0000001-0001-4001-8001-000000000001/end')
         .set('Authorization', `Bearer ${token}`)
         .send({ duration_seconds: 137 });
 
@@ -116,7 +116,7 @@ describe('Calls routes (/api/calls)', () => {
       supaMock.enqueue({ error: null });
 
       const res = await request(app)
-        .patch('/api/calls/room-1/end')
+        .patch('/api/calls/d0000001-0001-4001-8001-000000000001/end')
         .set('Authorization', `Bearer ${token}`)
         .send({});
 
@@ -127,7 +127,7 @@ describe('Calls routes (/api/calls)', () => {
       supaMock.enqueue({ error: { message: 'call not found' } });
 
       const res = await request(app)
-        .patch('/api/calls/room-1/end')
+        .patch('/api/calls/d0000001-0001-4001-8001-000000000001/end')
         .set('Authorization', `Bearer ${token}`)
         .send({});
 

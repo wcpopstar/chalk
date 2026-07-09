@@ -14,10 +14,11 @@ function extractBearerToken(req: any) {
 
 // Verifies signature/issuer/audience/expiry via jsonwebtoken, then checks the
 // blacklist for tokens that were explicitly revoked (logout, logout-all,
-// refresh-token-reuse response) before their natural expiry.
-function verify(token: any) {
+// refresh-token-reuse response) before their natural expiry. Async because
+// the blacklist check may round-trip to Redis (cross-instance revocation).
+async function verify(token: any) {
   const payload = verifyAccessToken(token); // throws JsonWebTokenError / TokenExpiredError
-  if (tokenBlacklist.isRevoked(payload.jti)) {
+  if (await tokenBlacklist.isRevoked(payload.jti)) {
     const err: any = new Error('Token has been revoked');
     err.code = 'TOKEN_REVOKED';
     throw err;
@@ -26,14 +27,14 @@ function verify(token: any) {
 }
 
 // ── requireAuth ──────────────────────────────────────────────────────────────
-function requireAuth(req: any, res: any, next: any) {
+async function requireAuth(req: any, res: any, next: any) {
   const token = extractBearerToken(req);
   if (!token) {
     return sendError(res, 401, 'Missing or malformed Authorization header');
   }
 
   try {
-    req.user = verify(token);
+    req.user = await verify(token);
     req.accessToken = token;
     return next();
   } catch (err: any) {
@@ -52,11 +53,11 @@ function requireAuth(req: any, res: any, next: any) {
 // request — used by endpoints that behave differently for logged-in users
 // without requiring login (e.g. logout, which should still 200 for a client
 // whose token already expired).
-function optionalAuth(req: any, _res: any, next: any) {
+async function optionalAuth(req: any, _res: any, next: any) {
   const token = extractBearerToken(req);
   if (token) {
     try {
-      req.user = verify(token);
+      req.user = await verify(token);
       req.accessToken = token;
     } catch (err: any) {
       // Expected/routine, not an error: an expired or malformed token on an

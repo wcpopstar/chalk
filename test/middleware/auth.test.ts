@@ -31,13 +31,13 @@ function bearerReq(token: any): any {
 }
 
 describe('requireAuth middleware', () => {
-  it('calls next() and attaches req.user for a valid token', () => {
+  it('calls next() and attaches req.user for a valid token', async () => {
     const { token } = signAccessToken({ id: 'user-1', username: 'valid_user' });
     const req = bearerReq(token);
     const res = fakeRes();
     let nextCalled = false;
 
-    requireAuth(req, res, () => {
+    await requireAuth(req, res, () => {
       nextCalled = true;
     });
 
@@ -47,12 +47,12 @@ describe('requireAuth middleware', () => {
     assert.equal(req.accessToken, token);
   });
 
-  it('rejects with 401 when the Authorization header is missing', () => {
+  it('rejects with 401 when the Authorization header is missing', async () => {
     const req = bearerReq(null);
     const res = fakeRes();
     let nextCalled = false;
 
-    requireAuth(req, res, () => {
+    await requireAuth(req, res, () => {
       nextCalled = true;
     });
 
@@ -60,12 +60,12 @@ describe('requireAuth middleware', () => {
     assert.equal(res.statusCode, 401);
   });
 
-  it('rejects with 401 when the header is not a Bearer token', () => {
+  it('rejects with 401 when the header is not a Bearer token', async () => {
     const req = { headers: { authorization: 'Basic somecredentials' } };
     const res = fakeRes();
     let nextCalled = false;
 
-    requireAuth(req, res, () => {
+    await requireAuth(req, res, () => {
       nextCalled = true;
     });
 
@@ -73,16 +73,16 @@ describe('requireAuth middleware', () => {
     assert.equal(res.statusCode, 401);
   });
 
-  it('rejects with 401 for a structurally invalid token', () => {
+  it('rejects with 401 for a structurally invalid token', async () => {
     const req = bearerReq('this-is-not-a-jwt');
     const res = fakeRes();
 
-    requireAuth(req, res, () => {});
+    await requireAuth(req, res, () => {});
 
     assert.equal(res.statusCode, 401);
   });
 
-  it('rejects with 401 for a token signed with the wrong secret', () => {
+  it('rejects with 401 for a token signed with the wrong secret', async () => {
     const forged = jwt.sign({ id: 'user-1' }, 'not-the-real-secret', {
       issuer: 'chalk-backend',
       audience: 'chalk-app',
@@ -91,12 +91,12 @@ describe('requireAuth middleware', () => {
     const req = bearerReq(forged);
     const res = fakeRes();
 
-    requireAuth(req, res, () => {});
+    await requireAuth(req, res, () => {});
 
     assert.equal(res.statusCode, 401);
   });
 
-  it('rejects with 401 + code TOKEN_EXPIRED for an expired token', () => {
+  it('rejects with 401 + code TOKEN_EXPIRED for an expired token', async () => {
     const expired = jwt.sign({ id: 'user-1', username: 'x' }, process.env.JWT_SECRET, {
       issuer: 'chalk-backend',
       audience: 'chalk-app',
@@ -106,26 +106,26 @@ describe('requireAuth middleware', () => {
     const req = bearerReq(expired);
     const res = fakeRes();
 
-    requireAuth(req, res, () => {});
+    await requireAuth(req, res, () => {});
 
     assert.equal(res.statusCode, 401);
     assert.equal(res.body.details.code, 'TOKEN_EXPIRED');
   });
 
-  it('rejects with 401 + code TOKEN_REVOKED for a blacklisted (logged-out) token', () => {
+  it('rejects with 401 + code TOKEN_REVOKED for a blacklisted (logged-out) token', async () => {
     const { token, jti } = signAccessToken({ id: 'user-1', username: 'x' });
     tokenBlacklist.revoke(jti, Date.now() + 60_000);
 
     const req = bearerReq(token);
     const res = fakeRes();
 
-    requireAuth(req, res, () => {});
+    await requireAuth(req, res, () => {});
 
     assert.equal(res.statusCode, 401);
     assert.equal(res.body.details.code, 'TOKEN_REVOKED');
   });
 
-  it('rejects with 401 for a token whose issuer/audience do not match', () => {
+  it('rejects with 401 for a token whose issuer/audience do not match', async () => {
     const wrongAudience = jwt.sign({ id: 'user-1' }, process.env.JWT_SECRET, {
       issuer: 'chalk-backend',
       audience: 'some-other-app',
@@ -134,19 +134,19 @@ describe('requireAuth middleware', () => {
     const req = bearerReq(wrongAudience);
     const res = fakeRes();
 
-    requireAuth(req, res, () => {});
+    await requireAuth(req, res, () => {});
 
     assert.equal(res.statusCode, 401);
   });
 });
 
 describe('optionalAuth middleware', () => {
-  it('proceeds anonymously (no req.user) when no token is provided', () => {
+  it('proceeds anonymously (no req.user) when no token is provided', async () => {
     const req = bearerReq(null);
     const res = fakeRes();
     let nextCalled = false;
 
-    optionalAuth(req, res, () => {
+    await optionalAuth(req, res, () => {
       nextCalled = true;
     });
 
@@ -154,12 +154,12 @@ describe('optionalAuth middleware', () => {
     assert.equal(req.user, undefined);
   });
 
-  it('proceeds anonymously (never blocks) when the token is invalid', () => {
+  it('proceeds anonymously (never blocks) when the token is invalid', async () => {
     const req = bearerReq('garbage-token');
     const res = fakeRes();
     let nextCalled = false;
 
-    optionalAuth(req, res, () => {
+    await optionalAuth(req, res, () => {
       nextCalled = true;
     });
 
@@ -168,13 +168,13 @@ describe('optionalAuth middleware', () => {
     assert.equal(res.statusCode, 200); // never touched res — no error was sent
   });
 
-  it('attaches req.user when a valid token is provided', () => {
+  it('attaches req.user when a valid token is provided', async () => {
     const { token } = signAccessToken({ id: 'user-2', username: 'someone' });
     const req = bearerReq(token);
     const res = fakeRes();
     let nextCalled = false;
 
-    optionalAuth(req, res, () => {
+    await optionalAuth(req, res, () => {
       nextCalled = true;
     });
 
@@ -191,27 +191,27 @@ describe('requireAuth + tokenBlacklist interaction', () => {
     tokenBlacklist.store.clear();
   });
 
-  it('a freshly issued token for a previously-revoked jti-less user is not revoked', () => {
+  it('a freshly issued token for a previously-revoked jti-less user is not revoked', async () => {
     const { token } = signAccessToken({ id: 'user-3', username: 'fresh' });
     const req = bearerReq(token);
     const res = fakeRes();
     let nextCalled = false;
 
-    requireAuth(req, res, () => {
+    await requireAuth(req, res, () => {
       nextCalled = true;
     });
 
     assert.equal(nextCalled, true);
   });
 
-  it('revoking one jti does not affect a different, still-valid token', () => {
+  it('revoking one jti does not affect a different, still-valid token', async () => {
     const revoked = signAccessToken({ id: 'user-4', username: 'a' });
     const stillValid = signAccessToken({ id: 'user-4', username: 'a' });
     tokenBlacklist.revoke(revoked.jti, Date.now() + 60_000);
 
     const res = fakeRes();
     let nextCalled = false;
-    requireAuth(bearerReq(stillValid.token), res, () => {
+    await requireAuth(bearerReq(stillValid.token), res, () => {
       nextCalled = true;
     });
 

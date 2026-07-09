@@ -1,4 +1,3 @@
-export {};
 const { z } = require('zod');
 
 // The route independently re-checks `channel === 'voice-' + myRoomId`
@@ -9,4 +8,4 @@ const tokenQuerySchema = z.object({
   channel: z.string().trim().min(1).max(200).default('chalk'),
 });
 
-module.exports = { tokenQuerySchema };
+export { tokenQuerySchema };

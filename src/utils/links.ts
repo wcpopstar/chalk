@@ -1,4 +1,3 @@
-export {};
 const https = require('node:https');
 const logger = require('./logger').child({ module: 'links' });
 
@@ -94,4 +93,4 @@ function getYouTubePreviewData(url: any) {
   });
 }
 
-module.exports = { isYouTubeUrl, getYouTubePreviewData };
+export { isYouTubeUrl, getYouTubePreviewData };
