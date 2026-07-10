@@ -1,5 +1,6 @@
 import type { TypedServer, TypedSocket } from './types';
 import { isYouTubeUrl, getYouTubePreviewData } from '../utils/links';
+import { supabaseAdmin } from '../services/supabase';
 import { secureOn } from './validation';
 import { uploadVoiceNote, uploadVideoNote } from './media';
 import {
@@ -35,22 +36,38 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     socket.leave(`chat:${conversationId}`);
   });
 
-  secureOn(io, socket, userId, 'chat:message', async ({ conversationId, text }, ack) => {
+  secureOn(io, socket, userId, 'chat:message', async ({ conversationId, text, replyToId }, ack) => {
     if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
     if (await directPartnerBlocked(conversationId, userId)) {
       socket.emit('chat:blocked', { conversationId });
       return ack({ error: 'Пользователь заблокирован' });
     }
 
+    // A reply may only quote a message from THIS conversation — silently
+    // drop the reference otherwise (don't fail the send over a stale quote).
+    let verifiedReplyTo: string | null = null;
+    if (replyToId) {
+      const { data: quoted } = await supabaseAdmin
+        .from('messages')
+        .select('id')
+        .eq('id', replyToId)
+        .eq('conversation_id', conversationId)
+        .maybeSingle();
+      verifiedReplyTo = quoted ? replyToId : null;
+    }
+
     const youtubeLink = isYouTubeUrl(text);
     const preview = youtubeLink ? await getYouTubePreviewData(text) : null;
     const payload = youtubeLink
-      ? { conversationId, senderId: userId, text, type: 'youtube' as const, mediaUrl: null, preview }
-      : { conversationId, senderId: userId, text, type: 'text' as const };
+      ? { conversationId, senderId: userId, text, type: 'youtube' as const, mediaUrl: null, preview, replyToId: verifiedReplyTo }
+      : { conversationId, senderId: userId, text, type: 'text' as const, replyToId: verifiedReplyTo };
 
     const msg = await saveMessage(payload);
     io.to(`chat:${conversationId}`).emit('chat:message', msg);
-    ack({ ok: true });
+    // The saved message rides back on the ack so the sender can swap its
+    // optimistic "sending…" bubble for the real one (delivered) without
+    // waiting for the room broadcast echo.
+    ack({ ok: true, message: msg });
   });
 
   // ── Send a GIF (client picks the URL from a GIF search, e.g. Giphy/Tenor) ─
@@ -113,8 +130,27 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     ack({ ok: true });
   });
 
-  secureOn(io, socket, userId, 'chat:typing', async ({ conversationId }) => {
-    socket.to(`chat:${conversationId}`).emit('chat:typing', { userId, username });
+  secureOn(io, socket, userId, 'chat:typing', async ({ conversationId, kind }) => {
+    socket.to(`chat:${conversationId}`).emit('chat:typing', {
+      conversationId, userId, username, kind: kind || 'typing',
+    });
+  });
+
+  // ── Read receipt: "I've seen everything here up to now" ──────────────────
+  // Sent when the member has the conversation open and visible (on open and
+  // on every incoming message while open). Stored as a per-member watermark
+  // (conversation_members.last_read_at) and broadcast so senders' bubbles
+  // can flip from delivered (✓) to read (✓✓) live.
+  secureOn(io, socket, userId, 'chat:read', async ({ conversationId }, ack) => {
+    if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
+    const lastReadAt = new Date().toISOString();
+    await supabaseAdmin
+      .from('conversation_members')
+      .update({ last_read_at: lastReadAt })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', userId);
+    socket.to(`chat:${conversationId}`).emit('chat:read', { conversationId, userId, lastReadAt });
+    ack({ ok: true });
   });
 }
 

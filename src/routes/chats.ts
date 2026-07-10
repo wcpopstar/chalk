@@ -329,8 +329,9 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
     .from('messages')
     .select(`
       id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
-      preview_title, preview_url, preview_thumbnail, preview_video_id,
-      sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )
+      preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id,
+      sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url ),
+      reply_to:messages!messages_reply_to_id_fkey ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
     `)
     .eq('conversation_id', convId)
     .order('created_at', { ascending: false })
@@ -341,7 +342,15 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
 
-  return res.json({ messages: (data || []).reverse() });
+  // Per-member read watermarks, so the client can render ✓/✓✓ on its own
+  // messages from the initial load (live updates arrive via the chat:read
+  // socket event).
+  const { data: reads } = await supabaseAdmin
+    .from('conversation_members')
+    .select('user_id, last_read_at')
+    .eq('conversation_id', convId);
+
+  return res.json({ messages: (data || []).reverse(), reads: reads || [] });
 });
 
 /**

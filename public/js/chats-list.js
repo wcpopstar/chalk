@@ -119,13 +119,29 @@ async function openConv(convId, name) {
     socket.emit('chat:join', { conversationId: convId });
   }
 
+  // Fresh conversation: reset per-conversation UI state.
+  if (typeof clearReply === 'function') clearReply();
+  partnerLastReadAt = null;
+  convMessagesById = {};
+
   try {
     const data = await api(`/api/chats/${  convId  }/messages`);
     const msgs = data.messages || [];
+    // The partner's read watermark — own messages older than it render ✓✓.
+    (data.reads || []).forEach((r) => {
+      if (r.user_id !== currentUser.id && r.last_read_at) {
+        if (!partnerLastReadAt || r.last_read_at > partnerLastReadAt) partnerLastReadAt = r.last_read_at;
+      }
+    });
+    msgs.forEach((m) => { convMessagesById[m.id] = m; });
     const el = document.getElementById('chatMessages');
-    if (!msgs.length) { el.innerHTML = '<div class="empty-chat"><div style="font-size:32px">💬</div><span data-i18n="chat_start_dialog">Начни диалог!</span></div>'; return; }
-    el.innerHTML = msgs.map((m) =>chatMsgHtml(m)).join('');
-    el.scrollTop = el.scrollHeight;
+    if (!msgs.length) { el.innerHTML = '<div class="empty-chat"><div style="font-size:32px">💬</div><span data-i18n="chat_start_dialog">Начни диалог!</span></div>'; }
+    else {
+      el.innerHTML = msgs.map((m) =>chatMsgHtml(m)).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+    // Everything on screen is now read from OUR side — tell the sender(s).
+    if (socket) socket.emit('chat:read', { conversationId: convId });
   } catch(e) { console.error(e); }
 }
 
