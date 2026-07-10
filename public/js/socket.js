@@ -154,8 +154,28 @@ function connectSocket() {
 
   socket.on('chat:message', (msg) => {
     if (msg.conversation_id === currentConvId) {
-      appendMessage(msg);
+      appendMessage(msg); // dedupes the echo of our own ack-rendered sends
+      // The conversation is open on screen — confirm the read right away so
+      // the sender's ✓ flips to ✓✓ in real time.
+      if (msg.sender_id !== currentUser.id) {
+        socket.emit('chat:read', { conversationId: currentConvId });
+      }
     }
+  });
+
+  // Partner confirmed reading up to lastReadAt — flip ✓ into ✓✓ live.
+  socket.on('chat:read', (data) => {
+    if (data.conversationId !== currentConvId || data.userId === currentUser.id) return;
+    if (!partnerLastReadAt || data.lastReadAt > partnerLastReadAt) {
+      partnerLastReadAt = data.lastReadAt;
+      updateReadTicks();
+    }
+  });
+
+  // "N is typing… / recording a voice message…" under the chat header.
+  socket.on('chat:typing', (data) => {
+    if (data.conversationId !== currentConvId || data.userId === currentUser.id) return;
+    showChatActivity(data);
   });
 
   socket.on('chat:message:edited', (msg) => {
@@ -213,3 +233,25 @@ function connectSocket() {
   socket.on('disconnect', () => { console.log('[socket] disconnected'); });
 }
 
+
+// ── Chat activity label (typing / recording voice / recording video) ────────
+// Shown in place of the online/offline line under the partner's name and
+// restored automatically after 3.5s without a fresh activity event (the
+// sender re-emits every ~2.5s while active, so no explicit stop is needed).
+var _chatActivityTimer = null;
+function showChatActivity(data) {
+  const statusEl = document.getElementById('chatHeaderStatus');
+  if (!statusEl) return;
+  if (!statusEl.dataset.origText) statusEl.dataset.origText = statusEl.textContent;
+  const label = data.kind === 'voice' ? T('chat_recording_voice_label', 'записывает голосовое…')
+    : data.kind === 'video' ? T('chat_recording_video_label', 'записывает видеосообщение…')
+    : T('chat_typing_label', 'печатает…');
+  statusEl.textContent = currentConvPartner ? label : `${data.username} ${label}`;
+  statusEl.classList.add('chat-activity');
+  clearTimeout(_chatActivityTimer);
+  _chatActivityTimer = setTimeout(() => {
+    statusEl.textContent = statusEl.dataset.origText || '';
+    statusEl.dataset.origText = '';
+    statusEl.classList.remove('chat-activity');
+  }, 3500);
+}

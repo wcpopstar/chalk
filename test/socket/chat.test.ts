@@ -118,10 +118,65 @@ describe('socket/chat.js', () => {
       let ackResult: any;
       await socket.trigger('chat:message', { conversationId: 'cc000001-0000-4000-8000-000000000001', text: 'hello' }, (r: any) => { ackResult = r; });
 
-      assert.deepEqual(ackResult, { ok: true });
+      assert.equal(ackResult.ok, true);
+      // the saved message rides back on the ack so the sender can swap its
+      // optimistic bubble without waiting for the room broadcast echo
+      assert.equal(ackResult.message.text, 'hello');
       const received = other.emitted.find((e: any) => e.event === 'chat:message');
       assert.ok(received);
       assert.equal(received.payload.text, 'hello');
+    });
+
+    it('verifies a reply belongs to this conversation and saves it', async () => {
+      const { io, socket } = setup('me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: null, error: null }); // not blocked (not a direct conv)
+      supaMock.enqueue({ data: { id: 'aa000001-0000-4000-8000-000000000001' }, error: null }); // quoted message IS in this conversation
+      supaMock.enqueue({
+        data: {
+          id: 'aa000002-0000-4000-8000-000000000002', text: 'agreed!', sender_id: 'me',
+          reply_to_id: 'aa000001-0000-4000-8000-000000000001',
+          reply_to: { id: 'aa000001-0000-4000-8000-000000000001', text: 'original', sender: { username: 'buddy' } },
+        },
+        error: null,
+      }); // saveMessage insert
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:message',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', text: 'agreed!', replyToId: 'aa000001-0000-4000-8000-000000000001' },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.equal(ackResult.ok, true);
+      const received = other.emitted.find((e: any) => e.event === 'chat:message');
+      assert.equal(received.payload.reply_to_id, 'aa000001-0000-4000-8000-000000000001');
+      assert.equal(received.payload.reply_to.text, 'original');
+    });
+
+    it('silently drops a reply reference to a message from ANOTHER conversation', async () => {
+      const { socket } = setup('me');
+      socket.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: null, error: null }); // not blocked
+      supaMock.enqueue({ data: null, error: null }); // quoted message NOT in this conversation
+      supaMock.enqueue({ data: { id: 'aa000003-0000-4000-8000-000000000003', text: 'hi', sender_id: 'me', reply_to_id: null }, error: null });
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:message',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', text: 'hi', replyToId: 'bb000001-0000-4000-8000-000000000001' },
+        (r: any) => { ackResult = r; }
+      );
+
+      // the send still succeeds — only the stale quote is dropped
+      assert.equal(ackResult.ok, true);
+      assert.equal(ackResult.message.reply_to_id, null);
     });
 
     it('detects a YouTube link and attaches preview data', async () => {
@@ -143,7 +198,7 @@ describe('socket/chat.js', () => {
         (r: any) => { ackResult = r; }
       );
 
-      assert.deepEqual(ackResult, { ok: true });
+      assert.equal(ackResult.ok, true);
     });
   });
 
@@ -381,6 +436,65 @@ describe('socket/chat.js', () => {
 
       assert.ok(other.emitted.some((e: any) => e.event === 'chat:typing' && e.payload.username === 'MyName'));
       assert.ok(!socket.emitted.some((e: any) => e.event === 'chat:typing'));
+    });
+  });
+
+
+  describe('chat:typing / chat:read', () => {
+    it('forwards the typing kind (voice/video) with the conversation id', async () => {
+      const { io, socket } = setup('me', 'Me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      await socket.trigger('chat:typing', { conversationId: 'cc000001-0000-4000-8000-000000000001', kind: 'voice' });
+
+      const seen = other.emitted.find((e: any) => e.event === 'chat:typing');
+      assert.ok(seen);
+      assert.equal(seen.payload.kind, 'voice');
+      assert.equal(seen.payload.conversationId, 'cc000001-0000-4000-8000-000000000001');
+      assert.equal(seen.payload.username, 'Me');
+    });
+
+    it('defaults the typing kind to "typing" when omitted', async () => {
+      const { io, socket } = setup('me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      await socket.trigger('chat:typing', { conversationId: 'cc000001-0000-4000-8000-000000000001' });
+
+      const seen = other.emitted.find((e: any) => e.event === 'chat:typing');
+      assert.equal(seen.payload.kind, 'typing');
+    });
+
+    it('chat:read stores the watermark and broadcasts it to the room', async () => {
+      const { io, socket } = setup('me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: null, error: null }); // conversation_members update
+
+      let ackResult: any;
+      await socket.trigger('chat:read', { conversationId: 'cc000001-0000-4000-8000-000000000001' }, (r: any) => { ackResult = r; });
+
+      assert.deepEqual(ackResult, { ok: true });
+      const seen = other.emitted.find((e: any) => e.event === 'chat:read');
+      assert.ok(seen, 'expected the read receipt to be broadcast');
+      assert.equal(seen.payload.userId, 'me');
+      assert.ok(seen.payload.lastReadAt);
+    });
+
+    it('chat:read from a non-member is rejected', async () => {
+      const { socket } = setup('stranger');
+      supaMock.enqueue({ data: null, error: null }); // not a member
+
+      let ackResult: any;
+      await socket.trigger('chat:read', { conversationId: 'cc000001-0000-4000-8000-000000000001' }, (r: any) => { ackResult = r; });
+
+      assert.match(ackResult.error, /Не участник/);
     });
   });
 });

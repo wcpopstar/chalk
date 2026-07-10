@@ -5,7 +5,12 @@ import loggerBase from '../utils/logger';
 import * as analytics from '../services/analytics';
 const logger = loggerBase.child({ module: 'messages' });
 
-const MESSAGE_SELECT = 'id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at, preview_title, preview_url, preview_thumbnail, preview_video_id, sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url )';
+const MESSAGE_SELECT = `
+  id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
+  preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id,
+  sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url ),
+  reply_to:messages!messages_reply_to_id_fkey ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
+`;
 const GLOBAL_MESSAGE_SELECT = `
   id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
   preview_title, preview_url, preview_thumbnail, preview_video_id,
@@ -17,6 +22,7 @@ import type { MessageType } from '../types/supabase';
 
 interface MessageInput {
   senderId: string;
+  replyToId?: string | null;
   text?: string | null;
   type?: MessageType;
   mediaUrl?: string | null;
@@ -24,13 +30,16 @@ interface MessageInput {
   preview?: { title?: string; url?: string; thumbnail?: string; videoId?: string } | null;
 }
 
-async function saveMessage({ conversationId, senderId, text, type, mediaUrl, duration, preview }: MessageInput & { conversationId: string }) {
+async function saveMessage({ conversationId, senderId, text, type, mediaUrl, duration, preview, replyToId }: MessageInput & { conversationId: string }) {
   const { data, error } = await supabaseAdmin
     .from('messages')
     .insert({
       id: uuid(),
       conversation_id: conversationId,
       sender_id: senderId,
+      // set only when actually replying — keeps plain sends working even if
+      // migration 014 hasn't been applied yet (column absent)
+      ...(replyToId ? { reply_to_id: replyToId } : {}),
       text: text || null,
       type: type || 'text',
       media_url: mediaUrl || null,

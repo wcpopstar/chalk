@@ -45,7 +45,13 @@ const GAME_IDS = ['valorant', 'csgo', 'dota2', 'lol', 'apex', 'fortnite', 'overw
 // ── chat.js (direct/DM conversation) ────────────────────────────────────────
 const chatJoin = z.object({ conversationId: uuidField });
 const chatLeave = z.object({ conversationId: uuidField });
-const chatMessage = z.object({ conversationId: uuidField, text: messageText(2000) });
+const chatMessage = z.object({
+  conversationId: uuidField,
+  text: messageText(2000),
+  // Quoted message (reply). Must belong to the same conversation — that's
+  // verified server-side in socket/chat.ts, a schema can't know it.
+  replyToId: uuidField.optional(),
+});
 const chatGif = z.object({ conversationId: uuidField, gifUrl });
 const chatVoice = z.object({
   conversationId: uuidField, audio: mediaBlob, mime: mimeField, duration: durationField,
@@ -55,7 +61,14 @@ const chatVideoNote = z.object({
 });
 const chatEdit = z.object({ conversationId: uuidField, messageId: uuidField, text: messageText(2000) });
 const chatDelete = z.object({ conversationId: uuidField, messageId: uuidField });
-const chatTyping = z.object({ conversationId: uuidField });
+// kind distinguishes what the person is composing: plain typing, a voice
+// note, or a circular video note — the header shows a different label each.
+const chatTyping = z.object({
+  conversationId: uuidField,
+  kind: z.enum(['typing', 'voice', 'video']).optional(),
+});
+// "I've seen everything in this conversation up to now" — read receipt.
+const chatRead = z.object({ conversationId: uuidField });
 
 // ── globalChat.js (public room, shorter text cap than DMs) ──────────────────
 const globalMessage = z.object({ text: messageText(500) });
@@ -106,6 +119,7 @@ const socketEventSchemas = {
   'chat:edit': chatEdit,
   'chat:delete': chatDelete,
   'chat:typing': chatTyping,
+  'chat:read': chatRead,
 
   'global:message': globalMessage,
   'global:gif': globalGif,
@@ -147,6 +161,7 @@ export type ChatVideoNotePayload = z.infer<typeof chatVideoNote>;
 export type ChatEditPayload = z.infer<typeof chatEdit>;
 export type ChatDeletePayload = z.infer<typeof chatDelete>;
 export type ChatTypingPayload = z.infer<typeof chatTyping>;
+export type ChatReadPayload = z.infer<typeof chatRead>;
 
 export type GlobalMessagePayload = z.infer<typeof globalMessage>;
 export type GlobalGifPayload = z.infer<typeof globalGif>;
@@ -182,6 +197,7 @@ export type ClientToServerPayloadMap = {
   'chat:edit': ChatEditPayload;
   'chat:delete': ChatDeletePayload;
   'chat:typing': ChatTypingPayload;
+  'chat:read': ChatReadPayload;
 
   'global:message': GlobalMessagePayload;
   'global:gif': GlobalGifPayload;

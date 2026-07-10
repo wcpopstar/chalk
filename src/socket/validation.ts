@@ -56,6 +56,7 @@ const DEFAULT_RATE_LIMITS: any = {
   'chat:edit': { windowMs: 10_000, max: 15 },
   'chat:delete': { windowMs: 10_000, max: 15 },
   'chat:typing': { windowMs: 5_000, max: 15 },
+  'chat:read': { windowMs: 5_000, max: 15 },
 
   'global:message': { windowMs: 10_000, max: 20 },
   'global:gif': { windowMs: 10_000, max: 12 },

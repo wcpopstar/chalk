@@ -390,16 +390,19 @@ export interface Database {
           conversation_id: string;
           user_id: string;
           joined_at: string;
+          last_read_at: string | null;
         };
         Insert: {
           conversation_id: string;
           user_id: string;
           joined_at?: string;
+          last_read_at?: string | null;
         };
         Update: {
           conversation_id?: string;
           user_id?: string;
           joined_at?: string;
+          last_read_at?: string | null;
         };
         Relationships: [
           {
@@ -424,6 +427,7 @@ export interface Database {
           id: string;
           conversation_id: string;
           sender_id: string;
+          reply_to_id: string | null;
           text: string | null;
           type: MessageType;
           media_url: string | null;
@@ -440,6 +444,7 @@ export interface Database {
           id?: string;
           conversation_id: string;
           sender_id: string;
+          reply_to_id?: string | null;
           text?: string | null;
           type?: MessageType;
           media_url?: string | null;
@@ -456,6 +461,7 @@ export interface Database {
           id?: string;
           conversation_id?: string;
           sender_id?: string;
+          reply_to_id?: string | null;
           text?: string | null;
           type?: MessageType;
           media_url?: string | null;
@@ -481,6 +487,13 @@ export interface Database {
             columns: ['sender_id'];
             isOneToOne: false;
             referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'messages_reply_to_id_fkey';
+            columns: ['reply_to_id'];
+            isOneToOne: false;
+            referencedRelation: 'messages';
             referencedColumns: ['id'];
           },
         ];
