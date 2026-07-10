@@ -25,29 +25,27 @@ function sendMsgBtn() {
   if (reply) payload.replyToId = reply.id;
 
   const partnerKey = currentConvPartner && currentConvPartner.public_key;
-  if (currentConvPartner && !partnerKey) {
-    // The partner hasn't opened the app since E2EE shipped, so there's no
-    // key to encrypt to yet. Blocking the message entirely would make every
-    // dormant user unreachable — fall back to plaintext (exactly what the
-    // whole conversation was before E2EE) and say so once. The moment their
-    // key appears (openConv() refreshes it, and loadChats() re-fetches),
-    // sends switch to encrypted automatically.
-    if (!_plaintextNoticeShown[currentConvId]) {
-      _plaintextNoticeShown[currentConvId] = true;
-      showToast('🔓 Собеседник ещё не настроил шифрование — пока сообщения отправляются без него');
-    }
-    payload.text = text;
-  } else if (partnerKey) {
-    if (!e2eeReady()) {
-      showToast('❌ Шифрование ещё не готово, подожди секунду и попробуй снова');
-      return;
-    }
-    const enc = e2eeEncrypt(text, partnerKey);
-    if (!enc) { showToast('❌ Не удалось зашифровать сообщение'); return; }
+  if (partnerKey) {
+    const enc = e2eeEncryptOrToast(text, partnerKey);
+    if (!enc) return;
     payload.ciphertext = enc.ciphertext;
     payload.nonce = enc.nonce;
   } else {
-    payload.text = text;
+    if (currentConvPartner) {
+      // Direct chat, but the partner hasn't opened the app since E2EE
+      // shipped, so there's no key to encrypt to yet. Blocking the message
+      // entirely would make every dormant user unreachable — fall back to
+      // plaintext (exactly what the whole conversation was before E2EE) and
+      // say so once. The snapshot can be stale, so re-check in the
+      // background, and the server independently rejects plaintext when a
+      // key actually exists (see the e2ee_required handling in the ack).
+      if (typeof refreshPartnerKey === 'function') refreshPartnerKey(currentConvId);
+      if (!_plaintextNoticeShown[currentConvId]) {
+        _plaintextNoticeShown[currentConvId] = true;
+        showToast('🔓 Собеседник ещё не настроил шифрование — пока сообщения отправляются без него');
+      }
+    }
+    payload.text = text; // group chats and keyless direct chats both go plaintext
   }
 
   lastMsgSentAt = now;
@@ -61,8 +59,26 @@ function sendMsgBtn() {
   clearReply();
   input.value = '';
 
-  socket.emit('chat:message', payload, (res) => {
+  let retriedEncrypted = false;
+  function onSendAck(res) {
     if (res && res.error) {
+      // The server rejected a plaintext send because the partner DOES have a
+      // key (our snapshot was stale) and handed the fresh key back — adopt
+      // it, re-encrypt the same text, and resend once.
+      if (!retriedEncrypted && res.code === 'e2ee_required' && res.partnerPublicKey) {
+        retriedEncrypted = true;
+        if (dmPartnersByConv[payload.conversationId]) dmPartnersByConv[payload.conversationId].public_key = res.partnerPublicKey;
+        if (currentConvId === payload.conversationId && currentConvPartner) currentConvPartner.public_key = res.partnerPublicKey;
+        delete _plaintextNoticeShown[payload.conversationId]; // the notice no longer applies
+        const enc = e2eeReady() ? e2eeEncrypt(text, res.partnerPublicKey) : null;
+        if (enc) {
+          delete payload.text;
+          payload.ciphertext = enc.ciphertext;
+          payload.nonce = enc.nonce;
+          socket.emit('chat:message', payload, onSendAck);
+          return;
+        }
+      }
       markTempFailed(tempId);
       showToast(`❌ ${  res.error}`);
       return;
@@ -71,7 +87,8 @@ function sendMsgBtn() {
     // to just flipping the clock to a checkmark if it doesn't.
     if (res && res.message) replaceTempMessage(tempId, res.message);
     else markTempDelivered(tempId);
-  });
+  }
+  socket.emit('chat:message', payload, onSendAck);
 }
 
 // ── Reply state ──────────────────────────────────────────────────────────────

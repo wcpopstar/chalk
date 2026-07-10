@@ -115,26 +115,41 @@ async function editMessageRow(
   const update = isEncryptedEdit
     ? { text: edit.ciphertext, nonce: edit.nonce, sender_public_key: edit.senderPublicKey, edited_at: new Date().toISOString() }
     : { text: edit.text, edited_at: new Date().toISOString() };
-  let query = supabaseAdmin
-    .from(table)
-    .update(update as any)
-    .eq('id', id)
-    .eq('sender_id', senderId)
-    .eq('type', 'text')
-    .is('deleted_at', null);
   // Mixed-mode direct chats (plaintext rows from before the partner had an
   // E2EE key, encrypted ones after): an edit must land on a row whose
   // is_encrypted matches its own shape, otherwise it would either trip the
   // messages_encryption_consistency_check constraint (ciphertext onto a
   // plaintext row) or silently corrupt an encrypted row with plaintext.
-  // A mismatch just finds no row -> clean "not found" error. global_messages
-  // has no is_encrypted column, hence the table guard.
-  // (cast: the builder's column union spans both tables, and TS can't narrow
-  // it from the runtime table check above)
-  if (table === 'messages') query = (query as any).eq('is_encrypted', isEncryptedEdit);
-  const { data, error } = await query.select(select).single();
+  // global_messages has no is_encrypted column, hence the table guard.
+  const filters: Record<string, unknown> = { id, sender_id: senderId, type: 'text' };
+  if (table === 'messages') filters.is_encrypted = isEncryptedEdit;
+  const { data, error } = await supabaseAdmin
+    .from(table)
+    .update(update as any)
+    .match(filters as any)
+    .is('deleted_at', null)
+    .select(select)
+    .maybeSingle();
   if (error) { logger.error({ err: error, table, id, senderId }, 'Failed to edit message'); throw new Error(error.message || 'Не удалось отредактировать сообщение'); }
-  if (!data) throw new Error('Сообщение не найдено — возможно, оно уже удалено или это не ваше сообщение');
+  if (!data) {
+    // Tell an encryption-mode mismatch apart from a deleted/foreign message —
+    // they need different reactions from the user, and collapsing them into
+    // one "not found" makes reports undebuggable.
+    if (table === 'messages') {
+      const { data: row } = await supabaseAdmin
+        .from('messages')
+        .select('is_encrypted')
+        .match({ id, sender_id: senderId, type: 'text' })
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (row && Boolean(row.is_encrypted) !== isEncryptedEdit) {
+        throw new Error(row.is_encrypted
+          ? 'Это сообщение зашифровано — правку нужно отправить зашифрованной'
+          : 'Это сообщение отправлено без шифрования — правка тоже должна быть без него');
+      }
+    }
+    throw new Error('Сообщение не найдено — возможно, оно уже удалено или это не ваше сообщение');
+  }
   return data;
 }
 
@@ -152,15 +167,14 @@ async function deleteMessageRow(table: 'messages' | 'global_messages', id: strin
   return data;
 }
 
-// ── Is the *other* member of a direct conversation blocked (either way)? ───
-// Group conversations aren't checked — blocking only affects 1:1 DMs here.
-async function directPartnerBlocked(conversationId: string, senderId: string) {
+// ── The *other* member of a direct conversation (null for groups) ─────────
+async function getDirectPartnerId(conversationId: string, senderId: string): Promise<string | null> {
   const { data: conv } = await supabaseAdmin
     .from('conversations')
     .select('type')
     .eq('id', conversationId)
     .maybeSingle();
-  if (!conv || conv.type !== 'direct') return false;
+  if (!conv || conv.type !== 'direct') return null;
 
   const { data: members } = await supabaseAdmin
     .from('conversation_members')
@@ -168,7 +182,13 @@ async function directPartnerBlocked(conversationId: string, senderId: string) {
     .eq('conversation_id', conversationId)
     .neq('user_id', senderId);
 
-  const otherId = members && members[0] && members[0].user_id;
+  return (members && members[0] && members[0].user_id) || null;
+}
+
+// ── Is the *other* member of a direct conversation blocked (either way)? ───
+// Group conversations aren't checked — blocking only affects 1:1 DMs here.
+async function directPartnerBlocked(conversationId: string, senderId: string) {
+  const otherId = await getDirectPartnerId(conversationId, senderId);
   if (!otherId) return false;
   return areUsersBlocked(senderId, otherId);
 }
@@ -206,6 +226,7 @@ export {
   editMessageRow,
   deleteMessageRow,
   directPartnerBlocked,
+  getDirectPartnerId,
   isConversationMember,
   getPublicKey,
 };
