@@ -37,11 +37,18 @@ function startEditMessage(scope, messageId, btnEl) {
       // On success the server broadcasts chat:message:edited / global:message:edited,
       // which is what actually swaps this edit row back out for the updated bubble.
     }
+    // An edit must keep the message's own encryption mode (is_encrypted was
+    // fixed at insert time and the DB CHECK enforces nonce consistency) —
+    // NOT follow the conversation's current state. A plaintext message sent
+    // before the partner set up E2EE stays plaintext even after their key
+    // appears; an encrypted one stays encrypted.
+    const original = (typeof convMessagesById !== 'undefined' && convMessagesById[messageId]) || null;
+    const wasEncrypted = original ? Boolean(original.is_encrypted)
+      : Boolean(currentConvPartner && currentConvPartner.public_key); // fallback: best guess from conv state
     if (isGlobal) {
       socket.emit('global:edit', { messageId, text: newText }, onAck);
-    } else if (currentConvPartner && currentConvPartner.public_key) {
-      // Direct chat — the original was E2E-encrypted, so the edit must be too
-      // (see js/e2ee.js). Group chats fall through to the plaintext branch.
+    } else if (wasEncrypted) {
+      if (!currentConvPartner || !currentConvPartner.public_key) { saving = false; saveBtn.disabled = false; showToast('❌ Нет ключа собеседника — не получится зашифровать правку'); return; }
       if (!e2eeReady()) { saving = false; saveBtn.disabled = false; showToast('❌ Шифрование ещё не готово, попробуй снова'); return; }
       const enc = e2eeEncrypt(newText, currentConvPartner.public_key);
       if (!enc) { saving = false; saveBtn.disabled = false; showToast('❌ Не удалось зашифровать сообщение'); return; }
