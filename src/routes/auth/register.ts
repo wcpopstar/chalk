@@ -46,11 +46,30 @@ const { USER_FIELDS, authLimiter, issueSession } = require('./shared');
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
+// Picks an auto-generated username that isn't taken yet: a few clean
+// candidates ("SilentViper") first, then a few with a short numeric suffix
+// ("SilentViper42"), and finally a timestamp-suffixed one that's
+// effectively always free. The users.username UNIQUE constraint remains
+// the hard guarantee underneath for the (tiny) check-then-insert race.
+async function pickGeneratedUsername(): Promise<string> {
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const candidate = generateUsername();
+    const { data: taken } = await usersRepository.existsByUsername(candidate);
+    if (!taken) return candidate;
+  }
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const candidate = generateUsername({ suffix: true });
+    const { data: taken } = await usersRepository.existsByUsername(candidate);
+    if (!taken) return candidate;
+  }
+  return `${generateUsername()}${Date.now() % 10000}`;
+}
+
 router.post('/register', authLimiter, async (req: Request, res: Response) => {
   try {
     const parsed = registerSchema.parse({ ...req.body, languages: req.body.languages || ['en'] });
     const { email, password, country, languages } = parsed;
-    const username = (parsed.username || '').trim() || generateUsername();
+    const username = (parsed.username || '').trim() || await pickGeneratedUsername();
 
     const { data: existing } = await usersRepository.existsByEmailOrUsername(email, username);
 
