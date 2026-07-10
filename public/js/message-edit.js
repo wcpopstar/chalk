@@ -37,8 +37,18 @@ function startEditMessage(scope, messageId, btnEl) {
       // On success the server broadcasts chat:message:edited / global:message:edited,
       // which is what actually swaps this edit row back out for the updated bubble.
     }
-    if (isGlobal) socket.emit('global:edit', { messageId, text: newText }, onAck);
-    else socket.emit('chat:edit', { conversationId: currentConvId, messageId, text: newText }, onAck);
+    if (isGlobal) {
+      socket.emit('global:edit', { messageId, text: newText }, onAck);
+    } else if (currentConvPartner && currentConvPartner.public_key) {
+      // Direct chat — the original was E2E-encrypted, so the edit must be too
+      // (see js/e2ee.js). Group chats fall through to the plaintext branch.
+      if (!e2eeReady()) { saving = false; saveBtn.disabled = false; showToast('❌ Шифрование ещё не готово, попробуй снова'); return; }
+      const enc = e2eeEncrypt(newText, currentConvPartner.public_key);
+      if (!enc) { saving = false; saveBtn.disabled = false; showToast('❌ Не удалось зашифровать сообщение'); return; }
+      socket.emit('chat:edit', { conversationId: currentConvId, messageId, ciphertext: enc.ciphertext, nonce: enc.nonce }, onAck);
+    } else {
+      socket.emit('chat:edit', { conversationId: currentConvId, messageId, text: newText }, onAck);
+    }
   }
   function cancel() { row.replaceWith(textEl); }
 

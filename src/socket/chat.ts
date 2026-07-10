@@ -10,6 +10,7 @@ import {
   deleteMessageRow,
   directPartnerBlocked,
   isConversationMember,
+  getPublicKey,
 } from './messages';
 
 // All handlers below go through secureOn(), which — before this code ever
@@ -36,7 +37,7 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     socket.leave(`chat:${conversationId}`);
   });
 
-  secureOn(io, socket, userId, 'chat:message', async ({ conversationId, text, replyToId }, ack) => {
+  secureOn(io, socket, userId, 'chat:message', async ({ conversationId, text, ciphertext, nonce, replyToId }, ack) => {
     if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
     if (await directPartnerBlocked(conversationId, userId)) {
       socket.emit('chat:blocked', { conversationId });
@@ -56,8 +57,23 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       verifiedReplyTo = quoted ? replyToId : null;
     }
 
-    const youtubeLink = isYouTubeUrl(text);
-    const preview = youtubeLink ? await getYouTubePreviewData(text) : null;
+    // ── E2EE path ────────────────────────────────────────────────────────
+    // The client sends ciphertext instead of text for encrypted (direct)
+    // conversations — see public/js/e2ee.js. We can't parse a YouTube link
+    // or generate a preview out of something we can't decrypt, so that
+    // feature simply doesn't apply here; the server just stores/relays the
+    // opaque blob. senderPublicKey is looked up from `users`, never trusted
+    // from the client payload.
+    if (ciphertext) {
+      const senderPublicKey = await getPublicKey(userId);
+      if (!senderPublicKey) return ack({ error: 'Нет ключа шифрования — перезайди в приложение' });
+      const msg = await saveMessage({ conversationId, senderId: userId, ciphertext, nonce, senderPublicKey, type: 'text', replyToId: verifiedReplyTo });
+      io.to(`chat:${conversationId}`).emit('chat:message', msg);
+      return ack({ ok: true, message: msg });
+    }
+
+    const youtubeLink = isYouTubeUrl(text!);
+    const preview = youtubeLink ? await getYouTubePreviewData(text!) : null;
     const payload = youtubeLink
       ? { conversationId, senderId: userId, text, type: 'youtube' as const, mediaUrl: null, preview, replyToId: verifiedReplyTo }
       : { conversationId, senderId: userId, text, type: 'text' as const, replyToId: verifiedReplyTo };
@@ -115,9 +131,17 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
   });
 
   // ── Edit a previously-sent text message (own messages only) ──────────────
-  secureOn(io, socket, userId, 'chat:edit', async ({ conversationId, messageId, text }, ack) => {
+  secureOn(io, socket, userId, 'chat:edit', async ({ conversationId, messageId, text, ciphertext, nonce }, ack) => {
     if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
-    const msg = await editMessageRow('messages', MESSAGE_SELECT, messageId, userId, text);
+
+    let msg;
+    if (ciphertext) {
+      const senderPublicKey = await getPublicKey(userId);
+      if (!senderPublicKey) return ack({ error: 'Нет ключа шифрования — перезайди в приложение' });
+      msg = await editMessageRow('messages', MESSAGE_SELECT, messageId, userId, { ciphertext, nonce: nonce!, senderPublicKey });
+    } else {
+      msg = await editMessageRow('messages', MESSAGE_SELECT, messageId, userId, { text: text! });
+    }
     io.to(`chat:${conversationId}`).emit('chat:message:edited', msg);
     ack({ ok: true });
   });

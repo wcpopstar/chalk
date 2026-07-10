@@ -62,6 +62,11 @@ export interface Database {
           avatar_url: string | null;
           onboarding_completed: boolean;
           presence: string;
+          public_key: string | null;
+          e2ee_backup_secret: string | null;
+          e2ee_backup_nonce: string | null;
+          e2ee_backup_salt: string | null;
+          e2ee_backup_iters: number | null;
         };
         Insert: {
           id?: string;
@@ -81,6 +86,11 @@ export interface Database {
           avatar_url?: string | null;
           onboarding_completed?: boolean;
           presence?: string;
+          public_key?: string | null;
+          e2ee_backup_secret?: string | null;
+          e2ee_backup_nonce?: string | null;
+          e2ee_backup_salt?: string | null;
+          e2ee_backup_iters?: number | null;
         };
         Update: {
           id?: string;
@@ -100,6 +110,11 @@ export interface Database {
           avatar_url?: string | null;
           onboarding_completed?: boolean;
           presence?: string;
+          public_key?: string | null;
+          e2ee_backup_secret?: string | null;
+          e2ee_backup_nonce?: string | null;
+          e2ee_backup_salt?: string | null;
+          e2ee_backup_iters?: number | null;
         };
         Relationships: [];
       };
@@ -439,6 +454,9 @@ export interface Database {
           preview_thumbnail: string | null;
           preview_video_id: string | null;
           created_at: string;
+          is_encrypted: boolean;
+          nonce: string | null;
+          sender_public_key: string | null;
         };
         Insert: {
           id?: string;
@@ -456,6 +474,9 @@ export interface Database {
           preview_thumbnail?: string | null;
           preview_video_id?: string | null;
           created_at?: string;
+          is_encrypted?: boolean;
+          nonce?: string | null;
+          sender_public_key?: string | null;
         };
         Update: {
           id?: string;
@@ -473,6 +494,9 @@ export interface Database {
           preview_thumbnail?: string | null;
           preview_video_id?: string | null;
           created_at?: string;
+          is_encrypted?: boolean;
+          nonce?: string | null;
+          sender_public_key?: string | null;
         };
         Relationships: [
           {

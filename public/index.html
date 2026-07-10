@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Chalk</title>
 <script src="https://cdn.socket.io/4.6.2/socket.io.min.js"></script>
+<!-- tweetnacl 1.0.3 (vendored, no CDN — works offline / under strict CSP):
+     X25519-XSalsa20-Poly1305 for end-to-end encrypted direct chats (see /js/e2ee.js) -->
+<script src="/vendor/nacl-fast.min.js"></script>
 <link rel="stylesheet" href="/css/style.css">
 <script src="/js/theme-init.js"></script>
 </head>
@@ -812,6 +815,7 @@
 <script src="/js/moderation-actions.js"></script>
 <script src="/js/add-friend.js"></script>
 <script src="/js/discover-swipe.js"></script>
+<script src="/js/e2ee.js"></script>
 <script src="/js/chats-list.js"></script>
 <script src="/js/create-group.js"></script>
 <script src="/js/message-render.js"></script>

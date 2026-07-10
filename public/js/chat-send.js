@@ -11,16 +11,42 @@ function sendMsgBtn() {
   if (!text || !currentConvId || !socket) return;
   const now = Date.now();
   if (now - lastMsgSentAt < 300) return; // guards against Enter-key/double-click spam
+
+  // Direct (1:1) chats are end-to-end encrypted — currentConvPartner is only
+  // set for direct chats (see chats-list.js openConv()); group chats leave it
+  // null and keep sending plaintext (no group-key scheme yet). Build the wire
+  // payload first so we can bail out *before* the optimistic bubble/clearing
+  // the input if encryption isn't possible yet.
+  const reply = replyingTo;
+  const payload = { conversationId: currentConvId };
+  if (reply) payload.replyToId = reply.id;
+
+  if (currentConvPartner) {
+    const partnerKey = currentConvPartner.public_key;
+    if (!partnerKey) {
+      showToast('❌ Собеседник ещё не настроил шифрование на своём устройстве — попробуй чуть позже');
+      return;
+    }
+    if (!e2eeReady()) {
+      showToast('❌ Шифрование ещё не готово, подожди секунду и попробуй снова');
+      return;
+    }
+    const enc = e2eeEncrypt(text, partnerKey);
+    if (!enc) { showToast('❌ Не удалось зашифровать сообщение'); return; }
+    payload.ciphertext = enc.ciphertext;
+    payload.nonce = enc.nonce;
+  } else {
+    payload.text = text;
+  }
+
   lastMsgSentAt = now;
 
-  // Optimistic bubble: shows instantly with a "sending" clock, swapped for
-  // the real saved message when the server ack arrives.
+  // Optimistic bubble: shows the *plaintext* instantly (this device already
+  // knows it) with a "sending" clock, swapped for the real saved message
+  // when the server ack arrives.
   const tempId = `tmp-${Date.now()}-${++_tempMsgSeq}`;
-  const reply = replyingTo;
   renderTempMessage(tempId, text, reply);
 
-  const payload = { conversationId: currentConvId, text };
-  if (reply) payload.replyToId = reply.id;
   clearReply();
   input.value = '';
 

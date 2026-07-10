@@ -25,6 +25,23 @@ const gameEntry = z.object({
   hours_played: z.coerce.number().int().min(0).max(1_000_000).optional(),
 });
 
+// E2EE long-term public key (X25519, 32 raw bytes -> 40-44 base64 chars
+// depending on padding). Client-generated, uploaded once on first login and
+// again only if the local keypair is ever regenerated (e.g. new device with
+// no synced backup — see public/js/e2ee.js). We only ever validate shape
+// here, never the content: the server can't and shouldn't judge a public key.
+const publicKeyField = z.string().trim().min(40).max(64).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Invalid base64');
+
+// E2EE key backup: the secret key wrapped client-side with a key derived
+// from the login password (PBKDF2 -> nacl.secretbox) so it can be restored
+// on another device / after localStorage loss. Opaque to the server — shape
+// checks only, sizes documented in supabase/migrations/016_e2ee_key_backup.sql.
+// The four fields are useless apart, so a .refine() below rejects partial
+// uploads (all-or-nothing per request).
+const b64Backup = (min: number, max: number) =>
+  z.string().trim().min(min).max(max).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Invalid base64');
+const E2EE_BACKUP_KEYS = ['e2ee_backup_secret', 'e2ee_backup_nonce', 'e2ee_backup_salt', 'e2ee_backup_iters'] as const;
+
 // ── PATCH /api/users/me ──────────────────────────────────────────────────
 // All fields optional (partial update), but at least one must be present —
 // enforced with .refine() since Zod's own "at least one key" isn't built in.
@@ -39,8 +56,20 @@ const updateProfileSchema = z
     age: z.coerce.number().int().min(13).max(100).optional(),
     gender: z.enum(GENDERS as any).optional(),
     presence: z.enum(PRESENCE_STATES as any).optional(),
+    public_key: publicKeyField.optional(),
+    e2ee_backup_secret: b64Backup(44, 128).optional(),
+    e2ee_backup_nonce: b64Backup(32, 32).optional(),
+    e2ee_backup_salt: b64Backup(16, 44).optional(),
+    e2ee_backup_iters: z.coerce.number().int().min(100_000).max(10_000_000).optional(),
   })
-  .refine((body: Record<string, unknown>) => Object.keys(body).length > 0, { message: 'Nothing to update' });
+  .refine((body: Record<string, unknown>) => Object.keys(body).length > 0, { message: 'Nothing to update' })
+  .refine(
+    (body: Record<string, unknown>) => {
+      const present = E2EE_BACKUP_KEYS.filter((k) => body[k] !== undefined).length;
+      return present === 0 || present === E2EE_BACKUP_KEYS.length;
+    },
+    { message: 'E2EE key backup fields must be sent all together' },
+  );
 
 // ── POST /api/users/me/onboarding ────────────────────────────────────────
 const onboardingSchema = z.object({

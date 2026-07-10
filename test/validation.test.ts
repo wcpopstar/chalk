@@ -161,3 +161,44 @@ describe('loginSchema', () => {
     assert.equal(result.password, 'oldsimplepassword');
   });
 });
+
+// ── E2EE fields on PATCH /api/users/me ──────────────────────────────────────
+describe('updateProfileSchema (E2EE fields)', () => {
+  const { updateProfileSchema } = require('../src/validation/userSchemas');
+
+  // Realistic shapes: 32-byte X25519 public key -> 44 b64 chars; backup blob
+  // 48 bytes -> 64 chars; nonce 24 bytes -> 32 chars; salt 16 bytes -> 24 chars.
+  const publicKey = 'A'.repeat(43) + '=';
+  const backup = {
+    e2ee_backup_secret: 'B'.repeat(64),
+    e2ee_backup_nonce: 'C'.repeat(32),
+    e2ee_backup_salt: 'D'.repeat(22) + '==',
+    e2ee_backup_iters: 310000,
+  };
+
+  it('accepts a public key alone', () => {
+    const result = updateProfileSchema.parse({ public_key: publicKey });
+    assert.equal(result.public_key, publicKey);
+  });
+
+  it('accepts the full backup bundle (all four fields together)', () => {
+    const result = updateProfileSchema.parse({ public_key: publicKey, ...backup });
+    assert.equal(result.e2ee_backup_iters, 310000);
+    assert.equal(result.e2ee_backup_nonce.length, 32);
+  });
+
+  it('rejects a partial backup (fields are useless apart)', () => {
+    assert.throws(
+      () => updateProfileSchema.parse({ e2ee_backup_secret: backup.e2ee_backup_secret }),
+      /all together/
+    );
+  });
+
+  it('rejects a non-base64 public key', () => {
+    assert.throws(() => updateProfileSchema.parse({ public_key: '<script>' + 'A'.repeat(40) }));
+  });
+
+  it('rejects an out-of-range PBKDF2 iteration count', () => {
+    assert.throws(() => updateProfileSchema.parse({ ...backup, e2ee_backup_iters: 1000 }));
+  });
+});

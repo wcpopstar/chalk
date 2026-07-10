@@ -3,6 +3,10 @@
 function lastMessagePreview(m) {
   if (!m) return '';
   if (m.deleted_at) return T('msg_deleted_label');
+  // The chats-list endpoint returns only is_encrypted (not the nonce/keys
+  // needed to decrypt), and we don't have the per-conversation partner key
+  // handy here anyway — show a neutral lock placeholder for encrypted DMs.
+  if (m.is_encrypted) return '🔒 Сообщение';
   if (m.type === 'voice') return `🎤 ${  T('voice_msg_title')}`;
   if (m.type === 'gif') return '🎞️ GIF';
   if (m.type === 'video_note') return `⭕ ${  T('video_note_title', 'Видеосообщение')}`;

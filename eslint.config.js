@@ -63,7 +63,7 @@ const airbnbStyleRules = {
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'supabase/migrations/**', 'public/css/**', 'coverage/**', 'dist/**'],
+    ignores: ['node_modules/**', 'supabase/migrations/**', 'public/css/**', 'public/vendor/**', 'coverage/**', 'dist/**'],
   },
 
   // Baseline recommended rules everywhere.
