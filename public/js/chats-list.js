@@ -116,8 +116,13 @@ async function goToChatAfterCall() {
 // Refreshes the direct-chat partner's profile (most importantly their E2EE
 // public_key) from GET /api/chats/:id/members. Called when the cached
 // snapshot has no key — the partner may have just logged in for the first
-// time since E2EE shipped and generated one.
+// time since E2EE shipped and generated one. Fired from openConv() and from
+// every plaintext-fallback send (chat-send.js), so it dedups in-flight
+// requests per conversation.
+var _partnerKeyRefreshInFlight = {};
 async function refreshPartnerKey(convId) {
+  if (_partnerKeyRefreshInFlight[convId]) return;
+  _partnerKeyRefreshInFlight[convId] = true;
   try {
     const data = await api(`/api/chats/${  convId  }/members`);
     const other = (data.members || []).find((u) => u && u.id !== currentUser.id);
@@ -125,8 +130,9 @@ async function refreshPartnerKey(convId) {
     dmPartnersByConv[convId] = other;
     // Only touch the live conversation if it's still the same one by the
     // time the response lands.
-    if (currentConvId === convId && currentConvPartner) currentConvPartner = other;
-  } catch (_) { /* non-fatal: sends just keep using the cached (key-less) snapshot */ }
+    if (currentConvId === convId) currentConvPartner = other;
+  } catch (_) { /* non-fatal: sends just keep using the cached (key-less) snapshot */
+  } finally { delete _partnerKeyRefreshInFlight[convId]; }
 }
 
 async function openConv(convId, name) {

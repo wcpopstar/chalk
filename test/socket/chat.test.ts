@@ -113,6 +113,7 @@ describe('socket/chat.js', () => {
 
       supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
       supaMock.enqueue({ data: null, error: null }); // conversations lookup -> not direct/none -> directPartnerBlocked short-circuits false
+      supaMock.enqueue({ data: null, error: null }); // downgrade guard: conversations lookup -> not direct -> no partner key check
       supaMock.enqueue({ data: { id: 'aa000001-0000-4000-8000-000000000001', text: 'hello', sender_id: 'me' }, error: null }); // saveMessage insert
 
       let ackResult: any;
@@ -136,6 +137,7 @@ describe('socket/chat.js', () => {
       supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
       supaMock.enqueue({ data: null, error: null }); // not blocked (not a direct conv)
       supaMock.enqueue({ data: { id: 'aa000001-0000-4000-8000-000000000001' }, error: null }); // quoted message IS in this conversation
+      supaMock.enqueue({ data: null, error: null }); // downgrade guard: conversations lookup -> not direct
       supaMock.enqueue({
         data: {
           id: 'aa000002-0000-4000-8000-000000000002', text: 'agreed!', sender_id: 'me',
@@ -165,6 +167,7 @@ describe('socket/chat.js', () => {
       supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
       supaMock.enqueue({ data: null, error: null }); // not blocked
       supaMock.enqueue({ data: null, error: null }); // quoted message NOT in this conversation
+      supaMock.enqueue({ data: null, error: null }); // downgrade guard: conversations lookup -> not direct
       supaMock.enqueue({ data: { id: 'aa000003-0000-4000-8000-000000000003', text: 'hi', sender_id: 'me', reply_to_id: null }, error: null });
 
       let ackResult: any;
@@ -184,6 +187,7 @@ describe('socket/chat.js', () => {
       socket.join('chat:cc000001-0000-4000-8000-000000000001');
       supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
       supaMock.enqueue({ data: null, error: null }); // not blocked
+      supaMock.enqueue({ data: null, error: null }); // downgrade guard: conversations lookup -> not direct
 
       // getYouTubePreviewData does its own network fetch — rather than
       // stubbing the network, just confirm the message still saves and
@@ -256,6 +260,32 @@ describe('socket/chat.js', () => {
       );
 
       assert.match(ackResult.error, /ключа шифрования/);
+    });
+
+    it('E2EE downgrade guard: rejects plaintext into a direct chat whose partner HAS a key, returning it on the ack', async () => {
+      const { socket } = setup('me');
+      socket.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      const partnerKey = 'cGFydG5lci1wdWJsaWMta2V5LTMyYnl0ZXMtYjY0IQ==';
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // directPartnerBlocked: conversations lookup
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // directPartnerBlocked: other member
+      supaMock.enqueue({ data: [], error: null }); // areUsersBlocked: no blocks
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // downgrade guard: conversations lookup
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // downgrade guard: other member
+      supaMock.enqueue({ data: { public_key: partnerKey }, error: null }); // getPublicKey(partner)
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:message',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', text: 'plaintext into an E2EE chat' },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.match(ackResult.error, /зашифровать/);
+      assert.equal(ackResult.code, 'e2ee_required');
+      // the fresh key rides back so the client can re-encrypt and resend
+      assert.equal(ackResult.partnerPublicKey, partnerKey);
     });
   });
 
