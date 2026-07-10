@@ -116,6 +116,48 @@ describe('public/js/config-api.js — session refresh on 401', () => {
     assert.equal(fetchCalls.length, 1); // no refresh round trip
   });
 
+  it('adopts another tab\'s already-rotated token instead of racing it (no /refresh call)', async () => {
+    const store = { chalk_token: 'tab-a-stale-access', chalk_refresh_token: 'tab-a-refresh' };
+    const { sandbox, fetchCalls } = (() => {
+      const loaded = loadConfigApi(store, [
+        { match: '/api/auth/me', response: { ok: false, status: 401, body: { error: 'Token expired', details: { code: 'TOKEN_EXPIRED' } } } },
+        { match: '/api/auth/me', response: { ok: true, status: 200, body: { user: { id: 'u1' } } } },
+      ]);
+      return loaded;
+    })();
+
+    // Another tab won the refresh race while this tab was idle: localStorage
+    // already holds the rotated pair, this tab's in-memory copy is stale.
+    store.chalk_token = 'rotated-access-from-tab-b';
+    store.chalk_refresh_token = 'rotated-refresh-from-tab-b';
+
+    const data = await sandbox.api('/api/auth/me');
+
+    assert.ok(data.user);
+    assert.equal(fetchCalls.length, 2, 'me -> (adopt from storage) -> me, NO /refresh round trip');
+    assert.ok(!fetchCalls.some((c: any) => c.url.includes('/api/auth/refresh')),
+      'must not burn the sibling tab\'s single-use token');
+  });
+
+  it('serializes the refresh through the Web Locks API when available', async () => {
+    const lockNames: string[] = [];
+    const store = { chalk_token: 'stale', chalk_refresh_token: 'valid-refresh' };
+    const loaded = loadConfigApi(store, [
+      { match: '/api/auth/me', response: { ok: false, status: 401, body: { error: 'Token expired', details: { code: 'TOKEN_EXPIRED' } } } },
+      { match: '/api/auth/refresh', response: { ok: true, status: 200, body: { token: 'fresh', refreshToken: 'rotated' } } },
+      { match: '/api/auth/me', response: { ok: true, status: 200, body: { user: { id: 'u1' } } } },
+    ]);
+    const locks = { request: async (name: string, cb: () => unknown) => { lockNames.push(name); return cb(); } };
+    loaded.sandbox.navigator = { locks };
+    loaded.sandbox.window.navigator = loaded.sandbox.navigator;
+
+    const data = await loaded.sandbox.api('/api/auth/me');
+
+    assert.ok(data.user);
+    assert.deepEqual(lockNames, ['chalk-refresh-lock']);
+    assert.equal(store.chalk_refresh_token, 'rotated');
+  });
+
   it('retries at most once — a 401 on the retried request does not loop', async () => {
     const { sandbox, fetchCalls } = loadConfigApi(
       { chalk_token: 'stale', chalk_refresh_token: 'valid-refresh' },
