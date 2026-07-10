@@ -48,33 +48,67 @@ function clearSession() {
 }
 
 // Exchanges the stored refresh token for a new access+refresh pair.
-// Concurrent callers share one in-flight request so a burst of 401s doesn't
-// fire a burst of refresh calls. Returns false if the session can no longer
-// be renewed (refresh token missing/expired/reused) — treat that as logged out.
+// Concurrent callers *within this tab* share one in-flight request so a
+// burst of 401s doesn't fire a burst of refresh calls (see _refreshInFlight
+// below). That alone isn't enough, though: refresh tokens are single-use
+// (rotate-on-use) and any two tabs/devices that both fire /refresh with the
+// SAME still-valid token — e.g. because a deploy just dropped every open
+// socket at once and each tab independently reconnects — will have one of
+// them "win" the rotation and the other get treated as token reuse, which
+// server-side revokes the *entire* session family (see
+// services/refreshTokens.js), logging out every tab, including the one that
+// just won. The Web Locks API below serializes refreshes ACROSS tabs (same
+// origin, shared with no server round trip), and — crucially — after
+// acquiring the lock we re-read localStorage rather than trusting our
+// possibly-stale in-memory copy: if another tab already refreshed while we
+// were waiting, we just adopt its result instead of racing it.
 var _refreshInFlight = null;
 function refreshSession() {
-  if (!refreshToken) return false;
+  if (!refreshToken && !localStorage.getItem('chalk_refresh_token')) return false;
   if (_refreshInFlight) return _refreshInFlight;
 
   _refreshInFlight = (async () => {
     try {
-      const r = await fetch(`${API  }/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) return false;
-      setSession(data);
-      return true;
-    } catch (_) {
-      return false;
+      if (window.navigator && navigator.locks && navigator.locks.request) {
+        return await navigator.locks.request('chalk-refresh-lock', doRefreshExchange);
+      }
+      return await doRefreshExchange();
     } finally {
       _refreshInFlight = null;
     }
   })();
 
   return _refreshInFlight;
+}
+
+async function doRefreshExchange() {
+  // Snapshot what THIS call believes is the current token, then re-check
+  // storage — if another tab won the race while we waited for the lock (or
+  // even before we started), localStorage will already have moved on.
+  const attempted = refreshToken;
+  const stored = localStorage.getItem('chalk_refresh_token');
+  if (stored && stored !== attempted) {
+    token = localStorage.getItem('chalk_token') || token;
+    refreshToken = stored;
+    return true;
+  }
+
+  const tokenToSend = stored || refreshToken;
+  if (!tokenToSend) return false;
+
+  try {
+    const r = await fetch(`${API  }/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: tokenToSend }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return false;
+    setSession(data);
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 // Session can't be renewed — drop back to the login screen without another

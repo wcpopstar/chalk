@@ -37,6 +37,19 @@ async function issueRefreshToken(userId: string, meta: SessionMeta = {}, familyI
 // presented a second time, that's a strong signal it was stolen (the
 // legitimate client would already be using the rotated one), so we kill the
 // entire family — every session descended from that original login.
+// How long after a token is rotated we still tolerate it being presented
+// again before treating that as theft. This exists because legitimate
+// clients can race themselves: e.g. a deploy drops every open tab's
+// connection at once, and two tabs sharing the same localStorage-cached
+// refresh token both fire /refresh within milliseconds of each other. The
+// loser in that race isn't an attacker — it's the same user, a moment too
+// late. Genuine token theft/replay overwhelmingly shows up minutes/hours/
+// days later from a different client, well outside this window, so a short
+// grace period trades a sliver of reuse-detection precision for not mass-
+// logging-out legitimate users on every deploy. (Same trade-off Auth0 and
+// Supabase Auth make with their own reuse-interval settings.)
+const REUSE_GRACE_MS = 10 * 1000;
+
 async function rotateRefreshToken(rawToken: string, meta: SessionMeta = {}) {
   const tokenHash = hashOpaqueToken(rawToken);
 
@@ -51,6 +64,15 @@ async function rotateRefreshToken(rawToken: string, meta: SessionMeta = {}) {
   }
 
   if (row.revoked_at) {
+    const revokedMsAgo = Date.now() - new Date(row.revoked_at).getTime();
+    if (revokedMsAgo >= 0 && revokedMsAgo <= REUSE_GRACE_MS) {
+      // Within the grace window: treat as a benign duplicate rotation
+      // (see REUSE_GRACE_MS above) rather than theft. Mint another sibling
+      // token in the same family instead of touching revoked_at/replaced_by
+      // again — the row already correctly records its original rotation.
+      const { raw } = await issueRefreshToken(row.user_id, meta, row.family_id);
+      return { raw, userId: row.user_id, familyId: row.family_id };
+    }
     await revokeFamily(row.family_id);
     throw new TokenReuseError('Refresh token reuse detected');
   }

@@ -220,7 +220,9 @@ describe('Auth routes (/api/auth)', () => {
           id: 'row-1',
           user_id: 'user-1',
           family_id: 'family-1',
-          revoked_at: new Date().toISOString(), // already used once before
+          // rotated well OUTSIDE the reuse grace window (see REUSE_GRACE_MS
+          // in services/refreshTokens.ts) — this is the theft/replay case
+          revoked_at: new Date(Date.now() - 60_000).toISOString(),
           expires_at: new Date(Date.now() + 60_000).toISOString(),
         },
         error: null,
@@ -233,6 +235,29 @@ describe('Auth routes (/api/auth)', () => {
 
       assert.equal(res.status, 401);
       assert.equal(res.body.code, 'TOKEN_REUSE');
+    });
+
+    it('tolerates a duplicate rotation INSIDE the grace window (two tabs racing, not theft)', async () => {
+      supaMock.enqueue({
+        data: {
+          id: 'row-1',
+          user_id: 'user-1',
+          family_id: 'family-1',
+          revoked_at: new Date(Date.now() - 2_000).toISOString(), // rotated 2s ago by the sibling tab
+          expires_at: new Date(Date.now() + 60_000).toISOString(),
+        },
+        error: null,
+      });
+      supaMock.enqueue({ error: null }); // issueRefreshToken: sibling token insert
+      supaMock.enqueue({ data: { id: 'user-1', username: 'Player' }, error: null }); // reload user
+
+      const res = await request(app)
+        .post('/api/auth/refresh')
+        .send({ refreshToken: 'raced-but-legitimate-token' });
+
+      assert.equal(res.status, 200);
+      assert.ok(res.body.token, 'the losing tab still gets a fresh session');
+      assert.ok(res.body.refreshToken);
     });
 
     it('rejects a request with no refreshToken in the body with 400', async () => {

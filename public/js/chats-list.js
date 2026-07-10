@@ -13,28 +13,40 @@ function lastMessagePreview(m) {
   return (m.text || '').slice(0, 34);
 }
 
+var lastConversations = null; // cached for re-render on language change (avoids a refetch)
+
 async function loadChats() {
   try {
     const data = await api('/api/chats');
-    const convs = data.conversations || [];
-    const dms = convs.filter((c) =>c.type === 'direct');
-    const groups = convs.filter((c) =>c.type === 'group');
-
-    dmPartnersByConv = {};
-    dms.forEach((c) =>{ if (c.other_user) dmPartnersByConv[c.id] = c.other_user; });
-
-    document.getElementById('dmList').innerHTML = dms.length ? dms.map((c) =>{
-      const last = c.last_message;
-      const sub = last ? escHtml(lastMessagePreview(last)) : T('chat_no_messages');
-      const time = last && last.created_at ? formatChatTime(last.created_at) : '';
-      const online = c.online ? ' ci-online' : '';
-      const dmName = c.other_user ? (c.other_user.username || T('status_user')) : (c.name || T('status_user'));
-      const dmAva = c.other_user ? avatarHtml(c.other_user.avatar_emoji, c.other_user.avatar_url) : '👤';
-      return `<div class="chat-item${  online  }" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  dmName.replace(/'/g,"\\'")  }')"><div class="chat-ava">${  dmAva  }</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  escHtml(dmName)  }</div>${  time ? `<div class="chat-item-time">${  time  }</div>` : ''  }</div><div class="chat-sub">${  sub  }</div></div></div>`;
-    }).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px"><span data-i18n="chat_no_dialogs">Нет диалогов</span></div>';
-
-    document.getElementById('groupList').innerHTML = groups.length ? groups.map((c) =>`<div class="chat-item" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  (c.name || T('match_group')).replace(/'/g,"\\'")  }')"><div class="chat-ava-group">👥</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  c.name || T('match_group')  }</div></div><div class="chat-sub"><span data-i18n="match_group_chat">Групповой чат</span></div></div></div>`).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px"><span data-i18n="chat_no_groups">Нет групп</span></div>';
+    lastConversations = data.conversations || [];
+    renderChatsList();
   } catch(e) { console.error(e); }
+}
+
+// Renders the DM + group lists from the cached conversations. Split out from
+// loadChats() so a language switch can re-render the already-loaded list
+// (which contains plain-text strings like "Group chat" or "No messages"
+// baked in via T()) without needing another API round-trip.
+function renderChatsList() {
+  const convs = lastConversations;
+  if (!convs) return;
+  const dms = convs.filter((c) =>c.type === 'direct');
+  const groups = convs.filter((c) =>c.type === 'group');
+
+  dmPartnersByConv = {};
+  dms.forEach((c) =>{ if (c.other_user) dmPartnersByConv[c.id] = c.other_user; });
+
+  document.getElementById('dmList').innerHTML = dms.length ? dms.map((c) =>{
+    const last = c.last_message;
+    const sub = last ? escHtml(lastMessagePreview(last)) : T('chat_no_messages');
+    const time = last && last.created_at ? formatChatTime(last.created_at) : '';
+    const online = c.online ? ' ci-online' : '';
+    const dmName = c.other_user ? (c.other_user.username || T('status_user')) : (c.name || T('status_user'));
+    const dmAva = c.other_user ? avatarHtml(c.other_user.avatar_emoji, c.other_user.avatar_url) : '👤';
+    return `<div class="chat-item${  online  }" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  dmName.replace(/'/g,"\\'")  }')"><div class="chat-ava">${  dmAva  }</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  escHtml(dmName)  }</div>${  time ? `<div class="chat-item-time">${  time  }</div>` : ''  }</div><div class="chat-sub">${  sub  }</div></div></div>`;
+  }).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px"><span data-i18n="chat_no_dialogs">Нет диалогов</span></div>';
+
+  document.getElementById('groupList').innerHTML = groups.length ? groups.map((c) =>`<div class="chat-item" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  (c.name || T('match_group')).replace(/'/g,"\\'")  }')"><div class="chat-ava-group">👥</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  c.name || T('match_group')  }</div></div><div class="chat-sub"><span data-i18n="match_group_chat">Групповой чат</span></div></div></div>`).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px"><span data-i18n="chat_no_groups">Нет групп</span></div>';
 }
 
 function formatChatTime(iso) {
