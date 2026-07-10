@@ -9,6 +9,7 @@ import {
   editMessageRow,
   deleteMessageRow,
   directPartnerBlocked,
+  getDirectPartnerId,
   isConversationMember,
   getPublicKey,
 } from './messages';
@@ -70,6 +71,23 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       const msg = await saveMessage({ conversationId, senderId: userId, ciphertext, nonce, senderPublicKey, type: 'text', replyToId: verifiedReplyTo });
       io.to(`chat:${conversationId}`).emit('chat:message', msg);
       return ack({ ok: true, message: msg });
+    }
+
+    // ── E2EE downgrade guard ─────────────────────────────────────────────
+    // Plaintext into a direct chat is only legitimate while the partner has
+    // no key (the client's fallback for dormant users). The client decides
+    // that from a *cached* snapshot which can be stale — the partner may
+    // have generated a key seconds ago — so the server re-checks against
+    // `users` and rejects, handing the fresh key back on the ack so the
+    // client can re-encrypt and resend immediately.
+    const partnerId = await getDirectPartnerId(conversationId, userId);
+    const partnerPublicKey = partnerId ? await getPublicKey(partnerId) : null;
+    if (partnerPublicKey) {
+      return ack({
+        error: 'У собеседника уже есть ключ шифрования — сообщение нужно зашифровать',
+        code: 'e2ee_required',
+        partnerPublicKey,
+      });
     }
 
     const youtubeLink = isYouTubeUrl(text!);

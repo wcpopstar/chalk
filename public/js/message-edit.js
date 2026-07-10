@@ -37,21 +37,28 @@ function startEditMessage(scope, messageId, btnEl) {
       // On success the server broadcasts chat:message:edited / global:message:edited,
       // which is what actually swaps this edit row back out for the updated bubble.
     }
+    // Re-enable the edit box and (optionally) toast — the shared epilogue
+    // for every pre-send failure below.
+    function fail(msg) {
+      saving = false; saveBtn.disabled = false;
+      if (msg) showToast(`❌ ${  msg}`);
+    }
+    if (isGlobal) {
+      socket.emit('global:edit', { messageId, text: newText }, onAck);
+      return;
+    }
     // An edit must keep the message's own encryption mode (is_encrypted was
     // fixed at insert time and the DB CHECK enforces nonce consistency) —
     // NOT follow the conversation's current state. A plaintext message sent
     // before the partner set up E2EE stays plaintext even after their key
-    // appears; an encrypted one stays encrypted.
-    const original = (typeof convMessagesById !== 'undefined' && convMessagesById[messageId]) || null;
-    const wasEncrypted = original ? Boolean(original.is_encrypted)
-      : Boolean(currentConvPartner && currentConvPartner.public_key); // fallback: best guess from conv state
-    if (isGlobal) {
-      socket.emit('global:edit', { messageId, text: newText }, onAck);
-    } else if (wasEncrypted) {
-      if (!currentConvPartner || !currentConvPartner.public_key) { saving = false; saveBtn.disabled = false; showToast('❌ Нет ключа собеседника — не получится зашифровать правку'); return; }
-      if (!e2eeReady()) { saving = false; saveBtn.disabled = false; showToast('❌ Шифрование ещё не готово, попробуй снова'); return; }
-      const enc = e2eeEncrypt(newText, currentConvPartner.public_key);
-      if (!enc) { saving = false; saveBtn.disabled = false; showToast('❌ Не удалось зашифровать сообщение'); return; }
+    // appears; an encrypted one stays encrypted. Every editable bubble was
+    // registered in convMessagesById when it was rendered, so a miss means
+    // the view is genuinely stale (the server double-checks the mode anyway).
+    const original = convMessagesById[messageId];
+    if (!original) return fail('Сообщение не найдено — обнови чат');
+    if (original.is_encrypted) {
+      const enc = e2eeEncryptOrToast(newText, currentConvPartner && currentConvPartner.public_key);
+      if (!enc) return fail(); // e2eeEncryptOrToast already toasted the reason
       socket.emit('chat:edit', { conversationId: currentConvId, messageId, ciphertext: enc.ciphertext, nonce: enc.nonce }, onAck);
     } else {
       socket.emit('chat:edit', { conversationId: currentConvId, messageId, text: newText }, onAck);

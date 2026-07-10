@@ -241,6 +241,18 @@ function e2eeEncrypt(plaintext, recipientPublicKeyB64) {
   }
 }
 
+// Guarded encrypt shared by the send and edit paths (chat-send.js /
+// message-edit.js): checks the partner key and local readiness, encrypts,
+// and toasts the matching error itself. Returns { ciphertext, nonce } or
+// null — the caller just aborts on null.
+function e2eeEncryptOrToast(plaintext, recipientPublicKeyB64) {
+  if (!recipientPublicKeyB64) { showToast('❌ Нет ключа собеседника — не получится зашифровать'); return null; }
+  if (!e2eeReady()) { showToast('❌ Шифрование ещё не готово, подожди секунду и попробуй снова'); return null; }
+  const enc = e2eeEncrypt(plaintext, recipientPublicKeyB64);
+  if (!enc) showToast('❌ Не удалось зашифровать сообщение');
+  return enc;
+}
+
 // Low-level decrypt: returns plaintext string, or null if it can't be
 // opened (wrong/missing key, corrupted data, tampering).
 function e2eeDecrypt(ciphertextB64, nonceB64, theirPublicKeyB64) {
