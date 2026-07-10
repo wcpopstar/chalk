@@ -69,10 +69,18 @@ function updateLangToggleUI() {
 
 function setLang(lang) {
   if (I18N_LANGS.indexOf(lang) === -1) return;
+  if (currentLang === lang) { closeLangMenu(); return; }
   currentLang = lang;
   try { localStorage.setItem('chalk_lang', lang); } catch (_) {}
   applyI18n();
   closeLangMenu();
+  // Let other modules know the language changed, so they can re-render any
+  // dynamic content that was built from cached data (friends list, chats
+  // list, discover cards, profile page, etc.) and isn't covered by the
+  // simple [data-i18n] attribute pass above.
+  try {
+    document.dispatchEvent(new CustomEvent('i18n:change', { detail: { lang: currentLang } }));
+  } catch (_) {}
 }
 
 function toggleLangMenu(event) {

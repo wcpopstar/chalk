@@ -1,8 +1,18 @@
 // ── PROFILE PERSONALIZATION HELPERS ─────────────────────────────────────────
-var GENDER_LABELS = { male: T('chip_male'), female: T('chip_female'), other: T('chip_other'), prefer_not_to_say: T('profile_not_specified') };
+// NOTE: these used to be plain objects built once at page load, e.g.
+//   var GENDER_LABELS = { male: T('chip_male'), ... };
+// which baked in whatever language was active *at that instant* and never
+// updated again — that's why gender / game labels used to keep showing the
+// old language after switching. They're now built fresh on every call so
+// they always reflect the current language.
+function GENDER_LABELS() {
+  return { male: T('chip_male'), female: T('chip_female'), other: T('chip_other'), prefer_not_to_say: T('profile_not_specified') };
+}
 var LANG_LABELS = { ru: '🇷🇺 Русский', en: '🇬🇧 English', uk: '🇺🇦 Українська', de: '🇩🇪 Deutsch', fr: '🇫🇷 Français', es: '🇪🇸 Español', it: '🇮🇹 Italiano', pt: '🇵🇹 Português', pl: '🇵🇱 Polski', nl: '🇳🇱 Nederlands', sv: '🇸🇪 Svenska', no: '🇳🇴 Norsk', da: '🇩🇰 Dansk', fi: '🇫🇮 Suomi', cs: '🇨🇿 Čeština', sk: '🇸🇰 Slovenčina', hu: '🇭🇺 Magyar', ro: '🇷🇴 Română', bg: '🇧🇬 Български', el: '🇬🇷 Ελληνικά', hr: '🇭🇷 Hrvatski', sr: '🇷🇸 Српски', lt: '🇱🇹 Lietuvių', lv: '🇱🇻 Latviešu', et: '🇪🇪 Eesti', tr: '🇹🇷 Türkçe', kz: '🇰🇿 Қазақша' };
 function langLabel(l) { return LANG_LABELS[l] || l.toUpperCase(); }
-var GAME_LABELS = { valorant: 'Valorant', cs2: 'CS2', apex: 'Apex Legends', lol: 'League of Legends', fortnite: 'Fortnite', dota2: 'Dota 2', overwatch: 'Overwatch 2', pubg: 'PUBG', minecraft: 'Minecraft', genshin: 'Genshin Impact', roblox: 'Roblox', gta5: 'GTA V', amongus: 'Among Us', r6siege: 'Rainbow Six Siege', wow: 'World of Warcraft', mlbb: 'Mobile Legends', chat: T('match_simple_chat') };
+function GAME_LABELS() {
+  return { valorant: 'Valorant', cs2: 'CS2', apex: 'Apex Legends', lol: 'League of Legends', fortnite: 'Fortnite', dota2: 'Dota 2', overwatch: 'Overwatch 2', pubg: 'PUBG', minecraft: 'Minecraft', genshin: 'Genshin Impact', roblox: 'Roblox', gta5: 'GTA V', amongus: 'Among Us', r6siege: 'Rainbow Six Siege', wow: 'World of Warcraft', mlbb: 'Mobile Legends', chat: T('match_simple_chat') };
+}
 
 function avatarHtml(emoji, url) {
   if (url) return `<img src="${  url  }" alt="">`;
@@ -26,7 +36,7 @@ function participantIsAlreadyFriend(p) {
   return Boolean(pid && currentFriendIds.has(String(pid)));
 }
 
-function genderLabel(g) { return GENDER_LABELS[g] || T('profile_not_specified'); }
+function genderLabel(g) { return GENDER_LABELS()[g] || T('profile_not_specified'); }
 
 // ── THEME (light / dark) ────────────────────────────────────────────────────
 function applyTheme(theme) {
