@@ -39,6 +39,7 @@ async function toggleVoiceRecording(scope) {
 }
 
 function showVoiceRecordingBar(scope) {
+  if (scope === 'conv' && typeof chatActivityStart === 'function') chatActivityStart('voice');
   const inputRow = document.getElementById(scope === 'global' ? 'globalChatInput' : 'chatInput');
   if (!inputRow) return;
   const container = inputRow.closest('.chat-input-row, .gc-input-row');
@@ -59,6 +60,7 @@ function showVoiceRecordingBar(scope) {
 }
 
 function removeVoiceRecordingBar(scope) {
+  if (scope === 'conv' && typeof chatActivityStop === 'function') chatActivityStop();
   const bar = document.getElementById(`voiceBar-${  scope}`);
   if (bar) bar.remove();
   const rec = voiceRecorders[scope];
@@ -263,6 +265,7 @@ async function toggleVideoNoteRecording(scope) {
 }
 
 function showVideoNoteOverlay(scope, stream) {
+  if (scope === 'conv' && typeof chatActivityStart === 'function') chatActivityStart('video');
   const anchorInput = document.getElementById(scope === 'global' ? 'globalChatInput' : 'chatInput');
   const container = anchorInput && anchorInput.closest('.chat-input-row, .gc-input-row');
   if (!container) return;
@@ -294,6 +297,7 @@ function showVideoNoteOverlay(scope, stream) {
 }
 
 function removeVideoNoteOverlay(scope) {
+  if (scope === 'conv' && typeof chatActivityStop === 'function') chatActivityStop();
   const overlay = document.getElementById(`videoNoteOverlay-${  scope}`);
   if (overlay) overlay.remove();
   const rec = videoNoteRecorders[scope];

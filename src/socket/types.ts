@@ -97,7 +97,8 @@ export interface ServerToClientEvents {
   'chat:message': (message: Record<string, any>) => void;
   'chat:message:edited': (message: Record<string, any>) => void;
   'chat:message:deleted': (data: { conversationId: string; messageId: string }) => void;
-  'chat:typing': (data: { userId: string; username: string }) => void;
+  'chat:typing': (data: { conversationId: string; userId: string; username: string; kind: 'typing' | 'voice' | 'video' }) => void;
+  'chat:read': (data: { conversationId: string; userId: string; lastReadAt: string }) => void;
   'chat:blocked': (data: { conversationId: string }) => void;
 
   // ── global (platform-wide) chat ──

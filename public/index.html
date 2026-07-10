@@ -533,9 +533,10 @@
           <div class="chat-messages" id="chatMessages">
             <div class="empty-chat"><div style="font-size:32px">💬</div><span data-i18n="chat_choose_dialog">Выбери диалог</span></div>
           </div>
+          <div class="chat-reply-bar" id="chatReplyBar" style="display:none"></div>
           <div class="chat-input-row" id="chatInputRow" style="display:none">
             <button class="chat-attach-btn" type="button" title="Отправить GIF" data-i18n-title="gif_send_title" onclick="toggleGifPicker('conv')">🎞️</button>
-            <input class="chat-input" id="chatInput" type="text" placeholder="Написать сообщение..." data-i18n-placeholder="chat_write_placeholder" onkeydown="sendMsg(event)">
+            <input class="chat-input" id="chatInput" type="text" placeholder="Написать сообщение..." data-i18n-placeholder="chat_write_placeholder" onkeydown="sendMsg(event)" oninput="notifyTypingInput()">
             <button class="chat-video-btn" id="videoBtn-conv" type="button" title="Видеосообщение" onclick="toggleVideoNoteRecording('conv')">⭕</button>
             <button class="chat-mic-btn" id="voiceBtn-conv" type="button" title="Голосовое сообщение" data-i18n-title="voice_msg_title" onclick="toggleVoiceRecording('conv')">🎤</button>
             <button class="chat-send" onclick="sendMsgBtn()">➤</button>
