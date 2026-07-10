@@ -41,7 +41,7 @@ function createSupabaseMock() {
 
     const chainableMethods = [
       'select', 'insert', 'update', 'delete', 'upsert',
-      'eq', 'neq', 'or', 'is', 'in', 'order', 'limit',
+      'eq', 'neq', 'or', 'is', 'in', 'match', 'order', 'limit',
       'ilike', 'not', 'lt', 'lte', 'gt', 'gte', 'range',
     ];
     chainableMethods.forEach((method) => {

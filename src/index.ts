@@ -99,7 +99,12 @@ app.use(helmet({
     directives: {
       'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', "'wasm-unsafe-eval'"],
       'script-src-attr': ["'unsafe-inline'"],
-      'style-src': ["'self'", "'unsafe-inline'"],
+      // Google Fonts: the stylesheet comes from fonts.googleapis.com and the
+      // woff2 files it references from fonts.gstatic.com — without both
+      // entries the browser refuses the @font-face load and silently falls
+      // back to system fonts.
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      'font-src': ["'self'", 'data:', 'https://fonts.gstatic.com'],
       'img-src': ["'self'", 'data:', 'blob:', 'https:'],
       'media-src': ["'self'", 'blob:', 'data:'],
       'connect-src': ["'self'", 'https:', 'wss:'],
