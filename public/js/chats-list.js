@@ -113,6 +113,22 @@ async function goToChatAfterCall() {
   } catch(e) { showToast(`${T('err_generic')  } ${  e.message}`); }
 }
 
+// Refreshes the direct-chat partner's profile (most importantly their E2EE
+// public_key) from GET /api/chats/:id/members. Called when the cached
+// snapshot has no key — the partner may have just logged in for the first
+// time since E2EE shipped and generated one.
+async function refreshPartnerKey(convId) {
+  try {
+    const data = await api(`/api/chats/${  convId  }/members`);
+    const other = (data.members || []).find((u) => u && u.id !== currentUser.id);
+    if (!other || !other.public_key) return;
+    dmPartnersByConv[convId] = other;
+    // Only touch the live conversation if it's still the same one by the
+    // time the response lands.
+    if (currentConvId === convId && currentConvPartner) currentConvPartner = other;
+  } catch (_) { /* non-fatal: sends just keep using the cached (key-less) snapshot */ }
+}
+
 async function openConv(convId, name) {
   currentConvId = convId;
   currentConvPartner = dmPartnersByConv[convId] || null;
@@ -134,6 +150,13 @@ async function openConv(convId, name) {
   if (socket) {
     socket.emit('chat:join', { conversationId: convId });
   }
+
+  // The partner's E2EE public key in dmPartnersByConv is a snapshot from
+  // whenever the chats list was loaded. If they set up encryption AFTER that
+  // (first login since E2EE shipped), the snapshot says "no key" and sends
+  // would keep falling back to plaintext — so re-fetch the members on every
+  // open (fire-and-forget; sends check the key at click time anyway).
+  if (currentConvPartner && !currentConvPartner.public_key) refreshPartnerKey(convId);
 
   // Fresh conversation: reset per-conversation UI state.
   if (typeof clearReply === 'function') clearReply();
