@@ -2,6 +2,9 @@
 var lastMsgSentAt = 0;
 var replyingTo = null;      // { id, name, snippet } — message being replied to
 var _tempMsgSeq = 0;
+// Conversations where we've already shown the "partner has no E2EE key yet,
+// sending unencrypted" notice — once per conversation per session is enough.
+var _plaintextNoticeShown = {};
 
 function sendMsg(e) { if (e.key === 'Enter') sendMsgBtn(); }
 
@@ -21,12 +24,20 @@ function sendMsgBtn() {
   const payload = { conversationId: currentConvId };
   if (reply) payload.replyToId = reply.id;
 
-  if (currentConvPartner) {
-    const partnerKey = currentConvPartner.public_key;
-    if (!partnerKey) {
-      showToast('❌ Собеседник ещё не настроил шифрование на своём устройстве — попробуй чуть позже');
-      return;
+  const partnerKey = currentConvPartner && currentConvPartner.public_key;
+  if (currentConvPartner && !partnerKey) {
+    // The partner hasn't opened the app since E2EE shipped, so there's no
+    // key to encrypt to yet. Blocking the message entirely would make every
+    // dormant user unreachable — fall back to plaintext (exactly what the
+    // whole conversation was before E2EE) and say so once. The moment their
+    // key appears (openConv() refreshes it, and loadChats() re-fetches),
+    // sends switch to encrypted automatically.
+    if (!_plaintextNoticeShown[currentConvId]) {
+      _plaintextNoticeShown[currentConvId] = true;
+      showToast('🔓 Собеседник ещё не настроил шифрование — пока сообщения отправляются без него');
     }
+    payload.text = text;
+  } else if (partnerKey) {
     if (!e2eeReady()) {
       showToast('❌ Шифрование ещё не готово, подожди секунду и попробуй снова');
       return;
