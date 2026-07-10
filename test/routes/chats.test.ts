@@ -198,6 +198,10 @@ describe('Chats routes (/api/chats)', () => {
         ],
         error: null,
       }); // messages come back newest-first from the DB query...
+      supaMock.enqueue({
+        data: [{ user_id: userId, last_read_at: '2026-01-01T00:03:00Z' }],
+        error: null,
+      }); // per-member read watermarks
 
       const res = await request(app)
         .get('/api/chats/cc000001-0000-4000-8000-000000000001/messages')
@@ -206,6 +210,9 @@ describe('Chats routes (/api/chats)', () => {
       assert.equal(res.status, 200);
       // ...and the route reverses them to oldest-first for the client.
       assert.deepEqual(res.body.messages.map((m: any) => m.id), ['m1', 'm2']);
+      // read watermarks ride along so the client can render ✓/✓✓ on load
+      assert.equal(res.body.reads.length, 1);
+      assert.equal(res.body.reads[0].user_id, userId);
     });
   });
 

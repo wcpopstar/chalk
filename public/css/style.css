@@ -660,3 +660,31 @@
   .ob-card{padding:22px}
   .modal-card{width:100%}
 }
+
+
+/* ── Chat scroll containment: scrolling inside the message list must never
+   scroll the page behind it (overscroll chaining). ─────────────────────── */
+.chat-messages, .gc-messages { overscroll-behavior: contain; }
+
+/* ── Message delivery status (🕓 sending / ✓ delivered / ✓✓ read) ────────── */
+.msg-status { display: block; text-align: right; font-size: 10px; line-height: 1; margin-top: 3px; color: var(--muted); user-select: none; }
+.msg-status[data-status="read"] { color: #4da3ff; }
+.msg-status[data-status="failed"] { color: #ff5b5b; }
+
+/* ── Quoted message inside a reply bubble ────────────────────────────────── */
+.msg-reply-quote { display: flex; flex-direction: column; gap: 1px; border-left: 3px solid #7c3aed; background: rgba(124, 58, 237, .08); border-radius: 6px; padding: 4px 8px; margin-bottom: 5px; cursor: pointer; max-width: 100%; overflow: hidden; }
+.msg-reply-quote-name { font-size: 11px; font-weight: 600; color: #a78bfa; }
+.msg-reply-quote-text { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── "Replying to…" bar above the input ──────────────────────────────────── */
+.chat-reply-bar { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-top: 1px solid var(--border, rgba(255,255,255,.08)); font-size: 12px; color: var(--muted); }
+.chat-reply-bar-body { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-reply-bar-cancel { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.chat-reply-bar-cancel:hover { color: #fff; }
+
+/* ── Flash highlight when jumping to a quoted message ────────────────────── */
+.msg-flash { animation: msgFlash 1.2s ease; }
+@keyframes msgFlash { 0% { background: rgba(124, 58, 237, .25); } 100% { background: transparent; } }
+
+/* ── Activity label ("typing… / recording…") under the chat header ───────── */
+.chat-header-status.chat-activity { color: #a78bfa; font-style: italic; }
