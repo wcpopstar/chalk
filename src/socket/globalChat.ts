@@ -56,7 +56,7 @@ function registerGlobalChatHandlers(io: TypedServer, socket: TypedSocket, userId
   });
 
   secureOn(io, socket, userId, 'global:edit', async ({ messageId, text }, ack) => {
-    const msg = await editMessageRow('global_messages', GLOBAL_MESSAGE_SELECT, messageId, userId, text);
+    const msg = await editMessageRow('global_messages', GLOBAL_MESSAGE_SELECT, messageId, userId, { text });
     io.to('global').emit('global:message:edited', msg);
     ack({ ok: true });
   });

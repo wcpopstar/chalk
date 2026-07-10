@@ -15,8 +15,17 @@ function messageContentHtml(m, meClass) {
   if (m.type === 'youtube') {
     return youtubePreviewHtml(m);
   }
+  // Direct-chat text is end-to-end encrypted: `m.text` holds base64 ciphertext
+  // and e2eeDecryptMessage() turns it back into plaintext client-side (see
+  // js/e2ee.js). null means it couldn't be opened (e.g. a keypair from another
+  // device/browser) — show a lock placeholder rather than raw ciphertext.
+  let text = m.text || '';
+  if (m.is_encrypted) {
+    const decrypted = e2eeDecryptMessage(m);
+    text = decrypted === null ? '🔒 Не удалось расшифровать сообщение' : decrypted;
+  }
   const edited = m.edited_at ? `<span class="msg-edited-tag">(${  T('msg_edited_tag')  })</span>` : '';
-  return `<div class="msg-text" data-rawtext="${  escHtml(m.text || '')  }">${  escHtml(m.text || '')  }${edited  }</div>`;
+  return `<div class="msg-text" data-rawtext="${  escHtml(text)  }">${  escHtml(text)  }${edited  }</div>`;
 }
 
 function youtubePreviewHtml(m) {

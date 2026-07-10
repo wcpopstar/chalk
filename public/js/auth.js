@@ -64,6 +64,11 @@ async function login() {
   try {
     const data = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
     setSession(data);
+    // Hand the typed password to the E2EE module (memory only) so
+    // ensureE2eeKeypair() can unwrap/re-wrap the server-side key backup —
+    // this is what makes the same keypair follow the account onto new
+    // devices. See js/e2ee.js.
+    e2eeCapturePassword(password);
     afterAuth();
   } catch(e) {
     showAuthError(e.message);
@@ -91,6 +96,9 @@ async function register() {
   try {
     const data = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password, country, languages: ['ru'] }) });
     setSession(data);
+    // Same as login(): lets ensureE2eeKeypair() create the password-wrapped
+    // key backup right away for the brand-new account.
+    e2eeCapturePassword(password);
     afterAuth();
   } catch(e) {
     showAuthError(e.message);
@@ -142,6 +150,11 @@ async function logoutAllDevices() {
 // everyone else goes straight into the app.
 function afterAuth() {
   document.getElementById('authScreen').classList.add('hidden');
+  // Fire-and-forget: generates/loads this browser's E2EE keypair and makes
+  // sure the server has our current public key on file (see js/e2ee.js).
+  // chat-send.js / message-render.js check e2eeReady() themselves before
+  // encrypting or decrypting, so this doesn't need to block the UI.
+  ensureE2eeKeypair();
   if (!currentUser.onboarding_completed) {
     startOnboarding();
   } else {
