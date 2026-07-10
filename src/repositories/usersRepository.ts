@@ -28,6 +28,14 @@ function existsByEmailOrUsername(email: string, username: string) {
     .maybeSingle();
 }
 
+function existsByUsername(username: string) {
+  return supabaseAdmin
+    .from('users')
+    .select('id')
+    .eq('username', username)
+    .maybeSingle();
+}
+
 function createUser(record: UserInsert, selectFields: string = FULL_PROFILE_FIELDS) {
   return supabaseAdmin.from('users').insert(record).select(selectFields).single();
 }
@@ -145,6 +153,7 @@ function findPublicProfileById(userId: string) {
 export {
   FULL_PROFILE_FIELDS,
   existsByEmailOrUsername,
+  existsByUsername,
   createUser,
   findForLogin,
   setStatus,

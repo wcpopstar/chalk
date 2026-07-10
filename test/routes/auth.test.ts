@@ -41,7 +41,8 @@ describe('Auth routes (/api/auth)', () => {
 
   describe('POST /api/auth/register', () => {
     it('creates an account and returns a session for a valid payload', async () => {
-      supaMock.enqueue({ data: null, error: null }); // no existing user/username
+      supaMock.enqueue({ data: null, error: null }); // existsByUsername: generated candidate is free
+      supaMock.enqueue({ data: null, error: null }); // existsByEmailOrUsername: no existing user
       supaMock.enqueue({
         data: { id: 'user-1', username: 'NewPlayer', email: 'newplayer@example.com' },
         error: null,
@@ -78,19 +79,21 @@ describe('Auth routes (/api/auth)', () => {
     });
 
     it('returns 409 when the email or username is already taken', async () => {
-      supaMock.enqueue({ data: { id: 'existing-user' }, error: null });
+      supaMock.enqueue({ data: { id: 'existing-user' }, error: null }); // existsByEmailOrUsername
 
       const res = await request(app)
         .post('/api/auth/register')
-        .send({ email: 'taken@example.com', password: 'StrongPass123' });
+        // explicit username: no generation queries, straight to the 409 check
+        .send({ email: 'taken@example.com', password: 'StrongPass123', username: 'TakenName' });
 
       assert.equal(res.status, 409);
     });
 
     it('generates a username automatically when none is supplied', async () => {
-      supaMock.enqueue({ data: null, error: null });
+      supaMock.enqueue({ data: null, error: null }); // existsByUsername: first candidate is free
+      supaMock.enqueue({ data: null, error: null }); // existsByEmailOrUsername: nothing taken
       supaMock.enqueue({
-        data: { id: 'user-2', username: 'GeneratedName123', email: 'noname@example.com' },
+        data: { id: 'user-2', username: 'SilentViper', email: 'noname@example.com' },
         error: null,
       });
       supaMock.enqueue({ error: null });
@@ -98,6 +101,24 @@ describe('Auth routes (/api/auth)', () => {
       const res = await request(app)
         .post('/api/auth/register')
         .send({ email: 'noname@example.com', password: 'StrongPass123' });
+
+      assert.equal(res.status, 201);
+      assert.ok(res.body.user.username);
+    });
+
+    it('retries with a different candidate when the generated username is taken', async () => {
+      supaMock.enqueue({ data: { id: 'someone-else' }, error: null }); // existsByUsername: 1st candidate taken
+      supaMock.enqueue({ data: null, error: null });                   // existsByUsername: 2nd candidate free
+      supaMock.enqueue({ data: null, error: null });                   // existsByEmailOrUsername
+      supaMock.enqueue({
+        data: { id: 'user-3', username: 'CrimsonReaper', email: 'retry@example.com' },
+        error: null,
+      });
+      supaMock.enqueue({ error: null });
+
+      const res = await request(app)
+        .post('/api/auth/register')
+        .send({ email: 'retry@example.com', password: 'StrongPass123' });
 
       assert.equal(res.status, 201);
       assert.ok(res.body.user.username);
