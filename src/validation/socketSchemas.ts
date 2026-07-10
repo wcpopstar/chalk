@@ -40,18 +40,54 @@ const durationField = z.number().finite().nonnegative().max(600).optional(); // 
 const messageText = (max: number) => z.string().trim().min(1).max(max);
 const gifUrl = z.string().trim().url().startsWith('https://').max(2000);
 
+// ── E2EE: base64 blobs for direct-chat messages ─────────────────────────────
+// Worst case for a 2000-*character* plaintext message is 2000 four-byte
+// UTF-8 code points (rare, but emoji-heavy text can get close) = 8000 raw
+// bytes; nacl.box() adds a 16-byte Poly1305 tag = 8016 bytes; base64
+// inflates that ~1.34x -> ~10750 chars. 12000 covers it with headroom and
+// matches the `messages_text_check` column constraint in
+// supabase/migrations/015_e2ee.sql — keep these two in sync. nonce is a
+// fixed 24 raw bytes -> exactly 32 base64 chars (24 is divisible by 3, so
+// no padding). Public keys are a fixed 32 raw bytes -> base64 of 40-44
+// chars depending on padding.
+const base64Field = (min: number, max: number) =>
+  z.string().trim().min(min).max(max).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Invalid base64');
+const ciphertextField = base64Field(1, 12000);
+const nonceField = base64Field(32, 32);
+
 const GAME_IDS = ['valorant', 'csgo', 'dota2', 'lol', 'apex', 'fortnite', 'overwatch2', 'rust', 'minecraft', 'other'];
 
 // ── chat.js (direct/DM conversation) ────────────────────────────────────────
 const chatJoin = z.object({ conversationId: uuidField });
 const chatLeave = z.object({ conversationId: uuidField });
-const chatMessage = z.object({
-  conversationId: uuidField,
-  text: messageText(2000),
-  // Quoted message (reply). Must belong to the same conversation — that's
-  // verified server-side in socket/chat.ts, a schema can't know it.
-  replyToId: uuidField.optional(),
-});
+// E2EE note: direct (1:1) conversations are end-to-end encrypted client-side
+// (see public/js/e2ee.js) — the client sends `ciphertext` + `nonce` instead
+// of `text`, and the server stores/relays the blob without ever seeing
+// plaintext. Group conversations aren't E2EE yet (no group-key scheme), so
+// they still send plain `text`. Exactly one of the two shapes must be present.
+// z.object(...).refine() returns a ZodEffects wrapper (no .merge() available),
+// so this builds the combined shape directly rather than trying to compose
+// two object schemas together.
+const withEncryptedOrPlainText = <T extends z.ZodRawShape>(baseShape: T, maxPlain: number) =>
+  z.object({
+    ...baseShape,
+    text: messageText(maxPlain).optional(),
+    ciphertext: ciphertextField.optional(),
+    nonce: nonceField.optional(),
+  }).refine(
+    (v: { text?: unknown; ciphertext?: unknown; nonce?: unknown }) =>
+      (v.text !== undefined) !== (v.ciphertext !== undefined), // exactly one
+    { message: 'Provide either text or ciphertext, not both/neither' },
+  ).refine(
+    (v: { ciphertext?: unknown; nonce?: unknown }) =>
+      v.ciphertext === undefined || v.nonce !== undefined,
+    { message: 'nonce is required alongside ciphertext' },
+  );
+
+// Quoted message (reply) via replyToId. Must belong to the same conversation —
+// that's verified server-side in socket/chat.ts, a schema can't know it. It
+// lives in the base shape so it works for both plaintext and encrypted sends.
+const chatMessage = withEncryptedOrPlainText({ conversationId: uuidField, replyToId: uuidField.optional() }, 2000);
 const chatGif = z.object({ conversationId: uuidField, gifUrl });
 const chatVoice = z.object({
   conversationId: uuidField, audio: mediaBlob, mime: mimeField, duration: durationField,
@@ -59,7 +95,7 @@ const chatVoice = z.object({
 const chatVideoNote = z.object({
   conversationId: uuidField, video: mediaBlob, mime: mimeField, duration: durationField,
 });
-const chatEdit = z.object({ conversationId: uuidField, messageId: uuidField, text: messageText(2000) });
+const chatEdit = withEncryptedOrPlainText({ conversationId: uuidField, messageId: uuidField }, 2000);
 const chatDelete = z.object({ conversationId: uuidField, messageId: uuidField });
 // kind distinguishes what the person is composing: plain typing, a voice
 // note, or a circular video note — the header shows a different label each.

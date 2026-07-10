@@ -200,6 +200,63 @@ describe('socket/chat.js', () => {
 
       assert.equal(ackResult.ok, true);
     });
+
+    it('E2EE: saves ciphertext as-is and stamps the sender\'s current public key from the DB (not the client)', async () => {
+      const { io, socket } = setup('me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+      socket.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: null, error: null }); // not blocked (conversations lookup -> not direct)
+      supaMock.enqueue({ data: { public_key: 'c2VuZGVyLXB1YmxpYy1rZXktMzJieXRlcy1iYXNlNjQ=' }, error: null }); // getPublicKey
+      supaMock.enqueue({
+        data: {
+          id: 'ee000001-0000-4000-8000-000000000001',
+          text: 'Y2lwaGVydGV4dA==', // what saveMessage was told to insert as `text`
+          is_encrypted: true,
+          nonce: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+          sender_public_key: 'c2VuZGVyLXB1YmxpYy1rZXktMzJieXRlcy1iYXNlNjQ=',
+        },
+        error: null,
+      }); // saveMessage insert
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:message',
+        {
+          conversationId: 'cc000001-0000-4000-8000-000000000001',
+          ciphertext: 'Y2lwaGVydGV4dA==',
+          nonce: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.equal(ackResult.ok, true);
+      const received = other.emitted.find((e: any) => e.event === 'chat:message');
+      assert.ok(received);
+      assert.equal(received.payload.is_encrypted, true);
+      assert.equal(received.payload.text, 'Y2lwaGVydGV4dA==');
+      assert.equal(received.payload.sender_public_key, 'c2VuZGVyLXB1YmxpYy1rZXktMzJieXRlcy1iYXNlNjQ=');
+    });
+
+    it('E2EE: refuses to send if the sender has no public key on file yet', async () => {
+      const { socket } = setup('me');
+      socket.join('chat:cc000001-0000-4000-8000-000000000001');
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: null, error: null }); // not blocked
+      supaMock.enqueue({ data: { public_key: null }, error: null }); // getPublicKey -> none on file
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:message',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', ciphertext: 'Y2lwaGVydGV4dA==', nonce: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.match(ackResult.error, /ключа шифрования/);
+    });
   });
 
   describe('chat:gif', () => {
@@ -390,6 +447,32 @@ describe('socket/chat.js', () => {
       assert.deepEqual(ackResult, { ok: true });
       const edited = other.emitted.find((e: any) => e.event === 'chat:message:edited');
       assert.equal(edited.payload.text, 'edited!');
+    });
+
+    it('E2EE: chat:edit re-encrypts and re-stamps the current sender public key', async () => {
+      const { io, socket } = setup('me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { public_key: 'bmV3LXB1YmxpYy1rZXktYWZ0ZXItcm90YXRpb24=' }, error: null }); // getPublicKey
+      supaMock.enqueue({
+        data: { id: 'aa000001-0000-4000-8000-000000000001', is_encrypted: true, text: 'bmV3Y2lwaGVy', nonce: 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' },
+        error: null,
+      }); // editMessageRow
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:edit',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', messageId: 'aa000001-0000-4000-8000-000000000001', ciphertext: 'bmV3Y2lwaGVy', nonce: 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB' },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.deepEqual(ackResult, { ok: true });
+      const edited = other.emitted.find((e: any) => e.event === 'chat:message:edited');
+      assert.equal(edited.payload.is_encrypted, true);
+      assert.equal(edited.payload.text, 'bmV3Y2lwaGVy');
     });
 
     it('chat:edit acks an error if the message is not found / not the caller\'s own', async () => {

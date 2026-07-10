@@ -39,6 +39,10 @@ export interface PublicProfile {
   gender?: string | null;
   bio?: string | null;
   status?: string | null;
+  /** E2EE long-term public key (base64 X25519), null if the user hasn't
+   *  opened a client that generates one yet. Safe to expose — it's the
+   *  whole point of a *public* key. */
+  public_key?: string | null;
 }
 
 
