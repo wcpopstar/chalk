@@ -48,7 +48,7 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
       conversation_id,
       conversations (
         id, type, name, created_at,
-        messages ( id, text, type, deleted_at, sender_id, created_at )
+        messages ( id, text, type, deleted_at, sender_id, created_at, is_encrypted )
       )
     `)
     .eq('user_id', uid)
@@ -73,7 +73,7 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
   if (directConvIds.length) {
     const { data: memberRows } = await supabaseAdmin
       .from('conversation_members')
-      .select('conversation_id, users ( id, username, avatar_emoji, avatar_url, status )')
+      .select('conversation_id, users ( id, username, avatar_emoji, avatar_url, status, public_key )')
       .in('conversation_id', directConvIds)
       .neq('user_id', uid);
 
@@ -330,6 +330,7 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
     .select(`
       id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
       preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id,
+      is_encrypted, nonce, sender_public_key,
       sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url ),
       reply_to:messages!messages_reply_to_id_fkey ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
     `)
@@ -395,7 +396,7 @@ router.get('/:id/members', requireAuth, readLimiter, validate({ params: uuidPara
 
   const { data, error } = await supabaseAdmin
     .from('conversation_members')
-    .select('users ( id, username, avatar_emoji, avatar_url, status )')
+    .select('users ( id, username, avatar_emoji, avatar_url, status, public_key )')
     .eq('conversation_id', req.params.id!);
 
   if (error) return res.status(500).json({ error: error.message });
