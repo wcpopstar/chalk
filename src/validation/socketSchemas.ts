@@ -105,6 +105,10 @@ const chatTyping = z.object({
 });
 // "I've seen everything in this conversation up to now" — read receipt.
 const chatRead = z.object({ conversationId: uuidField });
+// Flip end-to-end encryption on/off for a direct conversation (the lock
+// button in the chat header). Enabling requires both members to have keys —
+// enforced in socket/chat.ts, a schema can't know that.
+const chatE2ee = z.object({ conversationId: uuidField, enabled: z.boolean() });
 
 // ── globalChat.js (public room, shorter text cap than DMs) ──────────────────
 const globalMessage = z.object({ text: messageText(500) });
@@ -156,6 +160,7 @@ const socketEventSchemas = {
   'chat:delete': chatDelete,
   'chat:typing': chatTyping,
   'chat:read': chatRead,
+  'chat:e2ee': chatE2ee,
 
   'global:message': globalMessage,
   'global:gif': globalGif,
@@ -198,6 +203,7 @@ export type ChatEditPayload = z.infer<typeof chatEdit>;
 export type ChatDeletePayload = z.infer<typeof chatDelete>;
 export type ChatTypingPayload = z.infer<typeof chatTyping>;
 export type ChatReadPayload = z.infer<typeof chatRead>;
+export type ChatE2eePayload = z.infer<typeof chatE2ee>;
 
 export type GlobalMessagePayload = z.infer<typeof globalMessage>;
 export type GlobalGifPayload = z.infer<typeof globalGif>;
@@ -234,6 +240,7 @@ export type ClientToServerPayloadMap = {
   'chat:delete': ChatDeletePayload;
   'chat:typing': ChatTypingPayload;
   'chat:read': ChatReadPayload;
+  'chat:e2ee': ChatE2eePayload;
 
   'global:message': GlobalMessagePayload;
   'global:gif': GlobalGifPayload;
