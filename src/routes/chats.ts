@@ -47,7 +47,7 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
     .select(`
       conversation_id,
       conversations (
-        id, type, name, created_at,
+        id, type, name, created_at, e2ee_enabled,
         messages ( id, text, type, deleted_at, sender_id, created_at, is_encrypted )
       )
     `)
@@ -94,6 +94,7 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
       name: conv.type === 'direct' ? (otherUser?.username || conv.name) : conv.name,
       other_user: otherUser,
       last_message: last,
+      e2ee_enabled: Boolean(conv.e2ee_enabled),
       created_at: conv.created_at,
     };
   });
@@ -332,7 +333,7 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
       preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id,
       is_encrypted, nonce, sender_public_key,
       sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url ),
-      reply_to:messages!messages_reply_to_id_fkey ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
+      reply_to:reply_to_id ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
     `)
     .eq('conversation_id', convId)
     .order('created_at', { ascending: false })
@@ -351,7 +352,16 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
     .select('user_id, last_read_at')
     .eq('conversation_id', convId);
 
-  return res.json({ messages: (data || []).reverse(), reads: reads || [] });
+  // The conversation-level E2EE flag, fresher than the chats-list snapshot —
+  // the partner may have toggled the lock while this client was away (live
+  // flips arrive via the chat:e2ee socket event).
+  const { data: conv } = await supabaseAdmin
+    .from('conversations')
+    .select('e2ee_enabled')
+    .eq('id', convId)
+    .maybeSingle();
+
+  return res.json({ messages: (data || []).reverse(), reads: reads || [], e2ee_enabled: Boolean(conv && conv.e2ee_enabled) });
 });
 
 /**

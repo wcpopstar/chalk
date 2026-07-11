@@ -1,6 +1,9 @@
+// dotenv MUST be loaded via a side-effect import, not a `dotenv.config()`
+// call: esbuild (which tsx uses) hoists all imports above other top-level
+// statements, so a plain `dotenv.config()` here would only run AFTER every
+// module below (config/env.ts included) has already read process.env.
+import 'dotenv/config';
 import type { Request, Response, NextFunction } from 'express';
-import dotenv from 'dotenv';
-dotenv.config();
 
 // OpenTelemetry must be FIRST (before express/http/ioredis are required) —
 // its auto-instrumentation patches those modules at load time. No-op unless
@@ -109,8 +112,22 @@ app.use(helmet({
       'media-src': ["'self'", 'blob:', 'data:'],
       'connect-src': ["'self'", 'https:', 'wss:'],
       'worker-src': ["'self'", 'blob:'],
+      // helmet's defaults include `upgrade-insecure-requests`, which tells
+      // the browser to rewrite every http:// subresource to https://. In
+      // production (behind Railway's TLS) that's what we want, but on plain
+      // http://localhost it breaks Safari completely: unlike Chrome, Safari
+      // applies the directive to localhost too, upgrades style.css/*.js to
+      // https://localhost:3000, and fails with a TLS error — no styles, no
+      // scripts. Setting the directive to null removes it in development.
+      ...(config.server.isProduction ? {} : { 'upgrade-insecure-requests': null }),
     },
   },
+  // Same dev-vs-prod story as upgrade-insecure-requests above: helmet sends
+  // Strict-Transport-Security by default, and although the spec says HSTS
+  // must be ignored over plain http, Safari has been observed to pin an
+  // https-only rule for localhost anyway and then fail every request with a
+  // TLS error. Only send HSTS in production, where TLS actually exists.
+  hsts: config.server.isProduction,
 }));
 app.use(cors({ origin: clientOrigin, credentials: true }));
 app.use(express.json({ limit: '2mb' }));
@@ -124,7 +141,13 @@ app.use(rateLimit({
   // Prometheus scraper), not end users — they shouldn't share a budget
   // meant to catch API abuse, and a short scrape interval could otherwise
   // trip this limit on its own.
-  skip: (req: Request) => req.path === '/health' || req.path === '/metrics',
+  //
+  // In development the limiter is skipped entirely: every request comes
+  // from the same 127.0.0.1, and a debugging session with page reloads
+  // (each one fires a dozen API calls) burns through the 15-minute budget
+  // in minutes, after which the app looks broken with 429s for no reason.
+  skip: (req: Request) =>
+    !config.server.isProduction || req.path === '/health' || req.path === '/metrics',
 }));
 
 // Prometheus metrics: request duration + counters. Must be registered

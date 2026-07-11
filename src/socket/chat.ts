@@ -12,6 +12,8 @@ import {
   getDirectPartnerId,
   isConversationMember,
   getPublicKey,
+  getConversationE2ee,
+  setConversationE2ee,
 } from './messages';
 
 // All handlers below go through secureOn(), which — before this code ever
@@ -74,17 +76,17 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     }
 
     // ── E2EE downgrade guard ─────────────────────────────────────────────
-    // Plaintext into a direct chat is only legitimate while the partner has
-    // no key (the client's fallback for dormant users). The client decides
-    // that from a *cached* snapshot which can be stale — the partner may
-    // have generated a key seconds ago — so the server re-checks against
-    // `users` and rejects, handing the fresh key back on the ack so the
-    // client can re-encrypt and resend immediately.
-    const partnerId = await getDirectPartnerId(conversationId, userId);
-    const partnerPublicKey = partnerId ? await getPublicKey(partnerId) : null;
-    if (partnerPublicKey) {
+    // Encryption is opt-in per conversation (the lock button → chat:e2ee,
+    // migration 018). Plaintext is fine while the flag is off; once it's ON,
+    // the server rejects plaintext so one stale client can't silently
+    // downgrade a conversation both sides chose to encrypt. The fresh
+    // partner key rides back on the ack so the client can re-encrypt and
+    // resend immediately.
+    if (await getConversationE2ee(conversationId)) {
+      const partnerId = await getDirectPartnerId(conversationId, userId);
+      const partnerPublicKey = partnerId ? await getPublicKey(partnerId) : null;
       return ack({
-        error: 'У собеседника уже есть ключ шифрования — сообщение нужно зашифровать',
+        error: 'В этом чате включено шифрование — сообщение нужно зашифровать',
         code: 'e2ee_required',
         partnerPublicKey,
       });
@@ -193,6 +195,33 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       .eq('user_id', userId);
     socket.to(`chat:${conversationId}`).emit('chat:read', { conversationId, userId, lastReadAt });
     ack({ ok: true });
+  });
+
+  // ── E2EE toggle: the lock button in a direct chat's header ───────────────
+  // Either member may flip encryption on/off for the whole conversation.
+  // Enabling requires BOTH sides to have keys — otherwise the partner
+  // couldn't read anything sent after the flip. The new state is broadcast
+  // to the room (sender included) so every open client flips its lock icon
+  // and send path at the same moment; members not in the room pick the flag
+  // up from GET /api/chats(/:id/messages) on their next open.
+  secureOn(io, socket, userId, 'chat:e2ee', async ({ conversationId, enabled }, ack) => {
+    if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
+
+    const partnerId = await getDirectPartnerId(conversationId, userId);
+    if (!partnerId) return ack({ error: 'Шифрование доступно только в личных чатах' });
+
+    let partnerPublicKey: string | null = null;
+    if (enabled) {
+      if (!(await getPublicKey(userId))) return ack({ error: 'Нет ключа шифрования — перезайди в приложение' });
+      partnerPublicKey = await getPublicKey(partnerId);
+      if (!partnerPublicKey) return ack({ error: 'У собеседника ещё нет ключа шифрования — он появится после его следующего входа' });
+    }
+
+    await setConversationE2ee(conversationId, enabled);
+    io.to(`chat:${conversationId}`).emit('chat:e2ee', { conversationId, enabled, byUserId: userId, byUsername: username });
+    // The fresh partner key rides back so the toggling client can encrypt
+    // the very next message without waiting for a members refetch.
+    ack({ ok: true, enabled, partnerPublicKey });
   });
 }
 

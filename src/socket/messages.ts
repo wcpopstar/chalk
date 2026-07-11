@@ -10,8 +10,14 @@ const MESSAGE_SELECT = `
   preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id,
   is_encrypted, nonce, sender_public_key,
   sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url ),
-  reply_to:messages!messages_reply_to_id_fkey ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
+  reply_to:reply_to_id ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
 `;
+// ^ the self-join embed uses the FK COLUMN name (reply_to_id), not a
+// `messages!<hint>` form: this PostgREST deployment doesn't resolve the
+// constraint-name hint at all (PGRST200 despite the FK existing), and the
+// `messages!reply_to_id` column-hint form resolves the REVERSE direction
+// (array of replies TO this message). The bare fk-column embed is the only
+// form that returns the quoted parent as object|null.
 const GLOBAL_MESSAGE_SELECT = `
   id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
   preview_title, preview_url, preview_thumbnail, preview_video_id,
@@ -185,6 +191,27 @@ async function getDirectPartnerId(conversationId: string, senderId: string): Pro
   return (members && members[0] && members[0].user_id) || null;
 }
 
+// ── E2EE opt-in flag for a conversation (migration 018) ───────────────────
+// The server-side source of truth for whether messages in this conversation
+// must be encrypted. Missing conversation reads as false — same as a plain
+// unencrypted chat.
+async function getConversationE2ee(conversationId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from('conversations')
+    .select('e2ee_enabled')
+    .eq('id', conversationId)
+    .maybeSingle();
+  return Boolean(data && data.e2ee_enabled);
+}
+
+async function setConversationE2ee(conversationId: string, enabled: boolean) {
+  const { error } = await supabaseAdmin
+    .from('conversations')
+    .update({ e2ee_enabled: enabled })
+    .eq('id', conversationId);
+  if (error) { logger.error({ err: error, conversationId, enabled }, 'Failed to toggle conversation E2EE'); throw new Error('Не удалось переключить шифрование'); }
+}
+
 // ── Is the *other* member of a direct conversation blocked (either way)? ───
 // Group conversations aren't checked — blocking only affects 1:1 DMs here.
 async function directPartnerBlocked(conversationId: string, senderId: string) {
@@ -229,4 +256,6 @@ export {
   getDirectPartnerId,
   isConversationMember,
   getPublicKey,
+  getConversationE2ee,
+  setConversationE2ee,
 };
