@@ -384,18 +384,21 @@ export interface Database {
           type: string;
           name: string | null;
           created_at: string;
+          e2ee_enabled: boolean;
         };
         Insert: {
           id?: string;
           type?: string;
           name?: string | null;
           created_at?: string;
+          e2ee_enabled?: boolean;
         };
         Update: {
           id?: string;
           type?: string;
           name?: string | null;
           created_at?: string;
+          e2ee_enabled?: boolean;
         };
         Relationships: [];
       };

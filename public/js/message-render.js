@@ -167,6 +167,13 @@ function renderTempMessage(tempId, text, reply) {
 function replaceTempMessage(tempId, msg) {
   convMessagesById[msg.id] = msg;
   const node = document.querySelector(`#chatMessages .msg[data-msgid="${  tempId  }"]`);
+  // The room broadcast echo can beat the ack here (the server emits to the
+  // room BEFORE answering the ack) — appendMessage has already rendered the
+  // real bubble then, so just drop the optimistic one instead of adding a twin.
+  if (document.querySelector(`#chatMessages .msg[data-msgid="${  msg.id  }"]`)) {
+    if (node) node.remove();
+    return;
+  }
   if (!node) { appendMessage(msg); return; }
   const wrap = document.createElement('div');
   wrap.innerHTML = chatMsgHtml(msg);

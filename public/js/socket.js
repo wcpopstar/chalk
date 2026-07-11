@@ -163,6 +163,17 @@ function connectSocket() {
     }
   });
 
+  // Someone (either member — io.to() echoes this back to the toggler too)
+  // flipped the conversation's E2EE lock. Flip the send path + button, and
+  // toast so the change never happens silently.
+  socket.on('chat:e2ee', (data) => {
+    convE2eeById[data.conversationId] = data.enabled;
+    if (data.conversationId !== currentConvId) return;
+    currentConvE2ee = data.enabled;
+    updateE2eeToggleBtn();
+    showToast(data.enabled ? `🔒 ${  T('e2ee_enabled_toast')}` : `🔓 ${  T('e2ee_disabled_toast')}`);
+  });
+
   // Partner confirmed reading up to lastReadAt — flip ✓ into ✓✓ live.
   socket.on('chat:read', (data) => {
     if (data.conversationId !== currentConvId || data.userId === currentUser.id) return;

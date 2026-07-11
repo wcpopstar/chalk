@@ -35,6 +35,7 @@ function renderChatsList() {
 
   dmPartnersByConv = {};
   dms.forEach((c) =>{ if (c.other_user) dmPartnersByConv[c.id] = c.other_user; });
+  convs.forEach((c) => { convE2eeById[c.id] = Boolean(c.e2ee_enabled); });
 
   document.getElementById('dmList').innerHTML = dms.length ? dms.map((c) =>{
     const last = c.last_message;
@@ -153,6 +154,12 @@ async function openConv(convId, name) {
   const callBtn = document.querySelector('.call-btn-inline');
   if (callBtn) callBtn.style.display = currentConvPartner ? '' : 'none';
 
+  // Lock button + send path: snapshot from the chats list now, refreshed
+  // from the /messages response below (the partner may have toggled the
+  // lock while this client was elsewhere).
+  currentConvE2ee = Boolean(convE2eeById[convId]);
+  updateE2eeToggleBtn();
+
   if (socket) {
     socket.emit('chat:join', { conversationId: convId });
   }
@@ -171,6 +178,13 @@ async function openConv(convId, name) {
 
   try {
     const data = await api(`/api/chats/${  convId  }/messages`);
+    // Fresher than the chats-list snapshot — adopt it (guard against the
+    // response landing after the user already switched conversations).
+    if (typeof data.e2ee_enabled === 'boolean' && currentConvId === convId) {
+      convE2eeById[convId] = data.e2ee_enabled;
+      currentConvE2ee = data.e2ee_enabled;
+      updateE2eeToggleBtn();
+    }
     const msgs = data.messages || [];
     // The partner's read watermark — own messages older than it render ✓✓.
     (data.reads || []).forEach((r) => {
@@ -195,4 +209,44 @@ function closeConv() {
   if (layout) layout.classList.remove('show-chat');
   currentConvId = null;
   currentConvPartner = null;
+  currentConvE2ee = false;
+}
+
+// ── E2EE toggle (the lock button next to message search) ────────────────────
+// Conversations start unencrypted; either member of a direct chat can flip
+// end-to-end encryption on/off for the whole conversation. The button state
+// actually changes on the server's chat:e2ee broadcast (see socket.js), not
+// optimistically — both members' UIs flip at the same moment.
+function updateE2eeToggleBtn() {
+  const btn = document.getElementById('e2eeToggleBtn');
+  if (!btn) return;
+  if (!currentConvPartner) { btn.style.display = 'none'; return; } // groups: no E2EE yet
+  btn.style.display = '';
+  btn.textContent = currentConvE2ee ? '🔒' : '🔓';
+  btn.classList.toggle('e2ee-on', currentConvE2ee);
+  btn.title = T(currentConvE2ee ? 'e2ee_btn_on_title' : 'e2ee_btn_off_title');
+}
+
+async function toggleConvE2ee() {
+  if (!socket || !currentConvId || !currentConvPartner) return;
+  const convId = currentConvId;
+  const enable = !currentConvE2ee;
+
+  if (enable) {
+    if (!e2eeReady()) { showToast(`❌ ${  T('e2ee_not_ready')}`); return; }
+    // The cached partner snapshot may predate their first key — refresh once
+    // before giving up (the server re-checks anyway).
+    if (!currentConvPartner.public_key) await refreshPartnerKey(convId);
+    if (!currentConvPartner.public_key) { showToast(`🔓 ${  T('e2ee_partner_no_key')}`); return; }
+  }
+
+  socket.emit('chat:e2ee', { conversationId: convId, enabled: enable }, (res) => {
+    if (res && res.error) { showToast(`❌ ${  res.error}`); return; }
+    // Fresh partner key from the server — the next send can encrypt without
+    // waiting for a members refetch. State/UI flip on the room broadcast.
+    if (res && res.partnerPublicKey) {
+      if (dmPartnersByConv[convId]) dmPartnersByConv[convId].public_key = res.partnerPublicKey;
+      if (currentConvId === convId && currentConvPartner) currentConvPartner.public_key = res.partnerPublicKey;
+    }
+  });
 }

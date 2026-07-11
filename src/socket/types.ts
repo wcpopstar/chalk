@@ -99,6 +99,7 @@ export interface ServerToClientEvents {
   'chat:message:deleted': (data: { conversationId: string; messageId: string }) => void;
   'chat:typing': (data: { conversationId: string; userId: string; username: string; kind: 'typing' | 'voice' | 'video' }) => void;
   'chat:read': (data: { conversationId: string; userId: string; lastReadAt: string }) => void;
+  'chat:e2ee': (data: { conversationId: string; enabled: boolean; byUserId: string; byUsername: string }) => void;
   'chat:blocked': (data: { conversationId: string }) => void;
 
   // ── global (platform-wide) chat ──

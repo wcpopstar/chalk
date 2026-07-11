@@ -2,9 +2,6 @@
 var lastMsgSentAt = 0;
 var replyingTo = null;      // { id, name, snippet } — message being replied to
 var _tempMsgSeq = 0;
-// Conversations where we've already shown the "partner has no E2EE key yet,
-// sending unencrypted" notice — once per conversation per session is enough.
-var _plaintextNoticeShown = {};
 
 function sendMsg(e) { if (e.key === 'Enter') sendMsgBtn(); }
 
@@ -15,37 +12,22 @@ function sendMsgBtn() {
   const now = Date.now();
   if (now - lastMsgSentAt < 300) return; // guards against Enter-key/double-click spam
 
-  // Direct (1:1) chats are end-to-end encrypted — currentConvPartner is only
-  // set for direct chats (see chats-list.js openConv()); group chats leave it
-  // null and keep sending plaintext (no group-key scheme yet). Build the wire
-  // payload first so we can bail out *before* the optimistic bubble/clearing
-  // the input if encryption isn't possible yet.
+  // E2EE is opt-in per conversation (the lock button → chats-list.js
+  // toggleConvE2ee(); currentConvE2ee tracks the open conversation's flag).
+  // Everything else — groups, and direct chats with the lock off — goes
+  // plaintext. Build the wire payload first so we can bail out *before* the
+  // optimistic bubble/clearing the input if encryption isn't possible yet.
   const reply = replyingTo;
   const payload = { conversationId: currentConvId };
   if (reply) payload.replyToId = reply.id;
 
-  const partnerKey = currentConvPartner && currentConvPartner.public_key;
-  if (partnerKey) {
-    const enc = e2eeEncryptOrToast(text, partnerKey);
+  if (currentConvE2ee && currentConvPartner) {
+    const enc = e2eeEncryptOrToast(text, currentConvPartner.public_key);
     if (!enc) return;
     payload.ciphertext = enc.ciphertext;
     payload.nonce = enc.nonce;
   } else {
-    if (currentConvPartner) {
-      // Direct chat, but the partner hasn't opened the app since E2EE
-      // shipped, so there's no key to encrypt to yet. Blocking the message
-      // entirely would make every dormant user unreachable — fall back to
-      // plaintext (exactly what the whole conversation was before E2EE) and
-      // say so once. The snapshot can be stale, so re-check in the
-      // background, and the server independently rejects plaintext when a
-      // key actually exists (see the e2ee_required handling in the ack).
-      if (typeof refreshPartnerKey === 'function') refreshPartnerKey(currentConvId);
-      if (!_plaintextNoticeShown[currentConvId]) {
-        _plaintextNoticeShown[currentConvId] = true;
-        showToast('🔓 Собеседник ещё не настроил шифрование — пока сообщения отправляются без него');
-      }
-    }
-    payload.text = text; // group chats and keyless direct chats both go plaintext
+    payload.text = text;
   }
 
   lastMsgSentAt = now;
@@ -62,14 +44,19 @@ function sendMsgBtn() {
   let retriedEncrypted = false;
   function onSendAck(res) {
     if (res && res.error) {
-      // The server rejected a plaintext send because the partner DOES have a
-      // key (our snapshot was stale) and handed the fresh key back — adopt
-      // it, re-encrypt the same text, and resend once.
+      // The server rejected a plaintext send because encryption was switched
+      // ON while our flag was stale (e.g. the partner flipped the lock right
+      // before we hit send) and handed the fresh key back — adopt the flag
+      // and key, re-encrypt the same text, and resend once.
       if (!retriedEncrypted && res.code === 'e2ee_required' && res.partnerPublicKey) {
         retriedEncrypted = true;
+        convE2eeById[payload.conversationId] = true;
         if (dmPartnersByConv[payload.conversationId]) dmPartnersByConv[payload.conversationId].public_key = res.partnerPublicKey;
-        if (currentConvId === payload.conversationId && currentConvPartner) currentConvPartner.public_key = res.partnerPublicKey;
-        delete _plaintextNoticeShown[payload.conversationId]; // the notice no longer applies
+        if (currentConvId === payload.conversationId) {
+          currentConvE2ee = true;
+          if (currentConvPartner) currentConvPartner.public_key = res.partnerPublicKey;
+          updateE2eeToggleBtn();
+        }
         const enc = e2eeReady() ? e2eeEncrypt(text, res.partnerPublicKey) : null;
         if (enc) {
           delete payload.text;
