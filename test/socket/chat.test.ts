@@ -262,7 +262,7 @@ describe('socket/chat.js', () => {
       assert.match(ackResult.error, /ключа шифрования/);
     });
 
-    it('E2EE downgrade guard: rejects plaintext into a direct chat whose partner HAS a key, returning it on the ack', async () => {
+    it('E2EE downgrade guard: rejects plaintext when the conversation has encryption switched ON, returning the partner key on the ack', async () => {
       const { socket } = setup('me');
       socket.join('chat:cc000001-0000-4000-8000-000000000001');
 
@@ -271,8 +271,9 @@ describe('socket/chat.js', () => {
       supaMock.enqueue({ data: { type: 'direct' }, error: null }); // directPartnerBlocked: conversations lookup
       supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // directPartnerBlocked: other member
       supaMock.enqueue({ data: [], error: null }); // areUsersBlocked: no blocks
-      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // downgrade guard: conversations lookup
-      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // downgrade guard: other member
+      supaMock.enqueue({ data: { e2ee_enabled: true }, error: null }); // getConversationE2ee: lock is ON
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // getDirectPartnerId: conversations lookup
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // getDirectPartnerId: other member
       supaMock.enqueue({ data: { public_key: partnerKey }, error: null }); // getPublicKey(partner)
 
       let ackResult: any;
@@ -286,6 +287,108 @@ describe('socket/chat.js', () => {
       assert.equal(ackResult.code, 'e2ee_required');
       // the fresh key rides back so the client can re-encrypt and resend
       assert.equal(ackResult.partnerPublicKey, partnerKey);
+    });
+
+    it('allows plaintext into a direct chat while encryption is OFF, even if the partner has a key', async () => {
+      const { io, socket } = setup('me');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join('chat:cc000001-0000-4000-8000-000000000001');
+      socket.join('chat:cc000001-0000-4000-8000-000000000001');
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // directPartnerBlocked: conversations lookup
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // directPartnerBlocked: other member
+      supaMock.enqueue({ data: [], error: null }); // areUsersBlocked: no blocks
+      supaMock.enqueue({ data: { e2ee_enabled: false }, error: null }); // getConversationE2ee: lock is OFF -> no partner key check at all
+      supaMock.enqueue({ data: { id: 'aa000009-0000-4000-8000-000000000009', text: 'plain is fine', sender_id: 'me' }, error: null }); // saveMessage insert
+
+      let ackResult: any;
+      await socket.trigger(
+        'chat:message',
+        { conversationId: 'cc000001-0000-4000-8000-000000000001', text: 'plain is fine' },
+        (r: any) => { ackResult = r; }
+      );
+
+      assert.equal(ackResult.ok, true);
+      const received = other.emitted.find((e: any) => e.event === 'chat:message');
+      assert.equal(received.payload.text, 'plain is fine');
+    });
+  });
+
+  describe('chat:e2ee', () => {
+    const CONV = 'cc000001-0000-4000-8000-000000000001';
+
+    it('enables encryption when both members have keys, updates the flag, and broadcasts to the room', async () => {
+      const { io, socket } = setup('me', 'alice');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join(`chat:${CONV}`);
+      socket.join(`chat:${CONV}`);
+
+      const partnerKey = 'cGFydG5lci1wdWJsaWMta2V5LTMyYnl0ZXMtYjY0IQ==';
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // getDirectPartnerId: conversations lookup
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // getDirectPartnerId: other member
+      supaMock.enqueue({ data: { public_key: 'bXkta2V5' }, error: null }); // getPublicKey(me)
+      supaMock.enqueue({ data: { public_key: partnerKey }, error: null }); // getPublicKey(partner)
+      supaMock.enqueue({ data: null, error: null }); // setConversationE2ee update
+
+      let ackResult: any;
+      await socket.trigger('chat:e2ee', { conversationId: CONV, enabled: true }, (r: any) => { ackResult = r; });
+
+      assert.equal(ackResult.ok, true);
+      // the fresh partner key rides back so the very next send can encrypt
+      assert.equal(ackResult.partnerPublicKey, partnerKey);
+      const received = other.emitted.find((e: any) => e.event === 'chat:e2ee');
+      assert.ok(received);
+      assert.equal(received.payload.enabled, true);
+      assert.equal(received.payload.byUsername, 'alice');
+    });
+
+    it('refuses to enable encryption while the partner has no key', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // getDirectPartnerId: conversations lookup
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // getDirectPartnerId: other member
+      supaMock.enqueue({ data: { public_key: 'bXkta2V5' }, error: null }); // getPublicKey(me)
+      supaMock.enqueue({ data: { public_key: null }, error: null }); // getPublicKey(partner) -> none
+
+      let ackResult: any;
+      await socket.trigger('chat:e2ee', { conversationId: CONV, enabled: true }, (r: any) => { ackResult = r; });
+
+      assert.match(ackResult.error, /ключа шифрования/);
+    });
+
+    it('disables encryption without any key checks', async () => {
+      const { io, socket } = setup('me', 'alice');
+      const other = new FakeSocket();
+      io.register(other);
+      other.join(`chat:${CONV}`);
+      socket.join(`chat:${CONV}`);
+
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'direct' }, error: null }); // getDirectPartnerId: conversations lookup
+      supaMock.enqueue({ data: [{ user_id: 'partner' }], error: null }); // getDirectPartnerId: other member
+      supaMock.enqueue({ data: null, error: null }); // setConversationE2ee update
+
+      let ackResult: any;
+      await socket.trigger('chat:e2ee', { conversationId: CONV, enabled: false }, (r: any) => { ackResult = r; });
+
+      assert.equal(ackResult.ok, true);
+      const received = other.emitted.find((e: any) => e.event === 'chat:e2ee');
+      assert.equal(received.payload.enabled, false);
+    });
+
+    it('rejects the toggle for group conversations', async () => {
+      const { socket } = setup('me');
+      supaMock.enqueue({ data: { user_id: 'me' }, error: null }); // member
+      supaMock.enqueue({ data: { type: 'group' }, error: null }); // getDirectPartnerId: conversations lookup -> not direct
+
+      let ackResult: any;
+      await socket.trigger('chat:e2ee', { conversationId: CONV, enabled: true }, (r: any) => { ackResult = r; });
+
+      assert.match(ackResult.error, /личных чатах/);
     });
   });
 
