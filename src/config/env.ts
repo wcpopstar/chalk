@@ -48,6 +48,22 @@ const config = Object.freeze({
     // dev — validateEnv() below warns loudly if this is still unset in
     // production, where it should always be a specific domain.
     clientOrigin: process.env.CLIENT_URL || '*',
+    // How Express derives req.ip from X-Forwarded-For, which every IP-keyed
+    // rate limiter depends on. This MUST match the real proxy chain:
+    //   - direct to the internet ............... 0  (don't trust XFF at all)
+    //   - one proxy (hosting LB only) .......... 1  (the default)
+    //   - Cloudflare + hosting LB .............. 2
+    // Setting it too low behind a CDN keys every client by the CDN edge IP,
+    // collapsing per-IP limits (brute-force protection stops distinguishing
+    // users); too high lets a client spoof its IP via a forged XFF header.
+    // Accepts a hop count, a boolean, or a comma list of trusted proxy
+    // IPs/subnets (passed straight to Express).
+    trustProxy: (() => {
+      const raw = (process.env.TRUST_PROXY ?? '1').trim();
+      if (raw === 'true' || raw === 'false') return raw === 'true';
+      if (/^\d+$/.test(raw)) return Number(raw);
+      return raw; // subnet/IP list, e.g. "loopback, 173.245.48.0/20"
+    })(),
   }),
 
   supabase: Object.freeze({

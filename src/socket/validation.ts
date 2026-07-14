@@ -9,6 +9,7 @@ import {
 import fallbackLoggerBase from '../utils/logger';
 import Sentry from '../utils/sentry';
 import * as metrics from '../utils/metrics';
+import { config } from '../config/env';
 const fallbackLogger = fallbackLoggerBase.child({ module: 'socket-validation' });
 
 // ── secureOn() handler/options types ─────────────────────────────────────
@@ -259,13 +260,41 @@ function disconnectForRateLimit(
 // repeated handshakes with different tokens).
 const CONNECTION_LIMIT = { windowMs: 60_000, max: 30 }; // 30 new connections/min/IP
 
+// Socket.io handshakes do NOT pass through Express's `trust proxy` logic, so
+// socket.handshake.address is always the direct TCP peer — behind any proxy or
+// CDN that's the proxy's IP, not the user's. Left unfixed, the connection rate
+// limiter (and any IP keying) would bucket every client behind a shared edge
+// together, so one abuser exhausts the limit for everyone on that edge.
+//
+// Mirror what Express does for req.ip, gated on the same config.server.trustProxy:
+//   - no trusted proxy (0/false): use the TCP peer; forwarded headers are
+//     attacker-controlled here and must be ignored.
+//   - a proxy is trusted: prefer Cloudflare's CF-Connecting-IP (a single value
+//     Cloudflare sets and overwrites, so a client can't forge it), then fall
+//     back to the left-most X-Forwarded-For entry, then the TCP peer.
+function clientIpFromHandshake(socket: TypedSocket): string {
+  const peer = socket.handshake.address || socket.conn?.remoteAddress || 'unknown';
+  const trust = config.server.trustProxy;
+  if (trust === 0 || trust === false) return peer;
+
+  const headers = socket.handshake.headers || {};
+  const cf = headers['cf-connecting-ip'];
+  if (typeof cf === 'string' && cf.trim()) return cf.trim();
+
+  const xff = headers['x-forwarded-for'];
+  const first = Array.isArray(xff) ? xff[0] : xff;
+  if (typeof first === 'string' && first.trim()) return first.split(',')[0]!.trim();
+
+  return peer;
+}
+
 // Socket.io doesn't await middleware functions — it just calls fn(socket,
 // next) and trusts `next()` to eventually be called. An async function
 // works fine here: everything before the first `await` runs synchronously
 // as usual, and `next()` still fires exactly once, just after the Redis
 // round trip resolves instead of immediately.
 async function socketConnectionRateLimiter(socket: TypedSocket, next: (err?: Error) => void) {
-  const ip = socket.handshake.address || socket.conn?.remoteAddress || 'unknown';
+  const ip = clientIpFromHandshake(socket);
   if (await isFloodingUser(`ip:${ip}`, 'connect', CONNECTION_LIMIT.windowMs, CONNECTION_LIMIT.max)) {
     return next(new Error('Too many connection attempts, please slow down'));
   }
@@ -275,6 +304,7 @@ async function socketConnectionRateLimiter(socket: TypedSocket, next: (err?: Err
 export {
   validateSocketEvent,
   socketConnectionRateLimiter,
+  clientIpFromHandshake,
   disconnectForRateLimit,
   DEFAULT_RATE_LIMITS,
 };
