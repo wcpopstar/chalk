@@ -15,7 +15,11 @@ function GAME_LABELS() {
 }
 
 function avatarHtml(emoji, url) {
-  if (url) return `<img src="${  url  }" alt="">`;
+  // escHtml on the url too: the backend restricts avatar_url to data:image /
+  // https shapes, but escaping here means a stray quote can never break out of
+  // the src="" attribute even if something slips past validation (defense in
+  // depth against stored XSS — this helper renders other users' avatars).
+  if (url) return `<img src="${  escHtml(url)  }" alt="">`;
   return escHtml(emoji || '🎮');
 }
 

@@ -38,7 +38,9 @@ const mimeField = z.string().trim().min(3).max(100).optional();
 const durationField = z.number().finite().nonnegative().max(600).optional(); // 10 min cap
 
 const messageText = (max: number) => z.string().trim().min(1).max(max);
-const gifUrl = z.string().trim().url().startsWith('https://').max(2000);
+// Rendered into `<img src="${gifUrl}">` on the client, so besides being a
+// valid https URL it must carry no attribute-breaking characters.
+const gifUrl = z.string().trim().url().startsWith('https://').max(2000).refine((v) => !/["'<>`]/.test(v), 'invalid gif url');
 
 // ── E2EE: base64 blobs for direct-chat messages ─────────────────────────────
 // Worst case for a 2000-*character* plaintext message is 2000 four-byte
