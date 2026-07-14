@@ -27,6 +27,7 @@ function signAccessToken({ id, username }: { id: string; username: string }): { 
     { id, username },
     JWT_SECRET,
     {
+      algorithm: 'HS256',
       expiresIn: ACCESS_TOKEN_TTL,
       issuer: ISSUER,
       audience: AUDIENCE,
@@ -40,6 +41,12 @@ function signAccessToken({ id, username }: { id: string; username: string }): { 
 // should catch and translate, never assume this always resolves.
 function verifyAccessToken(token: string): JwtPayload {
   return jwt.verify(token, JWT_SECRET, {
+    // Pin the algorithm: without an explicit allow-list, jsonwebtoken accepts
+    // any algorithm the token's own header names that's compatible with the
+    // key type. Our tokens are always HS256 — accepting anything else only
+    // widens the attack surface (algorithm-confusion / downgrade). Belt and
+    // braces on top of the library already refusing alg:none for a secret key.
+    algorithms: ['HS256'],
     issuer: ISSUER,
     audience: AUDIENCE,
   }) as JwtPayload;

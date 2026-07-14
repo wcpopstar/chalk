@@ -11,9 +11,25 @@ const usernameField = z
   .max(24, 'username must be 3-24 characters')
   .regex(/^[a-zA-Z0-9 _-]+$/, 'username may only contain letters, numbers, spaces, underscores and hyphens');
 
-// avatar_url can be a data: URL (client uploads crop straight to base64), so
-// this bounds length rather than requiring a strict URL shape.
-const avatarUrlField = z.string().max(1_500_000, 'avatar_url is invalid or too large');
+// avatar_url is either an inline data: image (the client crops uploads straight
+// to base64) or an https URL. It MUST be constrained here: the frontend drops it
+// verbatim into `<img src="${url}">`, and combined with CSP's script-src-attr
+// 'unsafe-inline' an unchecked value like  x" onerror="steal(localStorage)  is a
+// stored XSS that fires for everyone who renders the avatar. Restricting the
+// shape at this single choke point neutralizes that for every client.
+//
+//   * data:image/<png|jpeg|jpg|webp|gif>;base64,<A-Za-z0-9+/=>   — no quotes or
+//     angle brackets can appear, so the value can't break out of the attribute.
+//   * https://…                                                   — additionally
+//     rejected below if it smuggles a quote / < / > / backtick.
+const DATA_IMAGE_RE = /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/]+={0,2}$/;
+const avatarUrlField = z
+  .string()
+  .max(1_500_000, 'avatar_url is invalid or too large')
+  .refine(
+    (v) => DATA_IMAGE_RE.test(v) || (/^https:\/\/[^\s]+$/.test(v) && !/["'<>`]/.test(v)),
+    'avatar_url must be a data:image base64 string or an https URL',
+  );
 
 // game_id references games.id, which is a TEXT slug ('valorant', 'cs2', ...)
 // — NOT a uuid — see supabase/migrations/001_init.sql.
