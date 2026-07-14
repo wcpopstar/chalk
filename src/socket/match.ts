@@ -204,9 +204,14 @@ async function handleMatch(io: TypedServer, participants: QueueEntry[], mode: 's
 function startMatchLoop(io: TypedServer) {
   const interval = setInterval(async () => {
     try {
-      const { soloMatch, groupMatch } = await runMatchCycle();
-      if (soloMatch) await handleMatch(io, soloMatch, 'solo');
-      if (groupMatch) await handleMatch(io, groupMatch, 'group');
+      // Handle EVERY match found this tick, not just the first solo + first
+      // group one. runMatchCycle() already removed all matched players from
+      // their queues, so any match skipped here would be silently lost —
+      // both players stuck on "searching" forever.
+      const { matches } = await runMatchCycle();
+      for (const match of matches) {
+        await handleMatch(io, match.participants, match.mode as 'solo' | 'group');
+      }
       const size = await queueSize();
       io.emit('queue:size', typeof size === 'number' ? size : size.solo + size.group);
     } catch (err: any) {
