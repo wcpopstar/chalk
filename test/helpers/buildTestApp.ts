@@ -3,6 +3,12 @@ export {};
 
 require('./testEnv');
 
+// Same async-error patch production loads first thing in src/index.ts —
+// required here (before express/routers are loaded) so HTTP-level tests
+// exercise the same "async throw reaches the error middleware" behavior
+// as the real app. See src/utils/asyncErrors.ts.
+require('../../src/utils/asyncErrors');
+
 const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');

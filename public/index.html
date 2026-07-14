@@ -39,11 +39,23 @@
 
     <!-- LOGIN -->
     <div id="loginForm">
-      <input class="auth-input" id="loginEmail" type="email" placeholder="Email" data-i18n-placeholder="placeholder_email">
+      <input class="auth-input" id="loginEmail" type="text" placeholder="Ник или email" data-i18n-placeholder="placeholder_login_identifier">
       <input class="auth-input" id="loginPassword" type="password" placeholder="Пароль" data-i18n-placeholder="placeholder_password">
       <button class="auth-btn" onclick="login()" id="loginBtn"><span data-i18n="auth_login_tab">Войти</span></button>
-      <div style="text-align:center;margin-top:10px">
+      <div style="text-align:center;margin-top:10px;display:flex;justify-content:space-between;gap:10px">
+        <a href="javascript:void(0)" onclick="requestLoginCode()" style="font-size:12px;color:var(--muted);text-decoration:underline"><span data-i18n="auth_login_by_code">Войти по коду</span></a>
         <a href="javascript:void(0)" onclick="switchAuthTab('forgot')" style="font-size:12px;color:var(--muted);text-decoration:underline"><span data-i18n="auth_forgot_link">Забыл пароль?</span></a>
+      </div>
+    </div>
+
+    <!-- EMAIL CODE (verification after sign-up, or passwordless login) -->
+    <div id="codeForm" style="display:none">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px"><span id="codeHint" data-i18n="auth_code_hint">Мы отправили код на почту. Введи его ниже.</span></div>
+      <input class="auth-input" id="codeInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="______" style="text-align:center;letter-spacing:8px;font-size:22px;font-family:monospace">
+      <button class="auth-btn" onclick="submitCode()" id="codeBtn"><span data-i18n="auth_confirm_code_btn">Подтвердить</span></button>
+      <div style="text-align:center;margin-top:10px;display:flex;justify-content:space-between;gap:10px">
+        <a href="javascript:void(0)" onclick="resendCode()" style="font-size:12px;color:var(--muted);text-decoration:underline"><span data-i18n="auth_resend_code">Отправить код заново</span></a>
+        <a href="javascript:void(0)" onclick="switchAuthTab('login')" style="font-size:12px;color:var(--muted);text-decoration:underline"><span data-i18n="auth_back_to_login">← Ко входу</span></a>
       </div>
     </div>
 
@@ -355,6 +367,7 @@
     <button class="nav-tab active" onclick="showPage('match',this)"><span class="tab-icon">🎯</span><span data-i18n="nav_match">Матч</span></button>
     <button class="nav-tab" id="navTabDiscover" onclick="showPage('tinder',this);loadDiscover()"><span class="tab-icon">👥</span><span data-i18n="nav_find">Найти</span></button>
     <button class="nav-tab" onclick="showPage('chat',this);loadChats()"><span class="tab-icon">💬</span><span data-i18n="nav_chats">Чаты</span></button>
+    <button class="nav-tab" onclick="showPage('servers',this);loadServers()"><span class="tab-icon">🏰</span><span data-i18n="nav_servers">Серверы</span></button>
   </div>
   <div class="nav-right">
     <button class="theme-toggle-btn" id="navThemeToggle" onclick="toggleTheme()" title="Сменить тему" data-i18n-title="theme_toggle_title">☀️</button>
@@ -392,6 +405,11 @@
               <div class="status-option" onclick="setMyPresence('busy')">⛔ Занят</div>
             </div>
           </div>
+          <div class="my-status-text" id="sidebarStatusText" onclick="editMyStatusText()" title="Изменить статус" data-i18n-title="status_text_edit_title"></div>
+          <div class="my-status-edit" id="sidebarStatusEdit" style="display:none">
+            <input class="my-status-input" id="sidebarStatusInput" type="text" maxlength="100" placeholder="Напиши статус, напр. го играть" data-i18n-placeholder="status_text_ph" onkeydown="statusTextKeydown(event)">
+            <button class="my-status-save" onclick="saveMyStatusText()">✓</button>
+          </div>
         </div>
       </div>
     </div>
@@ -419,6 +437,10 @@
           <div class="match-logo-line"></div>
         </div>
         <div class="online-count">В очереди: <span id="queueCount">0</span> игроков</div>
+        <div class="match-type-toggle">
+          <button type="button" class="mtt-btn active" id="mttVoice" onclick="selectMatchType('voice')">🎙 <span data-i18n="match_type_voice">Голосом</span></button>
+          <button type="button" class="mtt-btn" id="mttText" onclick="selectMatchType('text')">💬 <span data-i18n="match_type_text">Текстом</span></button>
+        </div>
         <div class="mode-select">
           <div class="mode-btn active" onclick="selectMode(this,'solo')">
             <span class="mode-icon">🎧</span><span data-i18n="match_one_on_one">Один на один</span><div class="mode-count">2 игрока</div>
@@ -464,13 +486,34 @@
             </div>
           </div>
         </div>
+        <div class="match-filters" id="matchFilters">
+          <div class="match-filter">
+            <label class="match-filter-label" data-i18n="filter_gender">Пол собеседника</label>
+            <select class="match-filter-select" id="filterGender">
+              <option value="" data-i18n="filter_any">Любой</option>
+              <option value="male" data-i18n="chip_male">Мужской</option>
+              <option value="female" data-i18n="chip_female">Женский</option>
+              <option value="other" data-i18n="chip_other">Другое</option>
+            </select>
+          </div>
+          <div class="match-filter">
+            <label class="match-filter-label" data-i18n="filter_age">Возраст</label>
+            <select class="match-filter-select" id="filterAge">
+              <option value="" data-i18n="filter_any">Любой</option>
+              <option value="13-17">13–17</option>
+              <option value="18-24">18–24</option>
+              <option value="25-34">25–34</option>
+              <option value="35-100">35+</option>
+            </select>
+          </div>
+        </div>
         <div class="match-btn-wrap">
           <button class="match-btn" id="matchBtn" onclick="startMatch()"><span data-i18n="btn_find_caps">НАЙТИ</span></button>
           <div class="search-status" id="searchStatus">
             <div class="ping-bar"><span></span><span></span><span></span><span></span><span></span></div>
             <div class="search-info"><span data-i18n="match_searching_partners">Ищем напарников</span><span class="dots"></span></div>
             <div class="search-info" style="margin-top:3px">В очереди: <span id="queueCount2">0</span></div>
-            <button type="button" class="tetris-launch-btn" id="tetrisLaunchBtn" onclick="openTetrisModal()">🎮 Сыграть в тетрис, пока идёт поиск</button>
+            <button type="button" class="tetris-launch-btn" id="tetrisLaunchBtn" onclick="openGamesHub()"><span data-i18n="games_hub_launch">🎮 Мини-игры, пока идёт поиск</span></button>
           </div>
         </div>
       </div>
@@ -503,7 +546,18 @@
         <div class="chat-sidebar" id="chatSidebar">
           <div class="chat-sidebar-top">
             <div class="chat-sidebar-title"><span data-i18n="nav_chats">Чаты</span></div>
-            <input class="chat-search" id="chatSearch" type="text" placeholder="Поиск" oninput="filterChatList(this.value)">
+            <input class="chat-search" id="chatSearch" type="text" placeholder="Поиск: имена, группы, сообщения" data-i18n-placeholder="chat_search_ph" oninput="filterChatList(this.value)">
+          </div>
+          <div class="stories-strip" id="storiesStrip" style="display:none"></div>
+          <div class="chat-sidebar-section" id="msgSearchResultsSection" style="display:none">
+            <div class="sidebar-label"><span class="tab-icon">🔎</span><span data-i18n="chat_search_in_messages">В сообщениях</span></div>
+            <div id="msgSearchResults"></div>
+          </div>
+          <div class="chat-sidebar-section">
+            <div class="chat-item chat-item-saved" onclick="openSavedMessages()">
+              <div class="chat-ava chat-ava-saved">🔖</div>
+              <div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name" data-i18n="saved_messages_title">Избранное</div></div><div class="chat-sub" data-i18n="saved_messages_sub">Заметки и пересланное себе</div></div>
+            </div>
           </div>
           <div class="chat-sidebar-section">
             <div class="sidebar-label"><span class="tab-icon">💬</span><span data-i18n="chat_personal">Личные</span></div>
@@ -524,8 +578,18 @@
               <div class="chat-header-status" id="chatHeaderStatus">...</div>
             </div>
             <button class="msg-search-btn" id="e2eeToggleBtn" type="button" style="display:none" title="Шифрование" onclick="toggleConvE2ee()">🔓</button>
+            <button class="msg-search-btn" id="chatBgBtn" type="button" title="Фон чата" data-i18n-title="chat_bg_title" onclick="toggleChatBgPicker(event)">🖼️</button>
             <button class="msg-search-btn" type="button" title="Поиск по сообщениям" onclick="toggleMsgSearch('conv')">🔍</button>
             <button class="call-btn-inline" onclick="startFriendCall()">🎧 Созвониться</button>
+          </div>
+          <!-- Pinned message banner (single pinned message, Telegram-style) -->
+          <div class="chat-pinned-bar" id="chatPinnedBar" style="display:none" onclick="scrollToPinned()">
+            <span class="chat-pinned-icon">📌</span>
+            <div class="chat-pinned-body">
+              <div class="chat-pinned-title" data-i18n="pinned_label">Закреплённое сообщение</div>
+              <div class="chat-pinned-text" id="chatPinnedText"></div>
+            </div>
+            <button class="chat-pinned-close" id="chatPinnedClose" title="Открепить" data-i18n-title="msg_unpin_title" onclick="event.stopPropagation();unpinCurrent()">✕</button>
           </div>
           <div class="msg-search-bar" id="msgSearchBar-conv">
             <input class="msg-search-input" id="msgSearchInput-conv" type="text" placeholder="Поиск по сообщениям..." oninput="msgSearchInput('conv', this.value)" onkeydown="msgSearchKeydown(event,'conv')">
@@ -534,12 +598,16 @@
             <button class="msg-search-nav-btn" title="Следующее" onclick="msgSearchStep('conv',1)">▼</button>
             <button class="msg-search-close" title="Закрыть" onclick="toggleMsgSearch('conv')">✕</button>
           </div>
-          <div class="chat-messages" id="chatMessages">
+          <div class="chat-date-float" id="chatDateFloat"></div>
+          <div class="chat-messages" id="chatMessages" onscroll="updateChatDateFloat()">
             <div class="empty-chat"><div style="font-size:32px">💬</div><span data-i18n="chat_choose_dialog">Выбери диалог</span></div>
           </div>
           <div class="chat-reply-bar" id="chatReplyBar" style="display:none"></div>
           <div class="chat-input-row" id="chatInputRow" style="display:none">
+            <button class="chat-attach-btn" type="button" title="Эмодзи" data-i18n-title="emoji_title" onclick="toggleEmojiPicker(event,'conv')">😊</button>
             <button class="chat-attach-btn" type="button" title="Отправить GIF" data-i18n-title="gif_send_title" onclick="toggleGifPicker('conv')">🎞️</button>
+            <button class="chat-attach-btn" type="button" title="Прикрепить файл" data-i18n-title="attach_title" onclick="document.getElementById('chatFileInput').click()">📎</button>
+            <input type="file" id="chatFileInput" multiple style="display:none" onchange="sendChatFiles(this.files); this.value=''">
             <input class="chat-input" id="chatInput" type="text" placeholder="Написать сообщение..." data-i18n-placeholder="chat_write_placeholder" onkeydown="sendMsg(event)" oninput="notifyTypingInput()">
             <button class="chat-video-btn" id="videoBtn-conv" type="button" title="Видеосообщение" onclick="toggleVideoNoteRecording('conv')">⭕</button>
             <button class="chat-mic-btn" id="voiceBtn-conv" type="button" title="Голосовое сообщение" data-i18n-title="voice_msg_title" onclick="toggleVoiceRecording('conv')">🎤</button>
@@ -547,6 +615,51 @@
             <div class="gif-picker" id="gifPicker-conv" style="display:none">
               <input class="gif-picker-input" type="text" placeholder="Поиск GIF..." data-i18n-placeholder="gif_search_placeholder" oninput="searchGifs('conv', this.value)">
               <div class="gif-picker-grid" id="gifGrid-conv"><div class="gif-picker-hint"><span data-i18n="gif_start_typing_hint">Начни печатать, чтобы найти GIF</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVERS PAGE (Discord-style guilds) -->
+    <div class="page" id="page-servers">
+      <div class="servers-layout">
+        <!-- Server rail -->
+        <div class="server-rail" id="serverRail">
+          <div class="server-rail-list" id="serverRailList"></div>
+          <button class="server-rail-add" title="Создать сервер" onclick="promptCreateServer()">＋</button>
+          <button class="server-rail-add server-rail-join" title="Войти по коду" onclick="promptJoinServer()">🔗</button>
+        </div>
+
+        <!-- Channel sidebar -->
+        <div class="channel-sidebar" id="channelSidebar" style="display:none">
+          <div class="channel-sidebar-head">
+            <span class="channel-server-name" id="channelServerName">—</span>
+            <button class="channel-add-btn" id="channelAddBtn" title="Новый канал" onclick="promptCreateChannel()" style="display:none">＋</button>
+          </div>
+          <div class="channel-list" id="channelList"></div>
+          <div class="channel-sidebar-foot">
+            <button class="server-invite-btn" id="serverInviteBtn" onclick="showServerInvite()" style="display:none">🔗 <span data-i18n="server_invite">Пригласить</span></button>
+            <button class="server-leave-btn" id="serverLeaveBtn" onclick="leaveCurrentServer()" style="display:none" title="Покинуть сервер">🚪</button>
+          </div>
+        </div>
+
+        <!-- Channel main -->
+        <div class="channel-main" id="channelMain">
+          <div class="channel-empty" id="serversEmpty">
+            <div style="font-size:44px">🏰</div>
+            <p data-i18n="server_pick_or_create">Выбери сервер слева или создай новый</p>
+          </div>
+          <div class="channel-view" id="channelView" style="display:none">
+            <div class="channel-view-head">
+              <span class="channel-hash">#</span><span id="channelViewName">general</span>
+              <span class="channel-topic" id="channelTopic"></span>
+            </div>
+            <div class="channel-messages" id="channelMessages"></div>
+            <div class="channel-typing" id="channelTyping"></div>
+            <div class="channel-input-row">
+              <input class="channel-input" id="channelInput" type="text" maxlength="4000" placeholder="Сообщение в канал..." data-i18n-placeholder="server_msg_placeholder" onkeydown="channelInputKey(event)" oninput="channelTypingSignal()">
+              <button class="channel-send" onclick="sendChannelMsg()">➤</button>
             </div>
           </div>
         </div>
@@ -640,12 +753,57 @@
       <div class="fullcall-dot"></div>
     </div>
     <div class="fullcall-participants" id="fcParticipants"></div>
+
+    <!-- Live video tiles (camera / screen share, local + remote) -->
+    <div class="fc-video-grid" id="fcVideoGrid" style="display:none"></div>
+
+    <!-- Shared clipboard + collaborative whiteboard (feature: in-call collab) -->
+    <div class="fc-collab" id="fcCollab" style="display:none">
+      <div class="fc-collab-tabs">
+        <button class="fc-collab-tab active" id="fcTabClip" onclick="fcShowCollab('clip')">📋 <span data-i18n="collab_clipboard">Буфер</span></button>
+        <button class="fc-collab-tab" id="fcTabBoard" onclick="fcShowCollab('board')">✏️ <span data-i18n="collab_board">Доска</span></button>
+        <button class="fc-collab-close" onclick="fcCloseCollab()">✕</button>
+      </div>
+      <div class="fc-collab-body">
+        <div id="fcClipPane">
+          <div class="fc-clip-list" id="fcClipList"><div class="fc-clip-empty" data-i18n="collab_clip_empty">Делитесь ссылками, текстом, кодом и фото</div></div>
+          <div class="fc-clip-input-row">
+            <textarea id="fcClipInput" rows="2" placeholder="Ссылка, текст или код…" data-i18n-placeholder="collab_clip_ph"></textarea>
+            <div class="fc-clip-actions">
+              <button type="button" onclick="fcPickClipImage()" title="Фото">🖼️</button>
+              <button type="button" class="fc-clip-send" onclick="fcSendClip()" data-i18n="collab_send">Отправить</button>
+            </div>
+            <input type="file" id="fcClipFile" accept="image/*" style="display:none" onchange="fcClipFileChosen(event)">
+          </div>
+        </div>
+        <div id="fcBoardPane" style="display:none">
+          <div class="fc-board-tools">
+            <input type="color" id="fcBoardColor" value="#c8ff00" title="Цвет">
+            <input type="range" id="fcBoardWidth" min="1" max="20" value="3" title="Толщина">
+            <button type="button" onclick="fcClearBoard()">🧹 <span data-i18n="collab_clear">Очистить</span></button>
+          </div>
+          <canvas id="fcBoardCanvas" class="fc-board-canvas"></canvas>
+        </div>
+      </div>
+    </div>
+
     <div class="fullcall-controls">
       <button class="fc-btn fc-mute" id="fcMuteBtn" onclick="toggleFCMute()">🎙️</button>
       <button class="fc-btn fc-deafen" id="fcDeafBtn" onclick="toggleFCDeaf()">🔊</button>
+      <button class="fc-btn fc-cam-btn" id="fcCamBtn" onclick="toggleFCCamera()" title="Камера" data-i18n-title="call_camera_title">📷</button>
+      <button class="fc-btn fc-screen-btn" id="fcScreenBtn" onclick="toggleFCScreen()" title="Демонстрация экрана" data-i18n-title="call_screen_title">🖥️</button>
+      <button class="fc-btn fc-soundpad-btn" id="fcSoundpadBtn" onclick="toggleSoundpad(event)" title="Звуки" data-i18n-title="soundpad_title">🎵</button>
+      <button class="fc-btn fc-audio-btn" id="fcAudioBtn" onclick="toggleCallAudioMenu(event)" title="Настройки звука" data-i18n-title="call_audio_settings_title">⚙️</button>
+      <button class="fc-btn fc-collab-btn" id="fcCollabBtn" onclick="fcToggleCollab()" title="Буфер и доска" data-i18n-title="collab_open_title">📋</button>
+      <button class="fc-btn fc-games-btn" id="fcGamesBtn" onclick="toggleCallGamesMenu(event)" title="Игры" data-i18n-title="callgame_open_title">🎮</button>
       <button class="fc-btn fc-end" onclick="endFullCall()">📵</button>
     </div>
   </div>
+
+  <!-- Audio settings (echo/noise/gain + input/output device) -->
+  <div class="call-audio-menu" id="callAudioMenu" onclick="event.stopPropagation()"></div>
+  <!-- Soundpad (play SFX into the call) -->
+  <div class="soundpad-panel" id="soundpadPanel" onclick="event.stopPropagation()"></div>
 </div>
 
 <!-- POST CALL -->
@@ -676,6 +834,7 @@
       <span class="rating-star" data-star="4" onclick="setRatingStars(4)">★</span>
       <span class="rating-star" data-star="5" onclick="setRatingStars(5)">★</span>
     </div>
+    <textarea class="rating-modal-comment" id="ratingModalComment" rows="2" maxlength="500" placeholder="Оставь отзыв (необязательно)" data-i18n-placeholder="rating_comment_ph"></textarea>
     <div class="rating-modal-actions">
       <button class="rating-modal-skip" onclick="skipCurrentRating()"><span data-i18n="btn_skip">Пропустить</span></button>
       <button class="rating-modal-submit" id="ratingModalSubmitBtn" onclick="submitCurrentRating()" disabled><span data-i18n="rating_btn">Оценить</span></button>
@@ -714,6 +873,8 @@
         <div class="tetris-score tetris-score-level" id="tetrisLevel">1</div>
         <div class="tetris-score-label" style="margin-top:8px"><span data-i18n="games_record">Рекорд</span></div>
         <div class="tetris-score tetris-score-best" id="tetrisBest">0</div>
+        <div class="tetris-score-label tetris-duel-el" style="display:none;margin-top:8px">⚔️ <span data-i18n="callgame_opponent">Соперник</span></div>
+        <div class="tetris-score tetris-duel-el" id="tetrisDuelScore" style="display:none;color:var(--danger)">0</div>
         <div class="tetris-controls">
           <div class="tetris-ctrl-row">
             <button class="tetris-btn" onmousedown="tetrisHold('left')" onmouseup="tetrisRelease()" onmouseleave="tetrisRelease()" ontouchstart="tetrisHold('left');event.preventDefault()" ontouchend="tetrisRelease()">◀</button>
@@ -738,6 +899,278 @@
   </div>
 </div>
 
+<!-- GAMES HUB — pick a mini-game to play while searching -->
+<div class="tetris-modal" id="gamesHubModal">
+  <div class="tetris-modal-card" style="max-width:360px">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">🎮 <span data-i18n="games_hub_title">Мини-игры</span></div>
+      <button class="tetris-close-btn" onclick="closeGamesHub()">✕</button>
+    </div>
+    <div class="tetris-modal-search-pill" id="gamesHubSearchPill" style="display:none"><span data-i18n="match_search_continues_bg">Поиск напарников продолжается в фоне</span><span class="dots"></span></div>
+    <div class="games-hub-grid">
+      <button class="games-hub-card" onclick="closeGamesHub();openTetrisModal()">
+        <span class="games-hub-emoji">🧩</span>
+        <span class="games-hub-name">Тетрис</span>
+      </button>
+      <button class="games-hub-card" onclick="closeGamesHub();openRacingModal()">
+        <span class="games-hub-emoji">🏎️</span>
+        <span class="games-hub-name" data-i18n="game_racing_name">Машинки</span>
+      </button>
+      <button class="games-hub-card" onclick="closeGamesHub();openG2048Modal()">
+        <span class="games-hub-emoji">🔢</span>
+        <span class="games-hub-name">2048</span>
+      </button>
+      <button class="games-hub-card" onclick="closeGamesHub();openTypingModal()">
+        <span class="games-hub-emoji">⌨️</span>
+        <span class="games-hub-name" data-i18n="game_typing_name">Скоропечатание</span>
+      </button>
+      <button class="games-hub-card" onclick="closeGamesHub();openBattleshipModal()">
+        <span class="games-hub-emoji">🚢</span>
+        <span class="games-hub-name" data-i18n="game_bs_name">Морской бой</span>
+      </button>
+      <button class="games-hub-card" onclick="closeGamesHub();openChalkRunModal()">
+        <span class="games-hub-emoji">🏃</span>
+        <span class="games-hub-name" data-i18n="game_run_name">Мелок-раннер</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- F1 RACING MINI-GAME -->
+<div class="tetris-modal" id="racingModal">
+  <div class="tetris-modal-card">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">🏎️ <span data-i18n="game_racing_name">Машинки</span></div>
+      <button class="tetris-close-btn" onclick="closeRacingModal()">✕</button>
+    </div>
+    <div class="tetris-modal-search-pill" id="racingModalSearchPill" style="display:none"><span data-i18n="match_search_continues_bg">Поиск напарников продолжается в фоне</span><span class="dots"></span></div>
+    <div class="tetris-modal-body">
+      <div class="tetris-main">
+        <canvas id="racingCanvas" width="180" height="360"></canvas>
+        <div class="tetris-overlay" id="racingOverlay">
+          <div class="tetris-overlay-text" id="racingOverlayText"><span data-i18n="match_ready_q">Готов?</span></div>
+          <button class="tetris-mini-btn" onclick="racingResumeOrStart()" id="racingStartBtn"><span data-i18n="games_start">Старт</span></button>
+        </div>
+        <div class="tetris-overlay tetris-overlay-result hide" id="racingResult">
+          <div class="tetris-result-title"><span data-i18n="games_over">Игра окончена</span></div>
+          <div class="tetris-result-score" id="racingResultScore">0</div>
+          <div class="tetris-result-label"><span data-i18n="game_racing_distance">метров</span></div>
+          <div class="tetris-result-rank" id="racingResultRank"><span data-i18n="games_saving_result">Сохраняем результат...</span></div>
+          <button class="tetris-mini-btn" onclick="racingResumeOrStart()"><span data-i18n="btn_play_again">Играть снова</span></button>
+        </div>
+      </div>
+      <div class="tetris-side">
+        <div class="tetris-score-label"><span data-i18n="game_racing_distance_label">Дистанция</span></div>
+        <div class="tetris-score" id="racingScore">0</div>
+        <div class="tetris-score-label" style="margin-top:8px"><span data-i18n="game_racing_speed">Скорость</span></div>
+        <div class="tetris-score tetris-score-level" id="racingSpeed">0</div>
+        <div class="tetris-score-label" style="margin-top:8px"><span data-i18n="games_record">Рекорд</span></div>
+        <div class="tetris-score tetris-score-best" id="racingBest">0</div>
+        <div class="tetris-controls">
+          <div class="tetris-ctrl-row">
+            <button class="tetris-btn" onclick="racingMove('left')" ontouchstart="racingMove('left');event.preventDefault()">◀</button>
+            <button class="tetris-btn" onclick="racingMove('right')" ontouchstart="racingMove('right');event.preventDefault()">▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tetris-leaderboard">
+      <div class="tetris-leaderboard-head">
+        <span>🏆 <span data-i18n="rating_players_title">Рейтинг игроков</span></span>
+        <span class="tetris-my-rank" id="racingMyRank"></span>
+      </div>
+      <div class="tetris-leaderboard-list" id="racingLeaderboardList">
+        <div style="font-size:11px;color:var(--muted);padding:6px 2px"><span data-i18n="status_loading">Загрузка...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2048 MINI-GAME -->
+<div class="tetris-modal" id="g2048Modal">
+  <div class="tetris-modal-card" style="max-width:400px">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">🔢 2048</div>
+      <button class="tetris-close-btn" onclick="closeG2048Modal()">✕</button>
+    </div>
+    <div class="tetris-modal-search-pill" id="g2048SearchPill" style="display:none"><span data-i18n="match_search_continues_bg">Поиск напарников продолжается в фоне</span><span class="dots"></span></div>
+    <div class="g2048-scorebar">
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="games_score">Очки</div><div class="g2048-score-val" id="g2048Score">0</div></div>
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="games_record">Рекорд</div><div class="g2048-score-val" id="g2048Best">0</div></div>
+    </div>
+    <div class="g2048-stage">
+      <div class="g2048-board" id="g2048Board"></div>
+      <div class="tetris-overlay" id="g2048Overlay">
+        <div class="tetris-overlay-text" id="g2048OverlayText"><span data-i18n="match_ready_q">Готов?</span></div>
+        <div style="font-size:11px;color:var(--muted)" data-i18n="game_2048_hint">Соедини плитки до 2048</div>
+        <button class="tetris-mini-btn" onclick="g2048ResumeOrStart()" id="g2048StartBtn"><span data-i18n="games_start">Старт</span></button>
+      </div>
+      <div class="tetris-overlay tetris-overlay-result hide" id="g2048Result">
+        <div class="tetris-result-title" id="g2048ResultTitle"><span data-i18n="games_over">Игра окончена</span></div>
+        <div class="tetris-result-score" id="g2048ResultScore">0</div>
+        <div class="tetris-result-label"><span data-i18n="unit_points">очков</span></div>
+        <div class="tetris-result-rank" id="g2048ResultRank"><span data-i18n="games_saving_result">Сохраняем результат...</span></div>
+        <button class="tetris-mini-btn" onclick="g2048ResumeOrStart()"><span data-i18n="btn_play_again">Играть снова</span></button>
+      </div>
+    </div>
+    <div class="g2048-controls">
+      <button class="tetris-btn" onclick="g2048Move('up')">▲</button>
+      <div class="g2048-controls-mid">
+        <button class="tetris-btn" onclick="g2048Move('left')">◀</button>
+        <button class="tetris-btn" onclick="g2048Move('down')">▼</button>
+        <button class="tetris-btn" onclick="g2048Move('right')">▶</button>
+      </div>
+    </div>
+    <div class="tetris-leaderboard">
+      <div class="tetris-leaderboard-head">
+        <span>🏆 <span data-i18n="rating_players_title">Рейтинг игроков</span></span>
+        <span class="tetris-my-rank" id="g2048MyRank"></span>
+      </div>
+      <div class="tetris-leaderboard-list" id="g2048LeaderboardList">
+        <div style="font-size:11px;color:var(--muted);padding:6px 2px"><span data-i18n="status_loading">Загрузка...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TYPING SPEED TEST MINI-GAME -->
+<div class="tetris-modal" id="typingModal">
+  <div class="tetris-modal-card" style="max-width:520px">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">⌨️ <span data-i18n="game_typing_name">Скоропечатание</span></div>
+      <button class="tetris-close-btn" onclick="closeTypingModal()">✕</button>
+    </div>
+    <div class="tetris-modal-search-pill" id="typingSearchPill" style="display:none"><span data-i18n="match_search_continues_bg">Поиск напарников продолжается в фоне</span><span class="dots"></span></div>
+    <div class="typing-statbar">
+      <div class="typing-stat"><div class="typing-stat-cap">WPM</div><div class="typing-stat-val" id="typingWpm">0</div></div>
+      <div class="typing-stat"><div class="typing-stat-cap" data-i18n="game_typing_accuracy">Точность</div><div class="typing-stat-val" id="typingAcc">100%</div></div>
+      <div class="typing-stat"><div class="typing-stat-cap" data-i18n="game_typing_time">Время</div><div class="typing-stat-val" id="typingTime">60с</div></div>
+      <div class="typing-stat"><div class="typing-stat-cap" data-i18n="games_record">Рекорд</div><div class="typing-stat-val" id="typingBest">0</div></div>
+    </div>
+    <div class="typing-stage">
+      <div class="typing-text" id="typingText"></div>
+      <div class="tetris-overlay" id="typingOverlay">
+        <div class="tetris-overlay-text" id="typingOverlayText"><span data-i18n="match_ready_q">Готов?</span></div>
+        <div style="font-size:11px;color:var(--muted)" data-i18n="game_typing_hint">Печатай текст как можно быстрее за 60 секунд</div>
+        <button class="tetris-mini-btn" onclick="typingResumeOrStart()" id="typingStartBtn"><span data-i18n="games_start">Старт</span></button>
+      </div>
+      <div class="tetris-overlay tetris-overlay-result hide" id="typingResult">
+        <div class="tetris-result-title" data-i18n="game_typing_your_speed">Твоя скорость</div>
+        <div class="tetris-result-score" id="typingResultScore">0</div>
+        <div class="tetris-result-label">WPM</div>
+        <div class="tetris-result-level" id="typingResultSub"></div>
+        <div class="tetris-result-rank" id="typingResultRank"><span data-i18n="games_saving_result">Сохраняем результат...</span></div>
+        <button class="tetris-mini-btn" onclick="typingResumeOrStart()"><span data-i18n="btn_play_again">Играть снова</span></button>
+      </div>
+    </div>
+    <input class="typing-input" id="typingInput" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onpaste="return false" ondrop="return false" data-i18n-placeholder="game_typing_input_ph" placeholder="Начни печатать здесь…">
+    <div class="tetris-leaderboard">
+      <div class="tetris-leaderboard-head">
+        <span>🏆 <span data-i18n="rating_players_title">Рейтинг игроков</span></span>
+        <span class="tetris-my-rank" id="typingMyRank"></span>
+      </div>
+      <div class="tetris-leaderboard-list" id="typingLeaderboardList">
+        <div style="font-size:11px;color:var(--muted);padding:6px 2px"><span data-i18n="status_loading">Загрузка...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BATTLESHIP MINI-GAME -->
+<div class="tetris-modal" id="battleshipModal">
+  <div class="tetris-modal-card" style="max-width:420px">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">🚢 <span data-i18n="game_bs_name">Морской бой</span></div>
+      <button class="tetris-close-btn" onclick="closeBattleshipModal()">✕</button>
+    </div>
+    <div class="tetris-modal-search-pill" id="battleshipSearchPill" style="display:none"><span data-i18n="match_search_continues_bg">Поиск напарников продолжается в фоне</span><span class="dots"></span></div>
+    <div class="g2048-scorebar">
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="game_bs_shots">Выстрелы</div><div class="g2048-score-val" id="battleshipShots">0</div></div>
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="game_bs_ships_left">Кораблей</div><div class="g2048-score-val" id="battleshipShipsLeft">4</div></div>
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="games_record">Рекорд</div><div class="g2048-score-val" id="battleshipBest">0</div></div>
+    </div>
+    <div class="g2048-stage">
+      <div class="bs-board" id="battleshipBoard"></div>
+      <div class="tetris-overlay" id="battleshipOverlay">
+        <div class="tetris-overlay-text" id="battleshipOverlayText"><span data-i18n="match_ready_q">Готов?</span></div>
+        <div style="font-size:11px;color:var(--muted)" data-i18n="game_bs_hint">Потопи все корабли за меньшее число выстрелов</div>
+        <button class="tetris-mini-btn" onclick="battleshipResumeOrStart()" id="battleshipStartBtn"><span data-i18n="games_start">Старт</span></button>
+      </div>
+      <div class="tetris-overlay tetris-overlay-result hide" id="battleshipResult">
+        <div class="tetris-result-title">🎉 <span data-i18n="game_bs_win">Флот потоплен!</span></div>
+        <div class="tetris-result-score" id="battleshipResultScore">0</div>
+        <div class="tetris-result-label"><span data-i18n="unit_points">очков</span></div>
+        <div class="tetris-result-level" id="battleshipResultSub"></div>
+        <div class="tetris-result-rank" id="battleshipResultRank"><span data-i18n="games_saving_result">Сохраняем результат...</span></div>
+        <button class="tetris-mini-btn" onclick="battleshipResumeOrStart()"><span data-i18n="btn_play_again">Играть снова</span></button>
+      </div>
+    </div>
+    <div class="tetris-leaderboard">
+      <div class="tetris-leaderboard-head">
+        <span>🏆 <span data-i18n="rating_players_title">Рейтинг игроков</span></span>
+        <span class="tetris-my-rank" id="battleshipMyRank"></span>
+      </div>
+      <div class="tetris-leaderboard-list" id="battleshipLeaderboardList">
+        <div style="font-size:11px;color:var(--muted);padding:6px 2px"><span data-i18n="status_loading">Загрузка...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHALK RUN — platformer mini-game -->
+<div class="tetris-modal" id="chalkRunModal">
+  <div class="tetris-modal-card" style="max-width:440px">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">🏃 <span data-i18n="game_run_name">Мелок-раннер</span></div>
+      <button class="tetris-close-btn" onclick="closeChalkRunModal()">✕</button>
+    </div>
+    <div class="tetris-modal-search-pill" id="chalkRunSearchPill" style="display:none"><span data-i18n="match_search_continues_bg">Поиск напарников продолжается в фоне</span><span class="dots"></span></div>
+    <div class="g2048-scorebar">
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="games_score">Очки</div><div class="g2048-score-val" id="chalkRunScore">0</div></div>
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="game_run_power">Сила</div><div class="g2048-score-val" id="chalkRunPower">—</div></div>
+      <div class="g2048-score-box"><div class="g2048-score-cap" data-i18n="games_record">Рекорд</div><div class="g2048-score-val" id="chalkRunBest">0</div></div>
+    </div>
+    <div class="chalkrun-stage">
+      <canvas id="chalkRunCanvas" width="360" height="260"></canvas>
+      <div class="tetris-overlay" id="chalkRunOverlay">
+        <div class="tetris-overlay-text" id="chalkRunOverlayText"><span data-i18n="match_ready_q">Готов?</span></div>
+        <div style="font-size:11px;color:var(--muted)" data-i18n="game_run_hint">Прыгай на доски и хватай ⭐ для неуязвимости</div>
+        <button class="tetris-mini-btn" onclick="chalkRunResumeOrStart()" id="chalkRunStartBtn"><span data-i18n="games_start">Старт</span></button>
+      </div>
+      <div class="tetris-overlay tetris-overlay-result hide" id="chalkRunResult">
+        <div class="tetris-result-title"><span data-i18n="games_over">Игра окончена</span></div>
+        <div class="tetris-result-score" id="chalkRunResultScore">0</div>
+        <div class="tetris-result-label"><span data-i18n="unit_points">очков</span></div>
+        <div class="tetris-result-rank" id="chalkRunResultRank"><span data-i18n="games_saving_result">Сохраняем результат...</span></div>
+        <button class="tetris-mini-btn" onclick="chalkRunResumeOrStart()"><span data-i18n="btn_play_again">Играть снова</span></button>
+      </div>
+    </div>
+    <button class="chalkrun-jump-btn" onmousedown="chalkRunJump()" ontouchstart="chalkRunJump();event.preventDefault()">⬆ <span data-i18n="game_run_jump">Прыжок</span></button>
+    <div class="tetris-leaderboard">
+      <div class="tetris-leaderboard-head">
+        <span>🏆 <span data-i18n="rating_players_title">Рейтинг игроков</span></span>
+        <span class="tetris-my-rank" id="chalkRunMyRank"></span>
+      </div>
+      <div class="tetris-leaderboard-list" id="chalkRunLeaderboardList">
+        <div style="font-size:11px;color:var(--muted);padding:6px 2px"><span data-i18n="status_loading">Загрузка...</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- IN-CALL CHESS (1v1, moves relayed over the call room) -->
+<div class="tetris-modal" id="chessModal">
+  <div class="tetris-modal-card" style="max-width:420px">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">♟ <span data-i18n="callgame_chess">Шахматы</span></div>
+      <button class="tetris-close-btn" onclick="closeChessModal()">✕</button>
+    </div>
+    <div class="chess-status" id="chessStatus"></div>
+    <div class="chess-board" id="chessBoard"></div>
+    <button class="chalkrun-jump-btn" style="margin-top:12px" onclick="chessResign()">🏳 <span data-i18n="chess_resign">Сдаться</span></button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 
@@ -748,6 +1181,7 @@
 <div class="global-chat-panel" id="globalChatPanel" style="display:none">
   <div class="gc-header">
     <div class="gc-header-title">🌍 Общий чат</div>
+    <button class="msg-search-btn" type="button" title="Самые активные" data-i18n-title="leaderboard_title" onclick="openLeaderboard()">🏆</button>
     <button class="msg-search-btn" type="button" title="Поиск по сообщениям" onclick="toggleMsgSearch('global')">🔍</button>
     <button class="gc-close-btn" onclick="toggleGlobalChat()">✕</button>
   </div>
@@ -762,6 +1196,7 @@
     <div class="empty-chat"><div style="font-size:26px">💬</div><span data-i18n="status_loading">Загрузка...</span></div>
   </div>
   <div class="gc-input-row">
+    <button class="chat-attach-btn" type="button" title="Эмодзи" data-i18n-title="emoji_title" onclick="toggleEmojiPicker(event,'global')">😊</button>
     <button class="chat-attach-btn" type="button" title="Отправить GIF" data-i18n-title="gif_send_title" onclick="toggleGifPicker('global')">🎞️</button>
     <input class="gc-input" id="globalChatInput" type="text" maxlength="500" placeholder="Написать всем..." data-i18n-placeholder="chat_write_all_placeholder" onkeydown="if(event.key==='Enter')sendGlobalMsg()">
     <button class="chat-video-btn" id="videoBtn-global" type="button" title="Видеосообщение" onclick="toggleVideoNoteRecording('global')">⭕</button>
@@ -779,6 +1214,16 @@
   <div class="modal-card" style="width:340px;text-align:center" id="upBody">
     <button class="gc-close-btn" style="float:right" onclick="closeUserProfilePopup()">✕</button>
     <div style="font-size:11px;color:var(--muted)"><span data-i18n="status_loading">Загрузка...</span></div>
+  </div>
+</div>
+
+<!-- MOST ACTIVE USERS LEADERBOARD -->
+<div class="modal-overlay" id="leaderboardOverlay">
+  <div class="modal-card" style="width:380px">
+    <button class="gc-close-btn" style="float:right" onclick="closeLeaderboard()">✕</button>
+    <div class="modal-title">🏆 <span data-i18n="leaderboard_title">Самые активные</span></div>
+    <div class="leaderboard-sub" data-i18n="leaderboard_sub">Рейтинг по времени в звонках</div>
+    <div id="leaderboardList" style="max-height:60vh;overflow-y:auto;margin-top:10px"></div>
   </div>
 </div>
 
@@ -803,7 +1248,64 @@
   </div>
 </div>
 
+<!-- FORWARD MESSAGE MODAL — pick a conversation to forward into -->
+<div class="modal-overlay" id="forwardOverlay">
+  <div class="modal-card" style="width:360px">
+    <div class="modal-title"><span data-i18n="forward_pick_title">Переслать в…</span></div>
+    <input class="auth-input" id="forwardSearch" type="text" placeholder="Поиск" oninput="filterForwardList(this.value)">
+    <div id="forwardList" style="max-height:300px;overflow-y:auto;margin-top:6px"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeForwardModal()"><span data-i18n="status_cancel">Отмена</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- STORY COMPOSER — pick a photo + optional caption, then post -->
+<input type="file" accept="image/*" id="storyFileInput" style="display:none" onchange="handleStoryFile(event)">
+<div class="modal-overlay" id="storyComposerOverlay">
+  <div class="modal-card" style="width:360px">
+    <div class="modal-title"><span data-i18n="stories_new">Новая история</span></div>
+    <div class="story-compose-preview" id="storyComposePreview" onclick="document.getElementById('storyFileInput').click()">
+      <span class="story-compose-hint" data-i18n="stories_pick_photo">Нажми, чтобы выбрать фото</span>
+    </div>
+    <input class="auth-input" id="storyCaption" type="text" maxlength="200" placeholder="Подпись (необязательно)" data-i18n-placeholder="stories_caption_ph" style="margin-top:10px">
+    <div class="ob-error" id="storyComposeError"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeStoryComposer()"><span data-i18n="status_cancel">Отмена</span></button>
+      <button class="modal-save" id="storyPostBtn" onclick="postStory()"><span data-i18n="stories_post">Опубликовать</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- STORY VIEWER — full-screen, tap left/right to navigate -->
+<div class="story-viewer" id="storyViewer">
+  <div class="story-viewer-progress" id="storyViewerProgress"></div>
+  <div class="story-viewer-head">
+    <div class="story-viewer-ava" id="storyViewerAva">🎮</div>
+    <div class="story-viewer-meta">
+      <div class="story-viewer-name" id="storyViewerName"></div>
+      <div class="story-viewer-time" id="storyViewerTime"></div>
+    </div>
+    <button class="story-viewer-del" id="storyViewerDel" style="display:none" title="Удалить" onclick="deleteCurrentStory()">🗑️</button>
+    <button class="story-viewer-close" onclick="closeStoryViewer()">✕</button>
+  </div>
+  <img class="story-viewer-img" id="storyViewerImg" src="" alt="">
+  <div class="story-viewer-caption" id="storyViewerCaption"></div>
+  <div class="story-viewer-nav story-viewer-nav-prev" onclick="storyNav(-1)"></div>
+  <div class="story-viewer-nav story-viewer-nav-next" onclick="storyNav(1)"></div>
+</div>
+
+<!-- COOKIE CONSENT BANNER -->
+<div class="cookie-banner" id="cookieBanner" style="display:none">
+  <div class="cookie-banner-text" data-i18n="cookie_text">Мы используем cookie и локальное хранилище, чтобы ты оставался в аккаунте и запоминались настройки. Разрешить необязательные (аналитика, уведомления)?</div>
+  <div class="cookie-banner-actions">
+    <button class="cookie-btn cookie-btn-decline" onclick="setCookieConsent(false)"><span data-i18n="cookie_decline">Только необходимые</span></button>
+    <button class="cookie-btn cookie-btn-accept" onclick="setCookieConsent(true)"><span data-i18n="cookie_accept">Разрешить</span></button>
+  </div>
+</div>
+
 <script src="/js/i18n.js"></script>
+<script src="/js/i18n-extra.js"></script>
 <script src="/js/config-api.js"></script>
 <script src="/js/feature-flags.js"></script>
 <script src="/js/auth.js"></script>
@@ -813,6 +1315,8 @@
 <script src="/js/rating.js"></script>
 <script src="/js/friends-list.js"></script>
 <script src="/js/call-volume.js"></script>
+<script src="/js/call-audio.js"></script>
+<script src="/js/call-video.js"></script>
 <script src="/js/moderation-actions.js"></script>
 <script src="/js/add-friend.js"></script>
 <script src="/js/discover-swipe.js"></script>
@@ -820,15 +1324,34 @@
 <script src="/js/chats-list.js"></script>
 <script src="/js/create-group.js"></script>
 <script src="/js/message-render.js"></script>
+<script src="/js/transcribe.js"></script>
+<script src="/js/servers.js"></script>
+<script src="/js/chat-reactions.js"></script>
+<script src="/js/emoji-picker.js"></script>
 <script src="/js/message-edit.js"></script>
 <script src="/js/chat-send.js"></script>
 <script src="/js/trial-call.js"></script>
 <script src="/js/call.js"></script>
+<script src="/js/call-collab.js"></script>
 <script src="/js/global-chat.js"></script>
 <script src="/js/media-notes.js"></script>
+<script src="/js/chat-pin-forward.js"></script>
+<script src="/js/chat-background.js"></script>
+<script src="/js/stories.js"></script>
+<script src="/js/cookie-consent.js"></script>
+<script src="/js/notifications.js"></script>
+<script src="/js/voice-effects.js"></script>
+<script src="/js/sounds.js"></script>
 <script src="/js/misc.js"></script>
 <script src="/js/init.js"></script>
 <script src="/js/tetris.js"></script>
+<script src="/js/racing.js"></script>
+<script src="/js/g2048.js"></script>
+<script src="/js/typing.js"></script>
+<script src="/js/battleship.js"></script>
+<script src="/js/chalkrun.js"></script>
+<script src="/js/chess-engine.js"></script>
+<script src="/js/call-games.js"></script>
 
 <script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"></script>
 <script type="module" src="/voice.js"></script>

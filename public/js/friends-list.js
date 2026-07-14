@@ -37,7 +37,10 @@ function renderFriendsList() {
     const rowClass = !isOnline ? 'friend-item friend-offline' : (cs.inCall ? 'friend-item friend-incall' : 'friend-item friend-online');
     const uname = escHtml(f.friend.username).replace(/'/g,"\\'");
     const emoji = (f.friend.avatar_emoji || '🎮');
-    return `<div class="${  rowClass  }" onclick="openFriendMenu(event,'${  f.friend.id  }','${  uname  }','${  emoji  }',{inCall:${  Boolean(cs.inCall)  },roomSize:${  cs.roomSize||0  }})"><div class="friend-ava" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">${  avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url)  }</div><div><div class="friend-name">${  escHtml(f.friend.username)  }</div><div class="friend-game">${  statusLine  }</div></div></div>`;
+    // A friend with an active story gets a highlight ring on their avatar;
+    // clicking that avatar opens their story instead of the friend menu.
+    const storyRing = typeof friendStoryRingClass === 'function' ? friendStoryRingClass(f.friend.id) : '';
+    return `<div class="${  rowClass  }" onclick="openFriendMenu(event,'${  f.friend.id  }','${  uname  }','${  emoji  }',{inCall:${  Boolean(cs.inCall)  },roomSize:${  cs.roomSize||0  }})"><div class="friend-ava ${  storyRing  }" onclick="onFriendAvatarClick(event,'${  f.friend.id  }')" style="background:linear-gradient(135deg,#7c3aed,#ec4899)">${  avatarHtml(f.friend.avatar_emoji, f.friend.avatar_url)  }</div><div><div class="friend-name">${  escHtml(f.friend.username)  }</div><div class="friend-game">${  statusLine  }</div></div></div>`;
   }).join('');
 }
 

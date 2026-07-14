@@ -75,6 +75,9 @@ describe('Feature flag routes (/api/flags)', () => {
       assert.deepEqual(res.body.flags, {
         'discovery.enabled': true,
         'games.tetris.enabled': false,
+        // Derived from config.stt (no STT_API_KEY in the test env), not a
+        // stored flag — see routes/featureFlags.ts.
+        'transcription.enabled': false,
       });
       // Resolved per-user, not globally.
       assert.equal(listFlagsResult.lastOpts.userId, userId);

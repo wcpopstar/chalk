@@ -33,6 +33,8 @@ function renderRatingCandidate() {
   document.getElementById('ratingModalProgress').textContent = `${ratingQueueIndex + 1  } ${  T('unit_from')  } ${  ratingQueue.length}`;
   document.getElementById('ratingModalAva').innerHTML = participantAvatarHtml(p);
   document.getElementById('ratingModalName').textContent = participantDisplayName(p);
+  const commentEl = document.getElementById('ratingModalComment');
+  if (commentEl) commentEl.value = '';
   setRatingStars(0);
 }
 
@@ -49,8 +51,10 @@ async function submitCurrentRating() {
   if (!item || ratingSelectedStars < 1) return;
   const btn = document.getElementById('ratingModalSubmitBtn');
   btn.disabled = true;
+  const commentEl = document.getElementById('ratingModalComment');
+  const comment = commentEl ? (commentEl.value || '').trim() : '';
   try {
-    await api(`/api/match/${  item.matchId  }/rate`, { method: 'POST', body: JSON.stringify({ rating: ratingSelectedStars, comment: '' }) });
+    await api(`/api/match/${  item.matchId  }/rate`, { method: 'POST', body: JSON.stringify({ rating: ratingSelectedStars, comment }) });
     ratingSubmittedCount++;
   } catch (e) {
     showToast(`${T('rating_err_save')  } ${  e.message}`);

@@ -10,4 +10,14 @@ const leaderboardQuerySchema = z.object({
   limit: z.coerce.number().int().default(10).transform((n: number) => Math.min(Math.max(n, 1), 50)),
 });
 
-export { submitScoreSchema, leaderboardQuerySchema };
+// Arcade mini-games that share the generic game_scores table + endpoints
+// (/api/games/:game/score, /api/games/:game/leaderboard). Tetris is NOT here:
+// it keeps its own dedicated table/route (see games.ts). Any :game outside
+// this list 400s in validation before touching the DB.
+const ARCADE_GAMES = ['racing', 'g2048', 'battleship', 'typing', 'platformer'] as const;
+
+const gameParamSchema = z.object({
+  game: z.enum(ARCADE_GAMES),
+});
+
+export { submitScoreSchema, leaderboardQuerySchema, gameParamSchema, ARCADE_GAMES };

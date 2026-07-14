@@ -160,6 +160,72 @@ describe('matchmakingRedis', () => {
     });
   });
 
+  describe('runMatchCycle — gender / age filters', () => {
+    it('matches when both players\' gender preferences are mutually satisfied', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1', gender: 'male', genderPref: ['female'] }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2', gender: 'female', genderPref: ['male'] }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.ok(soloMatch);
+    });
+
+    it('does not match when one side\'s gender preference excludes the other', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1', gender: 'male', genderPref: ['female'] }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2', gender: 'male', genderPref: ['female'] }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.equal(soloMatch, null);
+    });
+
+    it('a gender preference excludes a candidate whose gender is unknown', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1', gender: 'female', genderPref: ['female'] }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2', gender: null }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.equal(soloMatch, null);
+    });
+
+    it('matches when each player\'s age falls in the other\'s requested range', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1', age: 20, ageMin: 18, ageMax: 25 }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2', age: 22, ageMin: 18, ageMax: 25 }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.ok(soloMatch);
+    });
+
+    it('does not match when a candidate is outside the requested age range', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1', age: 30, ageMin: 18, ageMax: 24 }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2', age: 22, ageMin: 18, ageMax: 24 }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.equal(soloMatch, null);
+    });
+
+    it('leaves players with no filters matching as before', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1' }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2' }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.ok(soloMatch);
+    });
+
+    it('matches two text-only seekers with each other', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1', chatOnly: true }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2', chatOnly: true }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.ok(soloMatch);
+    });
+
+    it('never pairs a text-only seeker with a voice seeker', async () => {
+      await matchmaking.enqueue(makeEntry({ userId: 'p1', chatOnly: true }));
+      await matchmaking.enqueue(makeEntry({ userId: 'p2', chatOnly: false }));
+
+      const { soloMatch } = await matchmaking.runMatchCycle();
+      assert.equal(soloMatch, null);
+    });
+  });
+
   describe('runMatchCycle — group matching', () => {
     it('forms a group once enough same-squadSize players are queued', async () => {
       for (const userId of ['g1', 'g2', 'g3', 'g4']) {

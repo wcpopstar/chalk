@@ -82,7 +82,69 @@ async function promoteRoomToFriends(participantIds: string[]) {
 }
 
 // ── Emit a match to the matched players ──────────────────────────────────
+// Get-or-create the 1:1 conversation for a text match (no auto-friending —
+// unlike a promoted voice call, a text match just needs a place to chat).
+async function getOrCreateDirectConv(a: string, b: string): Promise<string | null> {
+  try {
+    const { data: existing } = await supabaseAdmin.rpc('find_direct_conversation', { user_a: a, user_b: b });
+    if (existing && existing.length && existing[0]) return existing[0].id;
+    const convId = uuid();
+    const { error } = await supabaseAdmin
+      .from('conversations')
+      .insert({ id: convId, type: 'direct', created_at: new Date().toISOString() });
+    if (error) throw error;
+    await supabaseAdmin.from('conversation_members').insert([
+      { conversation_id: convId, user_id: a },
+      { conversation_id: convId, user_id: b },
+    ]);
+    return convId;
+  } catch (err: any) {
+    logger.error({ err }, 'Failed to create text-match conversation');
+    return null;
+  }
+}
+
+// A text-only match: open a chat between the two players instead of a voice
+// room. Only 1:1 (solo) — group text matching isn't offered.
+async function handleTextMatch(io: TypedServer, participants: QueueEntry[]) {
+  const gameId = participants[0]!.gameId;
+  const [a, b] = participants;
+  const conversationId = await getOrCreateDirectConv(a!.userId, b!.userId);
+  if (!conversationId) return;
+
+  await saveMatchHistory(participants, gameId, 'solo');
+  for (const p of participants) analytics.capture(p.userId, 'match_found', { mode: 'solo', gameId, chatOnly: true });
+
+  const { data: profiles } = await supabaseAdmin
+    .from('users')
+    .select('id, username, avatar_emoji, avatar_url')
+    .in('id', [a!.userId, b!.userId]);
+  const byId: Map<string, any> = new Map((profiles || []).map((p: any) => [p.id, p]));
+
+  for (const p of participants) {
+    const other = participants.find((q) => q.userId !== p.userId);
+    const prof = other ? (byId.get(other.userId) || {}) : {};
+    io.to(p.socketId).emit('match:found_text', {
+      conversationId,
+      gameId,
+      partner: {
+        userId: other?.userId,
+        username: prof.username || null,
+        avatar_emoji: prof.avatar_emoji || '🎮',
+        avatar_url: prof.avatar_url || null,
+      },
+    });
+  }
+  logger.info({ conversationId, participantIds: [a!.userId, b!.userId] }, 'Text match created');
+}
+
 async function handleMatch(io: TypedServer, participants: QueueEntry[], mode: 'solo' | 'group') {
+  // Text seekers (always solo — compatibility() never mixes them with voice)
+  // get a chat instead of a call.
+  if (mode === 'solo' && participants[0]?.chatOnly) {
+    return handleTextMatch(io, participants);
+  }
+
   const roomId = uuid();
   const gameId = participants[0]!.gameId; // a match always has >= 2 participants
 
@@ -172,6 +234,14 @@ function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: str
     sock.emit('match:error', { error });
   };
   secureOn(io, socket, userId, 'match:join', async (data) => {
+    // Stamp this player's own age/gender from their profile (authoritative —
+    // never trusted from the client) so the *other* side's filters can apply.
+    const { data: me } = await supabaseAdmin
+      .from('users')
+      .select('age, gender')
+      .eq('id', userId)
+      .maybeSingle();
+
     await enqueue({
       userId,
       socketId:  socket.id,
@@ -182,6 +252,12 @@ function registerMatchHandlers(io: TypedServer, socket: TypedSocket, userId: str
       rankScore: data.rankScore,
       languages: data.languages,
       region:    data.region,
+      age:        me?.age ?? null,
+      gender:     me?.gender ?? null,
+      genderPref: data.genderPref,
+      ageMin:     data.ageMin,
+      ageMax:     data.ageMax,
+      chatOnly:   data.chatOnly,
     });
     socket.emit('match:searching', { position: await queueSize() });
   }, { onRateLimited: emitMatchError, onInvalid: emitMatchError });

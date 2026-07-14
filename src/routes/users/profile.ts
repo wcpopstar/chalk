@@ -74,7 +74,7 @@ router.patch('/me', requireAuth, profileWriteLimiter, validate({ body: updatePro
   const { data, error } = await usersRepository.updateProfile(
     req.user.id,
     updates,
-    'id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
+    'id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
   );
 
   if (error) return res.status(500).json({ error: error.message });

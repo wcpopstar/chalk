@@ -5,6 +5,29 @@ var _tempMsgSeq = 0;
 
 function sendMsg(e) { if (e.key === 'Enter') sendMsgBtn(); }
 
+// ── Attachments (photo / video / file) ──────────────────────────────────────
+// Reads each picked file as raw bytes and streams it over the socket; the
+// server sniffs the type, stores it, and echoes back a chat:message which the
+// socket handler appends to the open conversation. See socket/chat.ts.
+var MAX_CHAT_FILE_BYTES = 25 * 1024 * 1024; // keep in sync with socket/media.ts
+function sendChatFiles(files) {
+  if (!files || !files.length || !currentConvId || !socket) return;
+  var sending = false;
+  Array.prototype.forEach.call(files, (file) => {
+    if (file.size > MAX_CHAT_FILE_BYTES) {
+      showToast(T('attach_too_big').replace('{name}', file.name));
+      return;
+    }
+    sending = true;
+    file.arrayBuffer().then((buf) => {
+      socket.emit('chat:media', { conversationId: currentConvId, data: buf, mime: file.type || '', name: file.name }, (res) => {
+        if (res && res.error) showToast(`❌ ${  res.error}`);
+      });
+    }).catch(() => { showToast(T('err_generic')); });
+  });
+  if (sending) showToast(T('attach_sending'));
+}
+
 function sendMsgBtn() {
   const input = document.getElementById('chatInput');
   const text = input.value.trim();

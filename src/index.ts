@@ -15,6 +15,13 @@ import { shutdownTelemetry } from './utils/otel';
 // for the rest of the module graph below.
 import Sentry from './utils/sentry';
 
+// Async-error patch must come before any route module below creates a
+// Router: it wraps handlers at router.get()/use() time so a rejected
+// promise from an async handler reaches the centralized error middleware
+// at the bottom of this file instead of hanging the request. See the
+// header comment in utils/asyncErrors.ts.
+import './utils/asyncErrors';
+
 import express from 'express';
 import http from 'http';
 import path from 'path';
@@ -41,6 +48,10 @@ import agoraRoutes from './routes/agora';
 import gameRoutes from './routes/games';
 import featureFlagRoutes from './routes/featureFlags';
 import gifRoutes from './routes/gifs';
+import storyRoutes from './routes/stories';
+import transcribeRoutes from './routes/transcribe';
+import serverRoutes from './routes/servers';
+import adminRoutes from './routes/admin';
 import { initSocket } from './socket';
 import { startWorkers, closeWorkers } from './workers';
 import { closeQueues } from './queues';
@@ -86,6 +97,9 @@ const io = new Server(server, {
 // instances. Without this, `initSocket`/calls.js/match.js only work
 // correctly when there's exactly one server process.
 io.adapter(createAdapter(pubClient, subClient));
+
+// Expose io to non-socket code (REST routes broadcasting server messages).
+require('./socket/registry').setIO(io);
 
 // CSP: locked to what public/index.html actually needs. The frontend is
 // vanilla JS with ~230 inline onclick= handlers, so script-src-attr must
@@ -282,6 +296,10 @@ app.use('/api/agora', agoraRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/flags', featureFlagRoutes);
 app.use('/api/gifs', gifRoutes);
+app.use('/api/stories', storyRoutes);
+app.use('/api/transcribe', transcribeRoutes);
+app.use('/api/servers', serverRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use(express.static(path.join(__dirname, '../public')));
 
@@ -292,12 +310,17 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
 
 app.use((_req: Request, res: Response) => res.status(404).json({ error: 'Not found' }));
 
-app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   // req.log is the pino-http child logger — already tagged with this
   // request's correlation id, method, and url.
   (req.log || logger).error({ err }, 'Unhandled request error');
   Sentry.captureException(err);
   metrics.appErrorsTotal.inc({ source: 'http' });
+  // A handler may have already streamed/sent a response before failing
+  // (e.g. an async rejection after res.json()) — attempting another
+  // res.status() here would throw ERR_HTTP_HEADERS_SENT. Hand off to
+  // Express's finalhandler, which knows how to close such a request.
+  if (res.headersSent) return next(err);
   return res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 

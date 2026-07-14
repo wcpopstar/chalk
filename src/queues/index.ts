@@ -1,6 +1,6 @@
 const logger = require('../utils/logger').child({ module: 'queues' });
 const { queueConnection } = require('./connection');
-const { getEmailQueue, closeEmailQueue, enqueuePasswordResetEmail } = require('./emailQueue');
+const { getEmailQueue, closeEmailQueue, enqueuePasswordResetEmail, enqueueEmailCode } = require('./emailQueue');
 
 // Every queue's close-if-open helper should be listed here so shutdown
 // closes all of them, not just the one someone remembered to wire in. Each
@@ -16,4 +16,4 @@ async function closeQueues() {
   });
 }
 
-export { getEmailQueue, enqueuePasswordResetEmail, closeQueues };
+export { getEmailQueue, enqueuePasswordResetEmail, enqueueEmailCode, closeQueues };

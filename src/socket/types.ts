@@ -73,7 +73,7 @@ export interface ServerToClientEvents {
 
   // ── presence / online count ──
   'online:count': (count: number) => void;
-  presence: (data: { userId: string; status: 'online' | 'offline' }) => void;
+  presence: (data: { userId: string; status: 'online' | 'offline'; lastSeen?: string | null }) => void;
   'friend:call_status': (data: { userId: string; inCall: boolean; roomSize: number }) => void;
 
   // ── rate limiting ──
@@ -97,10 +97,18 @@ export interface ServerToClientEvents {
   'chat:message': (message: Record<string, any>) => void;
   'chat:message:edited': (message: Record<string, any>) => void;
   'chat:message:deleted': (data: { conversationId: string; messageId: string }) => void;
+  'chat:deleted': (data: { conversationId: string }) => void;
   'chat:typing': (data: { conversationId: string; userId: string; username: string; kind: 'typing' | 'voice' | 'video' }) => void;
   'chat:read': (data: { conversationId: string; userId: string; lastReadAt: string }) => void;
   'chat:e2ee': (data: { conversationId: string; enabled: boolean; byUserId: string; byUsername: string }) => void;
+  'chat:pinned': (data: { conversationId: string; messageId: string | null; message: Record<string, any> | null; byUserId: string }) => void;
+  'chat:reaction': (data: { conversationId: string; messageId: string; reactions: Array<{ emoji: string; user_id: string }> }) => void;
   'chat:blocked': (data: { conversationId: string }) => void;
+
+  // Server (guild) channels
+  'server:message': (message: Record<string, any>) => void;
+  'server:message:deleted': (data: { channelId: string; messageId: string }) => void;
+  'server:typing': (data: { channelId: string; userId: string; username: string }) => void;
 
   // ── global (platform-wide) chat ──
   'global:message': (message: Record<string, any>) => void;
@@ -122,6 +130,16 @@ export interface ServerToClientEvents {
       avatar_emoji: string;
       avatar_url: string | null;
     }>;
+  }) => void;
+  'match:found_text': (data: {
+    conversationId: string;
+    gameId: string;
+    partner: {
+      userId: string | undefined;
+      username: string | null;
+      avatar_emoji: string;
+      avatar_url: string | null;
+    };
   }) => void;
   'queue:size': (size: number) => void;
   'trial:voted': (data: { userId: string; vote: 'yes' | 'no' }) => void;
@@ -150,6 +168,16 @@ export interface ServerToClientEvents {
   'call:join_rejected': (data: { roomId: string; by: string }) => void;
   'call:join_accepted': (data: { roomId: string; participants: string[] }) => void;
   'call:participant_joined': (data: { roomId: string; userId: string }) => void;
+  // In-call shared clipboard + collaborative whiteboard (relayed to the other
+  // participants of a call room).
+  'call:clipboard': (data: {
+    from: string; fromName: string; kind: 'text' | 'link' | 'code' | 'image'; content: string; at: number;
+  }) => void;
+  'call:draw': (data: {
+    from: string; color?: string; width?: number; segments: number[][];
+  }) => void;
+  'call:draw_clear': (data: { from: string }) => void;
+  'call:game': (data: { from: string; fromName: string; game: 'tetris' | 'chess'; action: 'invite' | 'accept' | 'decline' | 'move' | 'score' | 'over' | 'quit'; data: Record<string, string | number | boolean> | null }) => void;
 }
 
 // ── ClientToServerEvents ─────────────────────────────────────────────────

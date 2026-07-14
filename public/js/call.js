@@ -14,6 +14,9 @@ function startFullCall(pts) {
   document.getElementById('fcMuteBtn').classList.remove('muted');
   document.getElementById('fcDeafBtn').textContent = '🔊';
   document.getElementById('fcTimer').textContent = '00:00';
+  if (typeof fcResetCollab === 'function') fcResetCollab();
+  if (typeof fcResetVideo === 'function') fcResetVideo();
+  if (typeof fcInitBoardListeners === 'function') fcInitBoardListeners();
   document.getElementById('fullCallOverlay').classList.add('show');
   clearInterval(fcInterval);
   fcInterval = setInterval(() =>{
@@ -51,6 +54,7 @@ function toggleFCMute() {
   const btn = document.getElementById('fcMuteBtn');
   btn.textContent = fcMuted ? '🔇' : '🎙️';
   btn.classList.toggle('muted', fcMuted);
+  if (window.chalkSounds) (fcMuted ? window.chalkSounds.selfMute : window.chalkSounds.selfUnmute)();
 }
 function toggleFCDeaf() {
   fcDeafened = !fcDeafened;
@@ -65,8 +69,15 @@ function toggleFCDeaf() {
 }
 async function endFullCall(silent) {
   clearInterval(fcInterval);
+  // Report this client's measured call time so the "most active users"
+  // leaderboard advances for everyone in the call (fire-and-forget).
+  const callSecs = fcSeconds;
+  if (callSecs > 0) {
+    api('/api/calls/activity', { method: 'POST', body: JSON.stringify({ seconds: callSecs }) }).catch(() => {});
+  }
   if (!silent && socket && currentRoomId) socket.emit('call:end', { roomId: currentRoomId });
   if (window.leaveVoice) window.leaveVoice();
+  if (typeof fcResetVideo === 'function') fcResetVideo();
   document.getElementById('fullCallOverlay').classList.remove('show');
   currentCallMatchIds = {};
   try {

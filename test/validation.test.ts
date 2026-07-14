@@ -144,8 +144,17 @@ describe('loginSchema', () => {
     assert.throws(() => loginSchema.parse({ email: '' }), /email|password/i);
   });
 
-  it('rejects a malformed email', () => {
-    assert.throws(() => loginSchema.parse({ email: 'not-an-email', password: 'anything' }));
+  it('accepts a nickname (not just an email) as the identifier', () => {
+    // Login now takes an email OR a nickname in the `email` field (see
+    // identifierSchema) — "not-an-email" is a valid nickname, not a rejection.
+    const result = loginSchema.parse({ email: 'ShadowFox_42', password: 'anything' });
+    assert.equal(result.email, 'ShadowFox_42');
+  });
+
+  it('rejects an identifier containing filter-breaking characters', () => {
+    // Commas/parentheses are excluded so the value is safe in a PostgREST
+    // .or() filter (usersRepository.findForLogin).
+    assert.throws(() => loginSchema.parse({ email: 'a,b(c)', password: 'anything' }));
   });
 
   it('rejects an empty password (unlike registerSchema, no complexity check here)', () => {

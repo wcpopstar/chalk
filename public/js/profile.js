@@ -86,6 +86,53 @@ document.addEventListener('click', () => {
   if (menu) menu.classList.remove('show');
 });
 
+// ── CUSTOM STATUS TEXT (free-text "го играть" line under the name) ──────────
+function renderMyStatusText() {
+  const el = document.getElementById('sidebarStatusText');
+  if (!el) return;
+  const txt = currentUser && currentUser.status_text;
+  if (txt) { el.textContent = `💬 ${  txt}`; el.classList.remove('empty'); }
+  else { el.textContent = T('status_text_set', '+ статус'); el.classList.add('empty'); }
+}
+
+function editMyStatusText() {
+  const disp = document.getElementById('sidebarStatusText');
+  const edit = document.getElementById('sidebarStatusEdit');
+  const input = document.getElementById('sidebarStatusInput');
+  if (!disp || !edit || !input) return;
+  input.value = (currentUser && currentUser.status_text) || '';
+  disp.style.display = 'none';
+  edit.style.display = 'flex';
+  input.focus();
+}
+
+function statusTextKeydown(event) {
+  if (event.key === 'Enter') { event.preventDefault(); saveMyStatusText(); }
+  else if (event.key === 'Escape') { cancelStatusTextEdit(); }
+}
+
+function cancelStatusTextEdit() {
+  const disp = document.getElementById('sidebarStatusText');
+  const edit = document.getElementById('sidebarStatusEdit');
+  if (edit) edit.style.display = 'none';
+  if (disp) disp.style.display = '';
+}
+
+async function saveMyStatusText() {
+  const input = document.getElementById('sidebarStatusInput');
+  if (!input || !currentUser) return;
+  const value = input.value.trim();
+  const payload = value ? value : null; // empty clears it
+  try {
+    const data = await api('/api/users/me', { method: 'PATCH', body: JSON.stringify({ status_text: payload }) });
+    currentUser = Object.assign({}, currentUser, data.user);
+  } catch (e) {
+    showToast(`${T('err_generic', 'Ошибка')  } ${  e.message}`);
+  }
+  cancelStatusTextEdit();
+  renderMyStatusText();
+}
+
 function setMyPresence(p) {
   if (!currentUser) return;
   currentUser.presence = p;
@@ -327,6 +374,8 @@ async function saveEditProfile() {
     currentUser = Object.assign({}, currentUser, data.user);
     closeEditProfile();
     document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + onlineDotHtml();
+    // Re-attach the story ＋ badge / ring the innerHTML reset just dropped.
+    if (typeof updateSidebarStoryUI === 'function') updateSidebarStoryUI();
     document.getElementById('sidebarName').textContent = currentUser.username;
     loadProfile();
     showToast(`${T('profile_updated')  } \u2713`);

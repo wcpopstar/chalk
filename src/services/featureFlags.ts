@@ -29,6 +29,8 @@ export interface FlagOverride {
 const REGISTRY: Record<string, { default: boolean; description: string }> = {
   'discovery.enabled': { default: true, description: 'Свайп-подбор игроков (вкладка Discover)' },
   'games.tetris.enabled': { default: true, description: 'Мини-игра Tetris и её лидерборд' },
+  'games.arcade.enabled': { default: true, description: 'Аркадные мини-игры (F1-гонки, 2048 и т.д.) и их лидерборды' },
+  'moderation.auto.enabled': { default: true, description: 'Автомодерация текстовых сообщений (мат, спам ссылками, флуд) с авто-мутом' },
   'chat.videoNotes.enabled': { default: true, description: 'Кружки — видео-сообщения в чате' },
   'chat.global.enabled': { default: true, description: 'Общий чат платформы (Global Chat)' },
 };

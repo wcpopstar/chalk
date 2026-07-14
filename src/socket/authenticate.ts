@@ -1,6 +1,7 @@
 import type { TypedSocket, JwtPayload } from './types';
 import { verifyAccessToken } from '../utils/jwt';
 import tokenBlacklist from '../services/tokenBlacklist';
+import { supabaseAdmin } from '../services/supabase';
 
 // ── Authenticate socket via handshake token ─────────────────────────────────
 // Validates the same short-lived access JWT used by the HTTP API (signature,
@@ -29,6 +30,17 @@ async function authenticateSocket(socket: TypedSocket, next: (err?: Error) => vo
 
   if (await tokenBlacklist.isRevoked(payload.jti)) {
     return next(new Error('TOKEN_REVOKED'));
+  }
+
+  // Banned accounts can't hold a live socket — even with a still-valid access
+  // token issued before the ban. One cheap indexed lookup per connect.
+  const { data: banRow } = await supabaseAdmin
+    .from('users')
+    .select('banned_until')
+    .eq('id', payload.id)
+    .maybeSingle();
+  if (banRow?.banned_until && new Date(banRow.banned_until) > new Date()) {
+    return next(new Error('BANNED'));
   }
 
   applyAuth(socket, payload);

@@ -24,6 +24,15 @@ stubModule(require.resolve('../../src/services/supabase'), {
 });
 stubModule(require.resolve('../../src/services/mailer'), {
   sendPasswordResetEmail: async () => {},
+  sendCodeEmail: async () => {},
+});
+// Registration now mails a verification code via services/emailCodes (which
+// pulls in the BullMQ email queue + Redis). Stub it so these tests exercise
+// only the account-creation contract, not the code-delivery machinery.
+stubModule(require.resolve('../../src/services/emailCodes'), {
+  issueAndSendCode: async () => {},
+  hashCode: (c: string) => c,
+  generateCode: () => '000000',
 });
 
 const authRouter = require('../../src/routes/auth');
@@ -47,17 +56,17 @@ describe('Auth routes (/api/auth)', () => {
         data: { id: 'user-1', username: 'NewPlayer', email: 'newplayer@example.com' },
         error: null,
       }); // insert().select().single()
-      supaMock.enqueue({ error: null }); // issueRefreshToken insert
 
       const res = await request(app)
         .post('/api/auth/register')
         .send({ email: 'newplayer@example.com', password: 'StrongPass123' });
 
+      // Registration no longer issues a session: the account must confirm the
+      // emailed verification code first (POST /verify-email).
       assert.equal(res.status, 201);
-      assert.equal(res.body.user.email, 'newplayer@example.com');
-      assert.ok(res.body.token, 'expected an access token in the response');
-      assert.ok(res.body.refreshToken, 'expected a refresh token in the response');
-      assert.equal(res.body.expiresIn, 15 * 60);
+      assert.equal(res.body.pendingVerification, true);
+      assert.equal(res.body.email, 'newplayer@example.com');
+      assert.ok(!res.body.token, 'no session token until the email is verified');
     });
 
     it('rejects an invalid payload with 400 and does not touch the database', async () => {
@@ -96,14 +105,14 @@ describe('Auth routes (/api/auth)', () => {
         data: { id: 'user-2', username: 'SilentViper', email: 'noname@example.com' },
         error: null,
       });
-      supaMock.enqueue({ error: null });
 
       const res = await request(app)
         .post('/api/auth/register')
         .send({ email: 'noname@example.com', password: 'StrongPass123' });
 
       assert.equal(res.status, 201);
-      assert.ok(res.body.user.username);
+      assert.equal(res.body.pendingVerification, true);
+      assert.ok(res.body.identifier, 'expected the generated username as the identifier');
     });
 
     it('retries with a different candidate when the generated username is taken', async () => {
@@ -114,14 +123,14 @@ describe('Auth routes (/api/auth)', () => {
         data: { id: 'user-3', username: 'CrimsonReaper', email: 'retry@example.com' },
         error: null,
       });
-      supaMock.enqueue({ error: null });
 
       const res = await request(app)
         .post('/api/auth/register')
         .send({ email: 'retry@example.com', password: 'StrongPass123' });
 
       assert.equal(res.status, 201);
-      assert.ok(res.body.user.username);
+      assert.equal(res.body.pendingVerification, true);
+      assert.ok(res.body.identifier);
     });
   });
 

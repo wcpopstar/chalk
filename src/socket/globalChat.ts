@@ -2,6 +2,7 @@ import type { TypedServer, TypedSocket } from './types';
 import { isYouTubeUrl, getYouTubePreviewData } from '../utils/links';
 import { secureOn } from './validation';
 import { uploadVoiceNote, uploadVideoNote } from './media';
+import { checkMessage } from '../services/autoModeration';
 import {
   GLOBAL_MESSAGE_SELECT,
   saveGlobalMessage,
@@ -18,6 +19,9 @@ import {
 // because that's now handled centrally.
 function registerGlobalChatHandlers(io: TypedServer, socket: TypedSocket, userId: string) {
   secureOn(io, socket, userId, 'global:message', async ({ text }, ack) => {
+    const verdict = await checkMessage(userId, text);
+    if (!verdict.ok) return ack({ error: verdict.error });
+
     const youtubeLink = isYouTubeUrl(text);
     const preview = youtubeLink ? await getYouTubePreviewData(text) : null;
     const payload = youtubeLink

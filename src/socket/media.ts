@@ -66,4 +66,63 @@ async function uploadVideoNote(senderId: string, buffer: Buffer, _mime: string) 
   return data.publicUrl;
 }
 
-export { uploadVoiceNote, uploadVideoNote };
+// ── Chat attachments (photo / video / arbitrary file) ───────────────────────
+const CHAT_MEDIA_BUCKET = 'chat-media';
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25MB — matches socketSchemas.ts
+
+// Sniff common image containers by magic bytes (same trust model as
+// detectContainer: don't believe the client-supplied mime for a public URL).
+function detectImage(buffer: Buffer): 'png' | 'jpeg' | 'gif' | 'webp' | null {
+  if (!buffer || buffer.length < 12) return null;
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'png';
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpeg';
+  if (buffer.slice(0, 4).toString('ascii') === 'GIF8') return 'gif';
+  if (buffer.slice(0, 4).toString('ascii') === 'RIFF' && buffer.slice(8, 12).toString('ascii') === 'WEBP') return 'webp';
+  return null;
+}
+
+// A conservative extension for a `file` attachment: keep the original one (for a
+// friendlier download) but strip it down to a short alphanumeric token so it
+// can't inject anything into the storage path.
+function safeExt(name?: string | null): string {
+  const m = (name || '').match(/\.([A-Za-z0-9]{1,10})$/);
+  return m && m[1] ? m[1].toLowerCase() : 'bin';
+}
+
+async function uploadChatMedia(senderId: string, buffer: Buffer, _mime: string, name?: string | null) {
+  if (!buffer || !buffer.length) throw new Error('Пустой файл');
+  if (buffer.length > MAX_ATTACHMENT_BYTES) throw new Error('Файл слишком большой (макс. 25 МБ)');
+
+  let type: 'image' | 'video' | 'file';
+  let ext: string;
+  let contentType: string;
+
+  const img = detectImage(buffer);
+  const container = detectContainer(buffer);
+  if (img) {
+    type = 'image';
+    ext = img === 'jpeg' ? 'jpg' : img;
+    contentType = img === 'jpeg' ? 'image/jpeg' : `image/${img}`;
+  } else if (container === 'webm' || container === 'mp4') {
+    type = 'video';
+    ext = container;
+    contentType = container === 'mp4' ? 'video/mp4' : 'video/webm';
+  } else {
+    // Anything else is treated as a generic download. Serve it as an opaque
+    // octet-stream so an uploaded .html/.svg/.js can never render inline.
+    type = 'file';
+    ext = safeExt(name);
+    contentType = 'application/octet-stream';
+  }
+
+  const path = `${senderId}/${uuid()}.${ext}`;
+  const { error: uploadErr } = await supabaseAdmin.storage
+    .from(CHAT_MEDIA_BUCKET)
+    .upload(path, buffer, { contentType, upsert: false });
+  if (uploadErr) throw uploadErr;
+
+  const { data } = supabaseAdmin.storage.from(CHAT_MEDIA_BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl, type };
+}
+
+export { uploadVoiceNote, uploadVideoNote, uploadChatMedia };

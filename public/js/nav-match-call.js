@@ -69,6 +69,25 @@ function selectMode(el, mode) {
   document.getElementById('squadPicker').classList.toggle('show', mode === 'group');
 }
 
+// Voice vs text matchmaking. Text is 1:1 only, so choosing it forces solo and
+// hides the group / squad-size controls; the match will land in a chat.
+var matchChatOnly = false;
+function selectMatchType(type) {
+  matchChatOnly = (type === 'text');
+  const voiceBtn = document.getElementById('mttVoice');
+  const textBtn = document.getElementById('mttText');
+  if (voiceBtn) voiceBtn.classList.toggle('active', !matchChatOnly);
+  if (textBtn) textBtn.classList.toggle('active', matchChatOnly);
+  const modeSelect = document.querySelector('.mode-select');
+  if (matchChatOnly) {
+    const soloBtn = document.querySelector('.mode-btn');
+    if (soloBtn) selectMode(soloBtn, 'solo');
+    if (modeSelect) modeSelect.style.display = 'none';
+  } else if (modeSelect) {
+    modeSelect.style.display = '';
+  }
+}
+
 function selectSquad(el, n) {
   squadSize = n;
   document.querySelectorAll('.squad-num').forEach((b) =>{ b.classList.remove('sel') });
@@ -91,14 +110,30 @@ function startMatch() {
   btn.textContent = T('btn_stop_caps');
   btn.classList.add('searching');
   status.classList.add('show');
-  socket.emit('match:join', {
+  const payload = {
     gameId: selectedGameId,
     mode: currentMode,
     squadSize,
     languages: currentUser.languages || ['ru'],
     region: 'eu',
     rankScore: 3,
-  });
+  };
+  // Optional pre-match filters (gender + age category).
+  const gv = (document.getElementById('filterGender') || {}).value || '';
+  if (gv) payload.genderPref = [gv];
+  const av = (document.getElementById('filterAge') || {}).value || '';
+  if (av) {
+    const parts = av.split('-');
+    payload.ageMin = Number(parts[0]);
+    payload.ageMax = Number(parts[1]);
+  }
+  // Text matching is always 1:1 and lands in a chat instead of a call.
+  if (matchChatOnly) {
+    payload.chatOnly = true;
+    payload.mode = 'solo';
+    payload.squadSize = 2;
+  }
+  socket.emit('match:join', payload);
 }
 
 function showFoundOverlay(data) {

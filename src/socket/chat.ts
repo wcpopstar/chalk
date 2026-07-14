@@ -2,7 +2,8 @@ import type { TypedServer, TypedSocket } from './types';
 import { isYouTubeUrl, getYouTubePreviewData } from '../utils/links';
 import { supabaseAdmin } from '../services/supabase';
 import { secureOn } from './validation';
-import { uploadVoiceNote, uploadVideoNote } from './media';
+import { uploadVoiceNote, uploadVideoNote, uploadChatMedia } from './media';
+import { checkMessage } from '../services/autoModeration';
 import {
   MESSAGE_SELECT,
   saveMessage,
@@ -14,6 +15,10 @@ import {
   getPublicKey,
   getConversationE2ee,
   setConversationE2ee,
+  setConversationPin,
+  getPinnedMessage,
+  getMessageById,
+  toggleReaction,
 } from './messages';
 
 // All handlers below go through secureOn(), which — before this code ever
@@ -92,6 +97,11 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
       });
     }
 
+    // Auto-moderation applies to plaintext only — the E2EE branch above
+    // relays ciphertext the server can't (and shouldn't) inspect.
+    const verdict = await checkMessage(userId, text!);
+    if (!verdict.ok) return ack({ error: verdict.error });
+
     const youtubeLink = isYouTubeUrl(text!);
     const preview = youtubeLink ? await getYouTubePreviewData(text!) : null;
     const payload = youtubeLink
@@ -150,6 +160,25 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     ack({ ok: true });
   });
 
+  // ── Send an attachment (photo / video / file): raw bytes over the socket ──
+  secureOn(io, socket, userId, 'chat:media', async ({ conversationId, data, mime, name }, ack) => {
+    if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
+    if (await directPartnerBlocked(conversationId, userId)) {
+      return ack({ error: 'Нельзя отправить сообщение — пользователь заблокирован' });
+    }
+    const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data as any);
+    const { url, type } = await uploadChatMedia(userId, buffer, mime ?? '', name);
+    const msg = await saveMessage({
+      conversationId, senderId: userId, type,
+      mediaUrl: url,
+      // For a generic file we keep the original filename as the message text so
+      // the client can show it as the download label. Images/videos need none.
+      text: type === 'file' ? (typeof name === 'string' ? name.slice(0, 200) : null) : null,
+    });
+    io.to(`chat:${conversationId}`).emit('chat:message', msg);
+    ack({ ok: true });
+  });
+
   // ── Edit a previously-sent text message (own messages only) ──────────────
   secureOn(io, socket, userId, 'chat:edit', async ({ conversationId, messageId, text, ciphertext, nonce }, ack) => {
     if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
@@ -172,6 +201,85 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     await deleteMessageRow('messages', messageId, userId);
     io.to(`chat:${conversationId}`).emit('chat:message:deleted', { conversationId, messageId });
     ack({ ok: true });
+  });
+
+  // ── Pin / unpin a message (single pinned message per conversation) ───────
+  // Either member may pin any message that belongs to this conversation, or
+  // unpin (messageId === null). The new pin state is broadcast to the room so
+  // every open client updates its banner at the same moment; clients not in
+  // the room pick it up from GET /:id/messages on their next open.
+  secureOn(io, socket, userId, 'chat:pin', async ({ conversationId, messageId }, ack) => {
+    if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
+
+    if (messageId) {
+      const msg = await getMessageById(messageId);
+      if (!msg || msg.conversation_id !== conversationId || msg.deleted_at) {
+        return ack({ error: 'Сообщение не найдено' });
+      }
+    }
+
+    await setConversationPin(conversationId, messageId);
+    const pinned = messageId ? await getPinnedMessage(conversationId) : null;
+    io.to(`chat:${conversationId}`).emit('chat:pinned', { conversationId, messageId, message: pinned, byUserId: userId });
+    ack({ ok: true, message: pinned });
+  });
+
+  // ── Forward a message into another conversation ──────────────────────────
+  // The user must be a member of BOTH the source (to read the message) and
+  // the target (to post into it). Encrypted messages can't be forwarded — the
+  // server never sees their plaintext and can't re-key them for a different
+  // conversation — so those are rejected. The forwarded copy carries the
+  // original author's name (forwarded_from) for a "Forwarded from X" label.
+  secureOn(io, socket, userId, 'chat:forward', async ({ fromMessageId, toConversationId }, ack) => {
+    const src = await getMessageById(fromMessageId);
+    if (!src || src.deleted_at) return ack({ error: 'Сообщение не найдено' });
+    if (!(await isConversationMember(src.conversation_id, userId))) return ack({ error: 'Нет доступа к исходному сообщению' });
+    if (!(await isConversationMember(toConversationId, userId))) return ack({ error: 'Не участник целевого чата' });
+    if (src.is_encrypted) return ack({ error: 'Зашифрованные сообщения нельзя переслать' });
+    if (await directPartnerBlocked(toConversationId, userId)) {
+      socket.emit('chat:blocked', { conversationId: toConversationId });
+      return ack({ error: 'Пользователь заблокирован' });
+    }
+    // A forward into an encryption-enabled conversation would land as
+    // plaintext — refuse it rather than silently downgrading that chat.
+    if (await getConversationE2ee(toConversationId)) {
+      return ack({ error: 'В целевом чате включено шифрование — пересылка недоступна' });
+    }
+
+    const originalAuthor = (src.sender && (src.sender as any).username) || 'Unknown';
+    const msg = await saveMessage({
+      conversationId: toConversationId,
+      senderId: userId,
+      type: src.type,
+      text: src.text,
+      mediaUrl: src.media_url,
+      duration: src.duration_seconds,
+      forwardedFrom: originalAuthor,
+      preview: (src.preview_title || src.preview_url || src.preview_thumbnail || src.preview_video_id)
+        ? { title: src.preview_title ?? undefined, url: src.preview_url ?? undefined, thumbnail: src.preview_thumbnail ?? undefined, videoId: src.preview_video_id ?? undefined }
+        : null,
+    });
+    io.to(`chat:${toConversationId}`).emit('chat:message', msg);
+    ack({ ok: true, message: msg });
+  });
+
+  // ── React to a message with an emoji (Telegram-style) ────────────────────
+  // Toggle: reacting again with the same emoji removes it. Any member of the
+  // conversation may react to any message in it (encrypted messages included —
+  // a reaction is just an emoji, the server never touches the ciphertext). The
+  // fresh aggregate reaction list is broadcast to the room so every open
+  // client re-renders the counts at the same moment.
+  secureOn(io, socket, userId, 'chat:react', async ({ conversationId, messageId, emoji }, ack) => {
+    if (!(await isConversationMember(conversationId, userId))) return ack({ error: 'Не участник этого чата' });
+
+    const msg = await getMessageById(messageId);
+    if (!msg || msg.conversation_id !== conversationId || msg.deleted_at) {
+      return ack({ error: 'Сообщение не найдено' });
+    }
+
+    const reactions = await toggleReaction(messageId, userId, emoji);
+    io.to(`chat:${conversationId}`).emit('chat:reaction', { conversationId, messageId, reactions });
+    ack({ ok: true, reactions });
   });
 
   secureOn(io, socket, userId, 'chat:typing', async ({ conversationId, kind }) => {

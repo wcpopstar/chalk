@@ -4,7 +4,8 @@ const analytics = require('../../services/analytics');
 const bcrypt = require('bcryptjs');
 const usersRepository = require('../../repositories/usersRepository');
 const { loginSchema } = require('../../validation/schemas');
-const { authLimiter, loginEmailLimiter, issueSession } = require('./shared');
+const { issueAndSendCode } = require('../../services/emailCodes');
+const { authLimiter, loginEmailLimiter, issueSession, bannedResponse } = require('./shared');
 
 /**
  * @openapi
@@ -60,6 +61,23 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req: Request, res: 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Banned accounts can't sign in. Checked only after the password matched
+    // so the ban reason is never disclosed to someone guessing credentials.
+    const banned = bannedResponse(user);
+    if (banned) return res.status(403).json(banned);
+
+    // Password was correct, but a brand-new account must confirm its email
+    // before it can sign in. Mail a fresh code and steer the client to the
+    // verification step rather than issuing a session.
+    if (user.email_verified === false) {
+      try {
+        await issueAndSendCode({ id: user.id, email: user.email }, 'verify_email');
+      } catch (e: any) {
+        req.log.error({ err: e }, 'Failed to send verification code on login of unverified account');
+      }
+      return res.status(403).json({ error: 'Email not verified', needsVerification: true, identifier: user.username, email: user.email });
     }
 
     await usersRepository.setStatus(user.id, 'online');

@@ -71,7 +71,20 @@ const DEFAULT_RATE_LIMITS: any = {
 
   swipe: { windowMs: 10_000, max: 40 },
 
+  // Server (guild) channels — anti-spam caps on the realtime side.
+  'server:join': { windowMs: 10_000, max: 30 },
+  'server:leave': { windowMs: 10_000, max: 30 },
+  'server:message': { windowMs: 10_000, max: 12 },
+  'server:typing': { windowMs: 5_000, max: 15 },
+  'server:delete': { windowMs: 10_000, max: 15 },
+
   'friends:call_status': { windowMs: 10_000, max: 20 },
+
+  // Clipboard shares are occasional; whiteboard strokes are frequent (the
+  // client throttles pointermove and batches segments, so ~20-30/s max).
+  'call:clipboard': { windowMs: 10_000, max: 15 },
+  'call:draw': { windowMs: 1_000, max: 40 },
+  'call:draw_clear': { windowMs: 5_000, max: 10 },
 };
 
 // ── validateSocketEvent ──────────────────────────────────────────────────

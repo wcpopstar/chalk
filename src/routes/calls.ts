@@ -109,4 +109,31 @@ router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(
   return res.json({ ok: true });
 });
 
+/**
+ * @openapi
+ * /api/calls/activity:
+ *   post:
+ *     tags: [Calls]
+ *     summary: Report the current user's time spent in a just-ended call
+ *     description: Bumps the user's cumulative call-activity counters (total_call_seconds/total_calls) that power the "most active users" leaderboard. Each participant reports the duration their own client measured, so every participant's counter advances. Seconds are clamped to [0, 6h].
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties: { seconds: { type: integer, minimum: 0 } }
+ *     responses:
+ *       200: { description: Counters updated }
+ */
+router.post('/activity', requireAuth, callLimiter, async (req: Request, res: Response) => {
+  // Clamp to a sane range so a bad/hostile client can't inflate the board.
+  const raw = parseInt(String((req.body && req.body.seconds) ?? ''), 10);
+  const seconds = Number.isFinite(raw) ? Math.max(0, Math.min(6 * 60 * 60, raw)) : 0;
+  if (!seconds) return res.json({ ok: true });
+
+  const { error } = await supabaseAdmin.rpc('increment_call_activity', { p_user_id: req.user.id, p_seconds: seconds });
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ ok: true });
+});
+
 export = router;

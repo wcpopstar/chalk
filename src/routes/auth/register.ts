@@ -6,7 +6,8 @@ const { v4: uuid } = require('uuid');
 const usersRepository = require('../../repositories/usersRepository');
 const { registerSchema } = require('../../validation/schemas');
 const { generateUsername } = require('../../utils/usernames');
-const { USER_FIELDS, authLimiter, issueSession } = require('./shared');
+const { issueAndSendCode } = require('../../services/emailCodes');
+const { USER_FIELDS, authLimiter } = require('./shared');
 
 /**
  * @openapi
@@ -90,6 +91,9 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
         languages,
         avatar_emoji: '🎮',
         onboarding_completed: false,
+        // The account starts unverified: we mail a code below and the user
+        // must confirm it via POST /verify-email before a session is issued.
+        email_verified: false,
         created_at: new Date().toISOString(),
       },
       USER_FIELDS
@@ -100,10 +104,21 @@ router.post('/register', authLimiter, async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Could not create account' });
     }
 
-    const { token, refreshToken, expiresIn } = await issueSession(user, req);
+    // Mail the verification code. If this fails we don't want to leave a
+    // dangling unverified account with no way in, but the code can also be
+    // re-requested via /resend-code, so a send hiccup isn't fatal — log and
+    // still tell the client to go to the code screen.
+    try {
+      await issueAndSendCode({ id: user.id, email: user.email }, 'verify_email');
+    } catch (e: any) {
+      req.log.error({ err: e }, 'Failed to send verification code during registration');
+    }
+
     analytics.capture(user.id, 'user_registered');
     analytics.identify(user.id, { country: user.country || null });
-    return res.status(201).json({ user, token, refreshToken, expiresIn });
+    // No session yet — the client shows the code-entry step and calls
+    // /verify-email, which issues the session on success.
+    return res.status(201).json({ pendingVerification: true, identifier: user.username, email: user.email });
   } catch (error: any) {
     if (error.name === 'ZodError') {
       return res.status(400).json({ error: 'Invalid request payload', details: error.issues.map((e: { message: string }) => e.message) });

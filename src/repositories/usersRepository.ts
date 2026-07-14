@@ -41,14 +41,48 @@ function createUser(record: UserInsert, selectFields: string = FULL_PROFILE_FIEL
 }
 
 // ── login.js ─────────────────────────────────────────────────────────────
-function findForLogin(email: string) {
+// Login accepts either an email or a nickname in the same field. Emails are
+// stored lowercased so we match on the lowercased identifier; usernames are
+// matched as-typed. The identifier is validated (email-or-username charset,
+// no commas/parens) before it reaches this .or() filter.
+function findForLogin(identifier: string) {
+  const id = identifier.trim();
   return supabaseAdmin
     .from('users')
     .select(
-      'id, username, email, password_hash, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
+      'id, username, email, email_verified, password_hash, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters, banned_until, ban_reason'
     )
-    .eq('email', email.toLowerCase())
+    .or(`email.eq.${id.toLowerCase()},username.eq.${id}`)
     .maybeSingle();
+}
+
+// Lighter lookup for the emailed-code flows (verify-email, login-code,
+// request-login-code): enough to mail a code and issue a session, without the
+// password hash.
+function findForCodeAuth(identifier: string) {
+  const id = identifier.trim();
+  return supabaseAdmin
+    .from('users')
+    .select(
+      'id, username, email, email_verified, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters, banned_until, ban_reason'
+    )
+    .or(`email.eq.${id.toLowerCase()},username.eq.${id}`)
+    .maybeSingle();
+}
+
+function setEmailVerified(userId: string) {
+  return supabaseAdmin.from('users').update({ email_verified: true }).eq('id', userId);
+}
+
+// ── users/discovery.js: GET /leaderboard ───────────────────────────────────
+// Most active users by cumulative time spent in calls, with their rating.
+function getCallLeaderboard(limit: number) {
+  return supabaseAdmin
+    .from('users')
+    .select('id, username, avatar_emoji, avatar_url, avg_rating, total_call_seconds, total_calls')
+    .gt('total_call_seconds', 0)
+    .order('total_call_seconds', { ascending: false })
+    .limit(limit);
 }
 
 // ── login.js / session.js (logout, logout-all) ──────────────────────────
@@ -61,7 +95,7 @@ function setStatus(userId: string, status: string) {
 
 // ── session.js: /refresh ─────────────────────────────────────────────────
 function findBasicById(userId: string) {
-  return supabaseAdmin.from('users').select('id, username').eq('id', userId).maybeSingle();
+  return supabaseAdmin.from('users').select('id, username, banned_until, ban_reason').eq('id', userId).maybeSingle();
 }
 
 // ── session.js: GET /me ───────────────────────────────────────────────────
@@ -69,7 +103,7 @@ function findFullProfileById(userId: string) {
   return supabaseAdmin
     .from('users')
     .select(
-      'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, presence, bio, created_at, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
+      'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, bio, created_at, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
     )
     .eq('id', userId)
     .single();
@@ -143,7 +177,7 @@ function findPublicProfileById(userId: string) {
   return supabaseAdmin
     .from('users')
     .select(
-      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence, last_seen, public_key,
+      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, status_text, presence, last_seen, public_key,
        user_games ( game_id, rank, hours_played, games ( name, emoji ) )`
     )
     .eq('id', userId)
@@ -156,6 +190,9 @@ export {
   existsByUsername,
   createUser,
   findForLogin,
+  findForCodeAuth,
+  setEmailVerified,
+  getCallLeaderboard,
   setStatus,
   findBasicById,
   findFullProfileById,

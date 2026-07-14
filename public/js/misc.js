@@ -33,6 +33,7 @@ async function openUserProfilePopup(userId) {
       `<button class="gc-close-btn" style="float:right" onclick="closeUserProfilePopup()">✕</button>` +
       `<div class="up-avatar">${  avatarHtml(u.avatar_emoji, u.avatar_url)  }</div>` +
       `<div class="up-name">${  escHtml(u.username)  }</div>` +
+      (u.status_text ? `<div class="up-status-text">💬 ${  escHtml(u.status_text)  }</div>` : '') +
       `<div class="up-meta">${  escHtml(meta.join(' · ') || T('default_player_name'))  }</div>` +
       `<div class="up-bio">${  escHtml(u.bio || T('looking_for_teammates_status'))  }</div>` +
       `<div class="up-actions">` +
@@ -44,7 +45,11 @@ async function openUserProfilePopup(userId) {
           }<button onclick="blockUserAction('${  u.id  }','${  uname  }')">⛔ ${  T('fam_block')  }</button>` +
           `<button onclick="openReportModal('${  u.id  }','${  uname  }')">🚩 ${  T('fam_report')  }</button>` +
         `</div>` +
-      `</div>`;
+      `</div>` +
+      `<div class="up-reviews" id="upReviews"></div>`;
+    // Text reviews left after calls — fetched separately so the popup shows
+    // immediately and fills in the reviews when they arrive.
+    loadUserReviews(u.id);
   } catch(e) {
     body.innerHTML = '<button class="gc-close-btn" style="float:right" onclick="closeUserProfilePopup()">✕</button><div style="font-size:12px;color:var(--muted);padding:30px 0"><span data-i18n="profile_err_load">Не удалось загрузить профиль</span></div>';
   }
@@ -52,6 +57,74 @@ async function openUserProfilePopup(userId) {
 
 function closeUserProfilePopup() {
   document.getElementById('userProfilePopup').classList.remove('show');
+}
+
+// ── Most-active-users leaderboard (time in calls + rating) ──────────────────
+function formatCallDuration(totalSeconds) {
+  const s = Math.max(0, parseInt(totalSeconds, 10) || 0);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h  }${  T('unit_hour', 'ч')  } ${  m  }${  T('unit_min', 'мин')}`;
+  if (m > 0) return `${m  }${  T('unit_min', 'мин')}`;
+  return `${s  } ${  T('unit_seconds_short', 'с')}`;
+}
+
+async function openLeaderboard() {
+  const overlay = document.getElementById('leaderboardOverlay');
+  const list = document.getElementById('leaderboardList');
+  if (!overlay || !list) return;
+  overlay.classList.add('show');
+  list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:20px 0;text-align:center">${  T('status_loading', 'Загрузка...')  }</div>`;
+  try {
+    const data = await api('/api/users/leaderboard');
+    const leaders = data.leaders || [];
+    if (!leaders.length) {
+      list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:20px 0;text-align:center">${  T('leaderboard_empty', 'Пока никто не набрал время в звонках')  }</div>`;
+      return;
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    list.innerHTML = leaders.map((u, i) => {
+      const rank = medals[i] || `${i + 1}`;
+      const ava = avatarHtml(u.avatar_emoji, u.avatar_url);
+      const rating = u.avg_rating ? `⭐ ${  Number(u.avg_rating).toFixed(1)}` : '';
+      const time = formatCallDuration(u.total_call_seconds);
+      const uname = escHtml(u.username || '').replace(/'/g, "\\'");
+      const clickable = (currentUser && u.id === currentUser.id) ? '' : ` onclick="closeLeaderboard();openUserProfilePopup('${  escHtml(u.id)  }')" style="cursor:pointer"`;
+      return `<div class="lb-row"${  clickable  }>` +
+        `<div class="lb-rank">${  rank  }</div>` +
+        `<div class="lb-ava">${  ava  }</div>` +
+        `<div class="lb-info"><div class="lb-name">${  escHtml(u.username || '')  }</div>` +
+        `<div class="lb-meta">🎧 ${  time  }${  rating ? ` · ${  rating}` : ''  }</div></div></div>`;
+    }).join('');
+  } catch (e) {
+    list.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:20px 0;text-align:center">${  T('profile_err_load', 'Не удалось загрузить')  }</div>`;
+  }
+}
+
+function closeLeaderboard() {
+  const overlay = document.getElementById('leaderboardOverlay');
+  if (overlay) overlay.classList.remove('show');
+}
+
+// Loads and renders the text reviews a user has received after calls.
+async function loadUserReviews(userId) {
+  const box = document.getElementById('upReviews');
+  if (!box) return;
+  try {
+    const data = await api(`/api/users/${  userId  }/reviews`);
+    const reviews = data.reviews || [];
+    if (!reviews.length) return; // no reviews → leave the section empty
+    const starsFor = (n) => `${'★'.repeat(Math.max(0, Math.min(5, n)))  }${'☆'.repeat(5 - Math.max(0, Math.min(5, n)))}`;
+    box.innerHTML =
+      `<div class="up-reviews-title">💬 ${  T('reviews_title', 'Отзывы')  } · ${  reviews.length  }</div>${
+      reviews.map((r) =>{
+        const who = (r.rater && r.rater.username) ? escHtml(r.rater.username) : T('status_user');
+        const ava = r.rater ? avatarHtml(r.rater.avatar_emoji, r.rater.avatar_url) : '🙂';
+        return `<div class="up-review"><div class="up-review-head"><span class="up-review-ava">${  ava  }</span>` +
+          `<span class="up-review-name">${  who  }</span><span class="up-review-stars">${  starsFor(r.rating)  }</span></div>` +
+          `<div class="up-review-text">${  escHtml(r.comment || '')  }</div></div>`;
+      }).join('')}`;
+  } catch (_) { /* non-fatal: just omit reviews */ }
 }
 
 async function sendFriendRequestFromPopup(userId, username) {

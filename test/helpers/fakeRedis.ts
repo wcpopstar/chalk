@@ -102,6 +102,25 @@ class FakeRedis {
     return 1;
   }
 
+  async expire(key: any, seconds: any) {
+    return this.pexpire(key, Number(seconds) * 1000);
+  }
+
+  async ttl(key: any) {
+    const e = this._entry(key);
+    if (!e) return -2;                 // key doesn't exist
+    if (e.expiresAt === null) return -1; // no expiry set
+    return Math.ceil((e.expiresAt - Date.now()) / 1000);
+  }
+
+  async incr(key: any) {
+    const e = this._entry(key);
+    const next = (e && e.type === 'string' ? Number(e.value) || 0 : 0) + 1;
+    this.store.set(key, { type: 'string', value: String(next), expiresAt: e ? e.expiresAt : null });
+    this._touch(key);
+    return next;
+  }
+
   // ── hashes ───────────────────────────────────────────────────────────
   async hset(key: any, field: any, value: any) {
     let e = this._entry(key);

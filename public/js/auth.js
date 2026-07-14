@@ -6,9 +6,94 @@ function switchAuthTab(tab, btn) {
   document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
   document.getElementById('forgotForm').style.display = tab === 'forgot' ? 'block' : 'none';
   document.getElementById('resetForm').style.display = tab === 'reset' ? 'block' : 'none';
+  const codeForm = document.getElementById('codeForm');
+  if (codeForm) codeForm.style.display = tab === 'code' ? 'block' : 'none';
   const tabsRow = document.querySelector('.auth-tabs');
   if (tabsRow) tabsRow.style.display = (tab === 'login' || tab === 'register') ? 'flex' : 'none';
   document.getElementById('authError').classList.remove('show');
+}
+
+// ── EMAIL CODES (verification + passwordless login) ──────────────────────────
+// Shared state for the code screen. mode is 'verify_email' or 'login'; it
+// decides which endpoint submitCode() hits. __pendingPassword is the password
+// typed on the register/login form, kept in memory so the E2EE key backup can
+// still be created once verification finishes (see e2eeCapturePassword).
+window.__codeMode = null;
+window.__codeIdentifier = null;
+window.__pendingPassword = null;
+
+function maskEmail(email) {
+  if (!email || email.indexOf('@') < 0) return email || '';
+  const [name, domain] = email.split('@');
+  const shown = name.length <= 2 ? name[0] : `${name.slice(0, 2)}***`;
+  return `${shown}@${domain}`;
+}
+
+// Opens the code-entry screen for the given mode/identifier. `email` (may be
+// masked already) is shown in the hint so the user knows where to look.
+function showCodeForm(mode, identifier, email) {
+  window.__codeMode = mode;
+  window.__codeIdentifier = identifier;
+  switchAuthTab('code');
+  const hint = document.getElementById('codeHint');
+  if (hint) {
+    const where = email ? maskEmail(email) : T('auth_your_email');
+    hint.textContent = mode === 'login'
+      ? T('auth_code_hint_login').replace('{email}', where)
+      : T('auth_code_hint_verify').replace('{email}', where);
+  }
+  const input = document.getElementById('codeInput');
+  if (input) { input.value = ''; setTimeout(() =>{ input.focus(); }, 50); }
+}
+
+async function submitCode() {
+  const btn = document.getElementById('codeBtn');
+  const code = (document.getElementById('codeInput').value || '').trim();
+  if (!/^\d{6}$/.test(code)) return showAuthError(T('auth_err_code_6digits'));
+  const identifier = window.__codeIdentifier;
+  const endpoint = window.__codeMode === 'login' ? '/api/auth/login-code' : '/api/auth/verify-email';
+  btn.disabled = true;
+  btn.innerHTML = `<span class="loading-spinner"></span>${  T('auth_checking')}`;
+  try {
+    const data = await api(endpoint, { method: 'POST', body: JSON.stringify({ identifier, code }) });
+    setSession(data);
+    // Now that we're in, hand the remembered password (if any) to E2EE so the
+    // key backup can be (re)wrapped. Passwordless login has none — E2EE falls
+    // back to its own device-key handling in that case.
+    if (window.__pendingPassword) { e2eeCapturePassword(window.__pendingPassword); window.__pendingPassword = null; }
+    afterAuth();
+  } catch(e) {
+    showAuthError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = T('auth_confirm_code_btn');
+  }
+}
+
+async function resendCode() {
+  const identifier = window.__codeIdentifier;
+  const purpose = window.__codeMode === 'login' ? 'login' : 'verify_email';
+  if (!identifier) return;
+  try {
+    const data = await api('/api/auth/resend-code', { method: 'POST', body: JSON.stringify({ identifier, purpose }) });
+    showAuthError(data.message || T('auth_code_resent'), true);
+  } catch(e) {
+    showAuthError(e.message);
+  }
+}
+
+// Passwordless login: uses whatever is typed in the login identifier field.
+async function requestLoginCode() {
+  const identifier = document.getElementById('loginEmail').value.trim();
+  if (!identifier) return showAuthError(T('placeholder_login_identifier'));
+  try {
+    const data = await api('/api/auth/request-login-code', { method: 'POST', body: JSON.stringify({ identifier }) });
+    window.__pendingPassword = null;
+    showCodeForm('login', identifier, null);
+    showAuthError(data.message || T('auth_code_sent'), true);
+  } catch(e) {
+    showAuthError(e.message);
+  }
 }
 
 async function forgotPassword() {
@@ -54,6 +139,16 @@ async function resetPassword() {
   }
 }
 
+// Human-readable ban notice from the 403 payload the server sends when a
+// banned account tries to sign in (see routes/auth/shared.ts bannedResponse).
+function banMessage(data) {
+  const until = data.bannedUntil ? new Date(data.bannedUntil) : null;
+  const permanent = !until || until.getFullYear() > 2500;
+  let msg = permanent ? T('auth_banned_forever') : T('auth_banned_until').replace('{date}', until.toLocaleString());
+  if (data.reason) msg += ` ${T('auth_ban_reason')}: ${data.reason}`;
+  return msg;
+}
+
 async function login() {
   const btn = document.getElementById('loginBtn');
   const email = document.getElementById('loginEmail').value.trim();
@@ -71,7 +166,17 @@ async function login() {
     e2eeCapturePassword(password);
     afterAuth();
   } catch(e) {
-    showAuthError(e.message);
+    // Unverified account: the server mailed a fresh verification code and
+    // asks us to confirm it before signing in.
+    if (e.data && e.data.needsVerification) {
+      window.__pendingPassword = password;
+      showCodeForm('verify_email', e.data.identifier || email, e.data.email);
+      showAuthError(T('auth_verify_needed'), true);
+    } else if (e.data && e.data.banned) {
+      showAuthError(banMessage(e.data));
+    } else {
+      showAuthError(e.message);
+    }
   } finally {
     btn.disabled = false;
     btn.textContent = T('auth_login_tab');
@@ -95,11 +200,19 @@ async function register() {
   btn.innerHTML = `<span class="loading-spinner"></span>${  T('auth_creating')}`;
   try {
     const data = await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, email, password, country, languages: ['ru'] }) });
-    setSession(data);
-    // Same as login(): lets ensureE2eeKeypair() create the password-wrapped
-    // key backup right away for the brand-new account.
-    e2eeCapturePassword(password);
-    afterAuth();
+    // Registration no longer returns a session: the account must confirm the
+    // emailed code first. Remember the password so E2EE can wrap its backup
+    // once verification completes (submitCode()).
+    if (data.pendingVerification) {
+      window.__pendingPassword = password;
+      showCodeForm('verify_email', data.identifier || username || email, data.email || email);
+      showAuthError(T('auth_verify_needed'), true);
+    } else {
+      // Backward-compat: if a server still returns a session, use it.
+      setSession(data);
+      e2eeCapturePassword(password);
+      afterAuth();
+    }
   } catch(e) {
     showAuthError(e.message);
   } finally {
@@ -185,6 +298,10 @@ function bootApp() {
   // Load friends
   loadFriends();
   if (!friendsPollInterval) friendsPollInterval = setInterval(loadFriends, 15000);
+
+  // Stories strip (own + friends' active stories) and the custom status line.
+  if (typeof loadStories === 'function') loadStories();
+  if (typeof renderMyStatusText === 'function') renderMyStatusText();
 }
 
 async function checkAuth() {
