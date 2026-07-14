@@ -166,9 +166,15 @@ async function login() {
     e2eeCapturePassword(password);
     afterAuth();
   } catch(e) {
-    // Unverified account: the server mailed a fresh verification code and
-    // asks us to confirm it before signing in.
-    if (e.data && e.data.needsVerification) {
+    // Email 2FA is on: the password was correct, but the server mailed a login
+    // code and won't issue a session until it's confirmed (login-code flow).
+    if (e.data && e.data.needsTwofa) {
+      window.__pendingPassword = password;
+      showCodeForm('login', e.data.identifier || email, e.data.email);
+      showAuthError(T('auth_2fa_needed', 'Введи код из письма, чтобы войти'), true);
+    } else if (e.data && e.data.needsVerification) {
+      // Unverified account: the server mailed a fresh verification code and
+      // asks us to confirm it before signing in.
       window.__pendingPassword = password;
       showCodeForm('verify_email', e.data.identifier || email, e.data.email);
       showAuthError(T('auth_verify_needed'), true);

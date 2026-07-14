@@ -1,14 +1,59 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { requireAuth } = require('../../middleware/auth');
-const { validate } = require('../../middleware/validate');
+import { Router } from 'express';
+const router = Router();
+import { z } from 'zod';
+import { requireAuth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { userLimiter } from '../../middleware/rateLimit';
 import * as usersRepository from '../../repositories/usersRepository';
 import * as swipesRepository from '../../repositories/swipesRepository';
 import * as blocksRepository from '../../repositories/blocksRepository';
 import * as userGamesRepository from '../../repositories/userGamesRepository';
-const { searchLimiter } = require('./shared');
-const { discoverQuerySchema, searchQuerySchema } = require('../../validation/userSchemas');
-const { isEnabled } = require('../../services/featureFlags');
+import * as analytics from '../../services/analytics';
+import { areUsersBlocked } from '../../services/blockHelper';
+import { searchLimiter } from './shared';
+import { discoverQuerySchema, searchQuerySchema } from '../../validation/userSchemas';
+import { isEnabled } from '../../services/featureFlags';
+import { getIO } from '../../socket/registry';
+import { getOnlineSocket } from '../../socket/state';
+
+const likeLimiter = userLimiter({ windowMs: 60 * 1000, max: 60, message: 'Слишком много действий, подожди немного.' });
+
+const likeSchema = z.object({
+  targetUserId: z.string().uuid(),
+  action: z.enum(['like', 'dislike', 'letter']),
+  message: z.string().trim().max(300).optional(),
+});
+const ACTION_TO_DIRECTION: Record<'dislike' | 'like' | 'letter', 'left' | 'right' | 'super'> = { dislike: 'left', like: 'right', letter: 'super' };
+
+// Ranks candidates by overlap with the viewer's own tastes so the most
+// compatible profiles surface first: shared games (heaviest), a matching
+// rank inside a shared game, shared languages, and age proximity.
+function compatibilityScore(
+  me: { age: number | null; languages: string[]; gamesByRank: Map<string, string | null> },
+  candidate: any
+): number {
+  let score = 0;
+  const candGames = (candidate.user_games || []) as Array<{ game_id: string; rank: string | null }>;
+  for (const g of candGames) {
+    if (me.gamesByRank.has(g.game_id)) {
+      score += 10; // shared game
+      const myRank = me.gamesByRank.get(g.game_id);
+      if (myRank && g.rank && String(myRank).toLowerCase() === String(g.rank).toLowerCase()) score += 6; // same rank
+    }
+  }
+  const candLangs = (candidate.languages || []) as string[];
+  const sharedLangs = candLangs.filter((l) => me.languages.includes(l)).length;
+  score += sharedLangs * 4;
+
+  if (me.age && candidate.age) {
+    const diff = Math.abs(me.age - candidate.age);
+    if (diff <= 2) score += 5;
+    else if (diff <= 5) score += 3;
+    else if (diff <= 10) score += 1;
+  }
+  return score;
+}
 
 /**
  * @openapi
@@ -94,13 +139,123 @@ router.get('/discover', requireAuth, validate({ query: discoverQuerySchema }), a
     if (!gameFilterIds.length) return res.json({ users: [] });
   }
 
+  // Pull a larger pool than requested, then rank it by shared interests and
+  // return the top `limit`. Capped so the scoring stays cheap.
+  const poolLimit = Math.min(50, Math.max(limit * 4, 20));
   const { data: users, error } = await usersRepository.findDiscoverCandidates({
     excludeIds,
     gameFilterIds,
-    limit,
+    limit: poolLimit,
   });
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ users: users || [] });
+
+  // Drop anyone who turned off discoverability in their privacy settings.
+  const visible = (users || []).filter((u) => !(u.privacy && u.privacy.discoverable === false));
+
+  // Build the viewer's taste profile and rank by compatibility.
+  const { data: mine } = await usersRepository.findDiscoveryProfileById(uid);
+  const gamesByRank = new Map<string, string | null>();
+  (mine?.user_games || []).forEach((g) => gamesByRank.set(g.game_id, g.rank || null));
+  const me = { age: mine?.age || null, languages: mine?.languages || [], gamesByRank };
+
+  // Separate binding rather than reassigning `visible`: the ranked list drops
+  // the `privacy` field, so it genuinely has a different type.
+  const candidates = visible
+    .map((u) => {
+      // privacy is the owner's business — never expose it to viewers.
+      const { privacy, ...clean } = u;
+      return { user: clean, score: compatibilityScore(me, u) };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((r) => r.user);
+
+  return res.json({ users: candidates });
+});
+
+/**
+ * @openapi
+ * /api/users/discover/like:
+ *   post:
+ *     tags: [Users]
+ *     summary: React to a discovery profile (like / dislike / letter)
+ *     description: |
+ *       Replaces the old swipe socket event. `letter` carries an optional short message shown to the
+ *       target in their likes inbox. Likes/letters notify the target in real time and detect a mutual match.
+ *     responses:
+ *       200: { description: OK }
+ */
+router.post('/discover/like', requireAuth, likeLimiter, validate({ body: likeSchema }), async (req: Request, res: Response) => {
+  const uid = req.user.id;
+  const { targetUserId, action } = req.body as { targetUserId: string; action: 'like' | 'dislike' | 'letter'; message?: string };
+  if (targetUserId === uid) return res.status(400).json({ error: 'Нельзя лайкнуть себя' });
+
+  if (await areUsersBlocked(uid, targetUserId)) {
+    return res.status(403).json({ error: 'Пользователь недоступен' });
+  }
+
+  const direction = ACTION_TO_DIRECTION[action];
+  const message = action === 'letter' ? (req.body.message || '').trim() || null : null;
+
+  const { error } = await swipesRepository.recordSwipe(uid, targetUserId, direction, message);
+  if (error) return res.status(500).json({ error: error.message });
+  analytics.capture(uid, 'discover_like', { action });
+
+  let matched = false;
+  if (direction === 'right' || direction === 'super') {
+    const { data: incoming } = await swipesRepository.findIncomingLike(targetUserId, uid);
+    matched = Boolean(incoming);
+
+    // Notify the target in real time: either a mutual match, or a new like to
+    // show in their likes inbox (with the letter text, if any).
+    try {
+      const io = getIO();
+      const targetSocket = io ? await getOnlineSocket(targetUserId) : null;
+      if (io && targetSocket) {
+        if (matched) {
+          io.to(targetSocket).emit('swipe:match', { with: uid });
+        } else {
+          // This branch only runs when direction is 'right' or 'super', which
+          // ACTION_TO_DIRECTION produces solely for 'like' and 'letter' — a
+          // 'dislike' maps to 'left' and never notifies the target. TypeScript
+          // narrows `direction`, not `action`, hence the assertion.
+          const notifyAction = action as 'like' | 'letter';
+          io.to(targetSocket).emit('like:received', { from: uid, action: notifyAction, message });
+        }
+      }
+    } catch (_) { /* realtime notify is best-effort */ }
+
+    if (matched) analytics.capture(uid, 'swipe_match');
+  }
+
+  return res.json({ ok: true, matched });
+});
+
+/**
+ * @openapi
+ * /api/users/likes:
+ *   get:
+ *     tags: [Users]
+ *     summary: People who liked me and I haven't answered yet
+ *     responses:
+ *       200: { description: OK }
+ */
+router.get('/likes', requireAuth, searchLimiter, async (req: Request, res: Response) => {
+  const { data, error } = await swipesRepository.findIncomingLikes(req.user.id, 50);
+  if (error) return res.status(500).json({ error: error.message });
+
+  const likes = (data || []).map((row) => {
+    const { privacy, ...liker } = row.liker || {};
+    if (privacy && privacy.show_age === false) liker.age = null;
+    if (privacy && privacy.show_country === false) liker.country = null;
+    return {
+      action: row.direction === 'super' ? 'letter' : 'like',
+      message: row.message || null,
+      created_at: row.created_at,
+      user: liker,
+    };
+  });
+  return res.json({ likes });
 });
 
 /**

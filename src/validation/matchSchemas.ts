@@ -1,6 +1,6 @@
 import { z } from 'zod';
-const { paginationQuery } = require('./common');
-const { gameIdField } = require('./userSchemas');
+import { paginationQuery } from './common';
+import { gameIdField } from './userSchemas';
 
 // ── GET /api/match/history ──────────────────────────────────────────────
 const historyQuerySchema = paginationQuery({ limit: 20, maxLimit: 100 });

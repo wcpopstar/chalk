@@ -22,7 +22,50 @@ let voiceState = {
 // AGC = automatic gain control. All on by default for a clean voice call.
 let selectedMicId = null;
 let selectedSpeakerId = null;
+// Remember the chosen devices across reloads so a returning user keeps their
+// preferred mic/headphones without re-picking every session.
+try {
+  selectedMicId = localStorage.getItem("chalk_mic_id") || null;
+  selectedSpeakerId = localStorage.getItem("chalk_speaker_id") || null;
+} catch (_) {}
 const micProcessing = { AEC: true, ANS: true, AGC: true };
+
+// ── Sound preferences (settings → Звук) ────────────────────────────────────
+// Persisted client-side and read when the mic track is (re)created. Defaults
+// are chosen so the plain, unprocessed mic path stays byte-for-byte the same
+// as before: eq off + gain 1 → a normal Agora microphone track.
+const EQ_BANDS = [
+  { type: "lowshelf",  freq: 80 },     // бас
+  { type: "peaking",   freq: 240 },
+  { type: "peaking",   freq: 1000 },   // средние
+  { type: "peaking",   freq: 4000 },
+  { type: "highshelf", freq: 12000 },  // высокие
+];
+const soundPrefs = {
+  micGain: 1.0,            // 0..2 (mic input gain)
+  outVolume: 100,          // master playback volume for everyone else, 0..200
+  eqEnabled: false,
+  eqGains: [0, 0, 0, 0, 0],// dB per EQ_BANDS entry, -12..+12
+  pttMode: false,          // push-to-talk on/off
+};
+try {
+  const raw = localStorage.getItem("chalk_sound_prefs");
+  if (raw) Object.assign(soundPrefs, JSON.parse(raw));
+} catch (_) {}
+function persistSoundPrefs() {
+  try { localStorage.setItem("chalk_sound_prefs", JSON.stringify(soundPrefs)); } catch (_) {}
+}
+
+// Live Web Audio graph for mic gain + EQ (only built when eq/gain is active).
+let micGraph = null; // { ctx, gainNode, filters:[], stream, dest }
+
+// Push-to-talk state. pttHeld = the PTT key is currently pressed.
+let pttHeld = false;
+// Master output volume applied on top of every per-user volume.
+let masterOutVolume = soundPrefs.outVolume;
+
+window.getSoundPrefs = function () { return JSON.parse(JSON.stringify(soundPrefs)); };
+window.getEqBands = function () { return EQ_BANDS.map((b) => b.freq); };
 // "high_quality" = 48 kHz mono ~128 kbps — noticeably clearer than the SDK's
 // default "music_standard" (~40 kbps) at a modest bandwidth cost.
 const micEncoderConfig = "high_quality";
@@ -58,6 +101,89 @@ function buildMicConfig() {
   };
   if (selectedMicId) cfg.microphoneId = selectedMicId;
   return cfg;
+}
+
+// True when the mic needs the Web Audio processing chain (gain ≠ 1 or EQ on).
+// When false the plain Agora mic track is used, so default behavior is
+// unchanged for anyone who never opens the equalizer.
+function micNeedsProcessing() {
+  return soundPrefs.eqEnabled || Math.abs(soundPrefs.micGain - 1) > 0.001;
+}
+
+// Build a processed mic track: raw getUserMedia → gain → EQ biquads →
+// MediaStreamDestination, wrapped as an Agora custom audio track. Keeps a
+// handle in micGraph so gain/EQ can be tweaked live without rebuilding.
+async function buildProcessedMicTrack() {
+  const audioConstraints = {
+    echoCancellation: micProcessing.AEC,
+    noiseSuppression: micProcessing.ANS,
+    autoGainControl: micProcessing.AGC,
+  };
+  if (selectedMicId) audioConstraints.deviceId = { exact: selectedMicId };
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
+
+  const AC = window.AudioContext || window.webkitAudioContext;
+  const ctx = new AC();
+  const src = ctx.createMediaStreamSource(stream);
+  const gainNode = ctx.createGain();
+  gainNode.gain.value = soundPrefs.micGain;
+
+  let node = src;
+  node.connect(gainNode);
+  node = gainNode;
+
+  const filters = [];
+  if (soundPrefs.eqEnabled) {
+    EQ_BANDS.forEach((band, i) => {
+      const f = ctx.createBiquadFilter();
+      f.type = band.type;
+      f.frequency.value = band.freq;
+      if (band.type === "peaking") f.Q.value = 1;
+      f.gain.value = soundPrefs.eqGains[i] || 0;
+      node.connect(f);
+      node = f;
+      filters.push(f);
+    });
+  }
+
+  const dest = ctx.createMediaStreamDestination();
+  node.connect(dest);
+
+  micGraph = { ctx, gainNode, filters, stream, dest };
+  return AgoraRTC.createCustomAudioTrack({ mediaStreamTrack: dest.stream.getAudioTracks()[0] });
+}
+
+// Create the outgoing mic track — processed (gain/EQ) or plain, depending on
+// the current sound prefs. Used by enableMicrophone and setMicProcessing.
+async function createMicTrack() {
+  if (micNeedsProcessing()) return buildProcessedMicTrack();
+  return AgoraRTC.createMicrophoneAudioTrack(buildMicConfig());
+}
+
+// Tear down the mic Web Audio graph (if any) when the mic track goes away.
+function disposeMicGraph() {
+  if (!micGraph) return;
+  try { micGraph.stream.getTracks().forEach((t) => t.stop()); } catch (_) {}
+  try { micGraph.ctx.close(); } catch (_) {}
+  micGraph = null;
+}
+
+// Should the mic currently transmit? False when muted, or in push-to-talk
+// mode while the key isn't held. When PTT is off this is just !muted, so the
+// pre-existing behavior is preserved.
+function micShouldTransmit() {
+  if (voiceState.muted) return false;
+  if (soundPrefs.pttMode && !pttHeld) return false;
+  return true;
+}
+
+async function applyMicEnabled() {
+  const track = voiceFxTrack || microphoneTrack;
+  if (!track) return;
+  try {
+    const r = track.setEnabled(micShouldTransmit());
+    if (r && typeof r.catch === "function") r.catch(() => {});
+  } catch (_) {}
 }
 
 // Route a remote audio track to the chosen speaker (Chrome/Edge only; other
@@ -108,7 +234,8 @@ function getStoredVolume(uidKey) {
 
 function getEffectiveVolume(uidKey) {
   if (voiceState.deafened) return 0;
-  return getStoredVolume(uidKey);
+  // Master output volume scales every per-user volume (settings → Звук).
+  return Math.round(getStoredVolume(uidKey) * (masterOutVolume / 100));
 }
 
 function setRemoteTrackAudioState(track, volume) {
@@ -352,8 +479,8 @@ window.enableMicrophone = async function () {
   if (!voiceState.joined || !client) throw new Error("Not connected to voice");
 
   if (voiceFxTrack || microphoneTrack) {
-    await (voiceFxTrack || microphoneTrack).setEnabled(true);
     voiceState.muted = false;
+    await applyMicEnabled();
     window.dispatchEvent(
       new CustomEvent("voice:status", {
         detail: { type: "info", message: "Микрофон включён" }
@@ -362,10 +489,12 @@ window.enableMicrophone = async function () {
     return;
   }
 
-  microphoneTrack = await AgoraRTC.createMicrophoneAudioTrack(buildMicConfig());
+  microphoneTrack = await createMicTrack();
   await client.publish(microphoneTrack);
 
   voiceState.muted = false;
+  // In push-to-talk mode the mic starts silent until the key is held.
+  await applyMicEnabled();
   window.dispatchEvent(
     new CustomEvent("voice:status", {
       detail: { type: "info", message: "Микрофон включён" }
@@ -391,7 +520,8 @@ window.toggleVoiceMute = async function () {
   voiceState.muted = !voiceState.muted;
   // While a voice effect is active the processed custom track is what the
   // others hear — mute/unmute must hit that one, not the idle mic track.
-  await (voiceFxTrack || microphoneTrack).setEnabled(!voiceState.muted);
+  // Goes through micShouldTransmit() so push-to-talk state is respected.
+  await applyMicEnabled();
 
   window.dispatchEvent(
     new CustomEvent("voice:status", {
@@ -404,6 +534,79 @@ window.toggleVoiceMute = async function () {
     })
   );
 };
+
+/* ---------------- SOUND PREFS: gain / EQ / push-to-talk / volume ---------- */
+
+// Push-to-talk: the settings UI (js/sound-settings.js) binds the chosen key
+// and calls these on keydown/keyup. Only meaningful while pttMode is on.
+window.setPttMode = function (on) {
+  soundPrefs.pttMode = Boolean(on);
+  persistSoundPrefs();
+  pttHeld = false;
+  applyMicEnabled();
+};
+window.setPttHeld = function (held) {
+  if (pttHeld === Boolean(held)) return;
+  pttHeld = Boolean(held);
+  applyMicEnabled();
+};
+
+// Master playback volume for everyone else (0..200).
+window.setMasterOutputVolume = function (v) {
+  let n = Number(v);
+  if (!Number.isFinite(n)) n = 100;
+  masterOutVolume = Math.max(0, Math.min(200, Math.round(n)));
+  soundPrefs.outVolume = masterOutVolume;
+  persistSoundPrefs();
+  applyRemoteAudioState();
+};
+
+// Mic input gain (0..2). Applied live to the Web Audio graph when present,
+// otherwise it flips the mic onto the processed path via recreation.
+window.setMicGain = async function (gain) {
+  let g = Number(gain);
+  if (!Number.isFinite(g)) g = 1;
+  g = Math.max(0, Math.min(2, g));
+  const wasPlain = !micNeedsProcessing();
+  soundPrefs.micGain = g;
+  persistSoundPrefs();
+  if (micGraph && micGraph.gainNode) {
+    micGraph.gainNode.gain.value = g;
+  } else if (wasPlain !== !micNeedsProcessing()) {
+    await recreateMicTrack();
+  }
+};
+
+// Enable/disable the equalizer, or update a single band's gain (dB).
+window.setEqEnabled = async function (on) {
+  soundPrefs.eqEnabled = Boolean(on);
+  persistSoundPrefs();
+  await recreateMicTrack(); // adding/removing filters needs a graph rebuild
+};
+window.setEqBandGain = function (index, db) {
+  if (index < 0 || index >= EQ_BANDS.length) return;
+  let v = Number(db);
+  if (!Number.isFinite(v)) v = 0;
+  v = Math.max(-12, Math.min(12, v));
+  soundPrefs.eqGains[index] = v;
+  persistSoundPrefs();
+  if (micGraph && micGraph.filters[index]) micGraph.filters[index].gain.value = v;
+};
+
+// Rebuild the live mic track from the current prefs (used when toggling
+// between plain and processed paths). No-op if the mic isn't running.
+async function recreateMicTrack() {
+  if (!client || !microphoneTrack || voiceFxTrack) return; // voiceFx owns the track when active
+  try {
+    await client.unpublish(microphoneTrack);
+    microphoneTrack.stop();
+    microphoneTrack.close();
+  } catch (_) {}
+  disposeMicGraph();
+  microphoneTrack = await createMicTrack();
+  await client.publish(microphoneTrack);
+  await applyMicEnabled();
+}
 
 /* ---------------- VOICE EFFECTS ---------------- */
 
@@ -433,7 +636,7 @@ window.setVoiceEffect = async function (name) {
     if (voiceFxStream) { voiceFxStream.getTracks().forEach((t) => t.stop()); voiceFxStream = null; }
     if (microphoneTrack) {
       try { await client.publish(microphoneTrack); } catch (_) {}
-      await microphoneTrack.setEnabled(!voiceState.muted);
+      await applyMicEnabled();
     }
     return true;
   }
@@ -448,7 +651,7 @@ window.setVoiceEffect = async function (name) {
     });
     if (microphoneTrack) { try { await client.unpublish(microphoneTrack); } catch (_) {} }
     await client.publish(voiceFxTrack);
-    await voiceFxTrack.setEnabled(!voiceState.muted);
+    await applyMicEnabled();
   }
   voiceFx.setEffect(name);
   voiceFxName = name;
@@ -532,6 +735,10 @@ window.listAudioDevices = async function () {
 window.setMicrophoneDevice = async function (deviceId) {
   if (!deviceId) return;
   selectedMicId = deviceId;
+  try { localStorage.setItem("chalk_mic_id", deviceId); } catch (_) {}
+  // If the mic is running through the Web Audio graph, the deviceId lives in
+  // that getUserMedia stream, not the Agora track — rebuild to switch inputs.
+  if (micGraph && client && microphoneTrack) { await recreateMicTrack(); return; }
   if (microphoneTrack && typeof microphoneTrack.setDevice === "function") {
     try { await microphoneTrack.setDevice(deviceId); } catch (err) { console.warn("[voice] setMicrophoneDevice", err); }
   }
@@ -544,6 +751,7 @@ window.setMicrophoneDevice = async function (deviceId) {
 window.setSpeakerDevice = async function (deviceId) {
   if (!deviceId) return;
   selectedSpeakerId = deviceId;
+  try { localStorage.setItem("chalk_speaker_id", deviceId); } catch (_) {}
   remoteAudioTracks.forEach((track) => applySpeakerToTrack(track));
   window.dispatchEvent(new CustomEvent("voice:status", {
     detail: { type: "info", message: "Устройство вывода переключено" }
@@ -569,14 +777,14 @@ window.setMicProcessing = async function (partial) {
 
   // Recreate the live track so the new DSP settings take effect.
   if (client && microphoneTrack) {
-    const wasMuted = voiceState.muted;
     try {
       await client.unpublish(microphoneTrack);
       microphoneTrack.stop();
       microphoneTrack.close();
     } catch (_) {}
-    microphoneTrack = await AgoraRTC.createMicrophoneAudioTrack(buildMicConfig());
-    if (wasMuted) { try { await microphoneTrack.setEnabled(false); } catch (_) {} }
+    disposeMicGraph();
+    microphoneTrack = await createMicTrack();
+    await applyMicEnabled();
     await client.publish(microphoneTrack);
   }
 
@@ -790,6 +998,7 @@ window.leaveVoice = async function () {
       microphoneTrack.close();
       microphoneTrack = null;
     }
+    disposeMicGraph();
 
     await client.leave();
   } catch (err) {

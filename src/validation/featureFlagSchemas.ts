@@ -1,5 +1,5 @@
 import { z } from 'zod';
-const { REGISTRY } = require('../services/featureFlags');
+import { REGISTRY } from '../services/featureFlags';
 
 const flagKeyParam = z.object({
   key: z.enum(Object.keys(REGISTRY) as any),

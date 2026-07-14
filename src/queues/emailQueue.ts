@@ -1,7 +1,8 @@
-const { Queue } = require('bullmq');
-const logger = require('../utils/logger').child({ module: 'email-queue' });
-const { queueConnection } = require('./connection');
-const { EMAIL } = require('./queueNames');
+import { Queue, type ConnectionOptions } from 'bullmq';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'email-queue' });
+import { queueConnection } from './connection';
+import { EMAIL } from './queueNames';
 
 // Job names within the 'email' queue — the worker switches on these.
 const JOBS = {
@@ -20,7 +21,12 @@ let _emailQueue: any = null;
 function getEmailQueue() {
   if (_emailQueue) return _emailQueue;
   _emailQueue = new Queue(EMAIL, {
-    connection: queueConnection,
+    // bullmq resolves its own nested copy of ioredis (5.10.1) while we import
+    // the hoisted one (5.11.1), so the two Redis classes are structurally
+    // distinct types even though it's the very same object at runtime — bullmq
+    // duck-types the client it's handed. Cast rather than pin the versions
+    // together, which would mean touching the lockfile.
+    connection: queueConnection as unknown as ConnectionOptions,
     defaultJobOptions: {
       attempts: 3,
       backoff: { type: 'exponential', delay: 2000 }, // 2s, 4s, 8s

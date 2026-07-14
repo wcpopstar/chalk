@@ -1,6 +1,7 @@
-const Redis = require('ioredis');
-const logger = require('../utils/logger').child({ module: 'queue-redis' });
-const { config } = require('../config/env');
+import Redis from 'ioredis';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'queue-redis' });
+import { config } from '../config/env';
 
 /**
  * BullMQ needs its own Redis connection, separate from `redis` /

@@ -1,9 +1,10 @@
-const { Worker } = require('bullmq');
-const logger = require('../utils/logger').child({ module: 'email-worker' });
-const { queueConnection } = require('../queues/connection');
-const { EMAIL } = require('../queues/queueNames');
-const { JOBS } = require('../queues/emailQueue');
-const { sendPasswordResetEmail, sendCodeEmail } = require('../services/mailer');
+import { Worker, type ConnectionOptions } from 'bullmq';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'email-worker' });
+import { queueConnection } from '../queues/connection';
+import { EMAIL } from '../queues/queueNames';
+import { JOBS } from '../queues/emailQueue';
+import { sendPasswordResetEmail, sendCodeEmail } from '../services/mailer';
 
 async function processEmailJob(job: { name: string; data: any }) {
   switch (job.name) {
@@ -26,7 +27,9 @@ async function processEmailJob(job: { name: string; data: any }) {
 
 function createEmailWorker() {
   const worker = new Worker(EMAIL, processEmailJob, {
-    connection: queueConnection,
+    // Same nested-ioredis version split as in queues/emailQueue.ts — one object
+    // at runtime, two structurally distinct Redis types at compile time.
+    connection: queueConnection as unknown as ConnectionOptions,
     concurrency: 5,
   });
 

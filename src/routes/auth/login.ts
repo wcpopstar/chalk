@@ -1,11 +1,13 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const analytics = require('../../services/analytics');
-const bcrypt = require('bcryptjs');
-const usersRepository = require('../../repositories/usersRepository');
-const { loginSchema } = require('../../validation/schemas');
-const { issueAndSendCode } = require('../../services/emailCodes');
-const { authLimiter, loginEmailLimiter, issueSession, bannedResponse } = require('./shared');
+import { Router } from 'express';
+const router = Router();
+import * as analytics from '../../services/analytics';
+import bcrypt from 'bcryptjs';
+import * as usersRepository from '../../repositories/usersRepository';
+import { loginSchema } from '../../validation/schemas';
+import { issueAndSendCode } from '../../services/emailCodes';
+import { recordLoginEvent } from '../../services/loginEvents';
+import { authLimiter, loginEmailLimiter, issueSession, bannedResponse, requestMeta } from './shared';
 
 /**
  * @openapi
@@ -60,6 +62,7 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req: Request, res: 
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
+      recordLoginEvent(user.id, 'password', false, requestMeta(req));
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -80,11 +83,25 @@ router.post('/login', authLimiter, loginEmailLimiter, async (req: Request, res: 
       return res.status(403).json({ error: 'Email not verified', needsVerification: true, identifier: user.username, email: user.email });
     }
 
+    // Email 2FA: the password alone doesn't grant a session. Mail a login
+    // code and steer the client to the code step — it finishes the sign-in
+    // via POST /api/auth/login-code (same endpoint as passwordless login).
+    if (user.twofa_email_enabled) {
+      try {
+        await issueAndSendCode({ id: user.id, email: user.email }, 'login');
+      } catch (e: any) {
+        req.log.error({ err: e }, 'Failed to send 2FA login code');
+        return res.status(500).json({ error: 'Не удалось отправить код подтверждения' });
+      }
+      return res.status(403).json({ error: 'Требуется код подтверждения', needsTwofa: true, identifier: user.username, email: user.email });
+    }
+
     await usersRepository.setStatus(user.id, 'online');
 
     const { password_hash, ...safeUser } = user;
     const { token, refreshToken, expiresIn } = await issueSession(user, req);
     analytics.capture(user.id, 'user_logged_in');
+    recordLoginEvent(user.id, 'password', true, requestMeta(req));
     return res.json({ user: safeUser, token, refreshToken, expiresIn });
   } catch (error: any) {
     if (error.name === 'ZodError') {

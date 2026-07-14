@@ -33,7 +33,7 @@
  */
 
 // eslint-disable-next-line n/no-missing-require -- express internal, present in express 4.x
-const Layer = require('express/lib/router/layer');
+import Layer from 'express/lib/router/layer';
 
 type AnyFn = ((...args: unknown[]) => unknown) & { __asyncWrapped?: boolean };
 

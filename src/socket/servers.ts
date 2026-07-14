@@ -1,7 +1,7 @@
 import type { TypedServer, TypedSocket } from './types';
 import { secureOn } from './validation';
-const { resolveContextByChannel, sendChannelMessage, deleteChannelMessage } = require('../services/serverMessaging');
-const { PERMISSIONS, can } = require('../services/serverPermissions');
+import { resolveContextByChannel, sendChannelMessage, deleteChannelMessage } from '../services/serverMessaging';
+import { PERMISSIONS, can } from '../services/serverPermissions';
 
 // ── Realtime for Discord-style server channels ───────────────────────────────
 // A client that has the channel open joins the room `server:chan:${channelId}`

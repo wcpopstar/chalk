@@ -1,13 +1,14 @@
 import type { Request, Response } from 'express';
-const express = require('express');
+import express from 'express';
 const router  = express.Router();
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { userLimiter } = require('../middleware/rateLimit');
-const { tokenQuerySchema } = require('../validation/agoraSchemas');
-const { getUserCurrentRoom } = require('../socket/state');
-const logger = require('../utils/logger').child({ module: 'agora' });
-const { config } = require('../config/env');
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { userLimiter } from '../middleware/rateLimit';
+import { tokenQuerySchema } from '../validation/agoraSchemas';
+import { getUserCurrentRoom } from '../socket/state';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'agora' });
+import { config } from '../config/env';
 
 // A client legitimately re-requests a token on reconnect/token-expiry, but
 // there's no reason for dozens of requests per minute from one account.

@@ -73,6 +73,9 @@ export interface Database {
           e2ee_backup_iters: number | null;
           banned_until: string | null;
           ban_reason: string | null;
+          gaming_links: Record<string, string>;
+          twofa_email_enabled: boolean;
+          privacy: Record<string, boolean>;
         };
         Insert: {
           id?: string;
@@ -96,6 +99,9 @@ export interface Database {
           email_verified?: boolean;
           total_call_seconds?: number;
           total_calls?: number;
+          gaming_links?: Record<string, string>;
+          twofa_email_enabled?: boolean;
+          privacy?: Record<string, boolean>;
           public_key?: string | null;
           e2ee_backup_secret?: string | null;
           e2ee_backup_nonce?: string | null;
@@ -133,8 +139,93 @@ export interface Database {
           e2ee_backup_iters?: number | null;
           banned_until?: string | null;
           ban_reason?: string | null;
+          gaming_links?: Record<string, string>;
+          twofa_email_enabled?: boolean;
+          privacy?: Record<string, boolean>;
         };
         Relationships: [];
+      };
+
+      // supabase/migrations/029_webauthn_passkeys.sql
+      webauthn_credentials: {
+        Row: {
+          id: string;
+          user_id: string;
+          public_key: string;
+          counter: number;
+          transports: string[];
+          device_name: string | null;
+          created_at: string;
+          last_used_at: string | null;
+        };
+        Insert: {
+          id: string;
+          user_id: string;
+          public_key: string;
+          counter?: number;
+          transports?: string[];
+          device_name?: string | null;
+          created_at?: string;
+          last_used_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          public_key?: string;
+          counter?: number;
+          transports?: string[];
+          device_name?: string | null;
+          created_at?: string;
+          last_used_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'webauthn_credentials_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+
+      login_events: {
+        Row: {
+          id: string;
+          user_id: string;
+          method: string;
+          success: boolean;
+          ip: string | null;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          method: string;
+          success?: boolean;
+          ip?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          method?: string;
+          success?: boolean;
+          ip?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'login_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
       };
 
       email_codes: {
@@ -185,18 +276,21 @@ export interface Database {
           game_id: string;
           rank: string | null;
           hours_played: number;
+          wins: number;
         };
         Insert: {
           user_id: string;
           game_id: string;
           rank?: string | null;
           hours_played?: number;
+          wins?: number;
         };
         Update: {
           user_id?: string;
           game_id?: string;
           rank?: string | null;
           hours_played?: number;
+          wins?: number;
         };
         Relationships: [
           {
@@ -261,18 +355,21 @@ export interface Database {
           user_id: string;
           target_user_id: string;
           direction: string;
+          message: string | null;
           created_at: string;
         };
         Insert: {
           user_id: string;
           target_user_id: string;
           direction: string;
+          message?: string | null;
           created_at?: string;
         };
         Update: {
           user_id?: string;
           target_user_id?: string;
           direction?: string;
+          message?: string | null;
           created_at?: string;
         };
         Relationships: [

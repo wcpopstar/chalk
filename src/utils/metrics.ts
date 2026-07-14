@@ -42,7 +42,7 @@
  * `process_*`/`nodejs_*` metric names.
  */
 
-const client = require('prom-client');
+import client from 'prom-client';
 
 const register = new client.Registry();
 

@@ -6,7 +6,7 @@ import { supabaseAdmin } from '../services/supabase';
  */
 // game_id is guaranteed by gameEntry in validation/userSchemas.ts — both
 // callers (routes/users/profile.ts) run the payload through it first.
-async function replaceForUser(userId: string, games: Array<{ game_id: string; rank?: string | null; hours_played?: number | null }>) {
+async function replaceForUser(userId: string, games: Array<{ game_id: string; rank?: string | null; hours_played?: number | null; wins?: number | null }>) {
   await supabaseAdmin.from('user_games').delete().eq('user_id', userId);
   if (games && games.length) {
     const rows = games.map((g) => ({
@@ -14,6 +14,7 @@ async function replaceForUser(userId: string, games: Array<{ game_id: string; ra
       game_id: g.game_id,
       rank: g.rank || null,
       hours_played: g.hours_played || 0,
+      wins: g.wins || 0,
     }));
     const { error } = await supabaseAdmin.from('user_games').insert(rows);
     if (error) throw error;

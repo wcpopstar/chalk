@@ -1,5 +1,5 @@
-const { userLimiter } = require('../../middleware/rateLimit');
-const { GENDERS, PRESENCE_STATES, REPORT_REASONS } = require('../../validation/userSchemas');
+import { userLimiter } from '../../middleware/rateLimit';
+import { GENDERS, PRESENCE_STATES, REPORT_REASONS } from '../../validation/userSchemas';
 
 // Only the VIEWER-INDEPENDENT part of a profile lives under this key — see
 // GET /:id in publicProfile.ts and utils/cache.ts's header comment for why

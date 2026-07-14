@@ -1,7 +1,7 @@
 import type { JwtPayload } from '../socket/types';
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
-const { config } = require('../config/env');
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { config } from '../config/env';
 
 // ── Config ──────────────────────────────────────────────────────────────────
 // Access tokens are short-lived JWTs used for API/socket auth. Refresh tokens
@@ -11,6 +11,12 @@ const ISSUER = 'chalk-backend';
 const AUDIENCE = 'chalk-app';
 
 const ACCESS_TOKEN_TTL = '15m';
+
+// config.jwt.secret is `string | null` because env parsing can't prove it's
+// set, but validateEnv() refuses to start the server without it — so by the
+// time any token is signed or verified it is a string. Narrowed once here
+// rather than cast at each of the four call sites below.
+const JWT_SECRET = config.jwt.secret as string;
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
@@ -19,7 +25,7 @@ function signAccessToken({ id, username }: { id: string; username: string }): { 
   const jti = crypto.randomUUID();
   const token = jwt.sign(
     { id, username },
-    config.jwt.secret,
+    JWT_SECRET,
     {
       expiresIn: ACCESS_TOKEN_TTL,
       issuer: ISSUER,
@@ -33,7 +39,7 @@ function signAccessToken({ id, username }: { id: string; username: string }): { 
 // Throws jwt.JsonWebTokenError / jwt.TokenExpiredError on bad tokens — callers
 // should catch and translate, never assume this always resolves.
 function verifyAccessToken(token: string): JwtPayload {
-  return jwt.verify(token, config.jwt.secret, {
+  return jwt.verify(token, JWT_SECRET, {
     issuer: ISSUER,
     audience: AUDIENCE,
   }) as JwtPayload;

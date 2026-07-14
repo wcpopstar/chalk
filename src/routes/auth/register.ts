@@ -1,13 +1,14 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const analytics = require('../../services/analytics');
-const bcrypt = require('bcryptjs');
-const { v4: uuid } = require('uuid');
-const usersRepository = require('../../repositories/usersRepository');
-const { registerSchema } = require('../../validation/schemas');
-const { generateUsername } = require('../../utils/usernames');
-const { issueAndSendCode } = require('../../services/emailCodes');
-const { USER_FIELDS, authLimiter } = require('./shared');
+import { Router } from 'express';
+const router = Router();
+import * as analytics from '../../services/analytics';
+import bcrypt from 'bcryptjs';
+import { v4 as uuid } from 'uuid';
+import * as usersRepository from '../../repositories/usersRepository';
+import { registerSchema } from '../../validation/schemas';
+import { generateUsername } from '../../utils/usernames';
+import { issueAndSendCode } from '../../services/emailCodes';
+import { USER_FIELDS, authLimiter } from './shared';
 
 /**
  * @openapi

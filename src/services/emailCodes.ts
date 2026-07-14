@@ -1,8 +1,10 @@
-const crypto = require('crypto');
-const logger = require('../utils/logger').child({ module: 'email-codes' });
-const emailCodesRepository = require('../repositories/emailCodesRepository');
-const { enqueueEmailCode } = require('../queues');
-const { sendCodeEmail } = require('./mailer');
+import crypto from 'crypto';
+import loggerBase from '../utils/logger';
+import * as emailCodesRepository from '../repositories/emailCodesRepository';
+import { enqueueEmailCode } from '../queues';
+import { sendCodeEmail } from './mailer';
+
+const logger = loggerBase.child({ module: 'email-codes' });
 
 type Purpose = 'verify_email' | 'login';
 
@@ -43,4 +45,29 @@ async function issueAndSendCode(user: { id: string; email: string }, purpose: Pu
   }
 }
 
-export { issueAndSendCode, hashCode, generateCode };
+/**
+ * Checks a submitted code against the newest outstanding one for
+ * (user, purpose). Consumes the code on success; counts a failed attempt and
+ * caps brute-forcing otherwise. Returns a small result object rather than
+ * touching res, so callers control the response shape. Shared by the auth
+ * code endpoints (routes/auth/emailCodes.ts) and the 2FA settings flow
+ * (routes/auth/security.ts).
+ */
+async function checkCode(userId: string, purpose: Purpose, code: string): Promise<{ ok: boolean; error?: string }> {
+  const { data: row } = await emailCodesRepository.findLatestValid(userId, purpose);
+  const invalid = { ok: false, error: 'Код недействителен или устарел' };
+
+  if (!row) return invalid;
+  if (new Date(row.expires_at) < new Date()) return invalid;
+  if (row.attempts >= emailCodesRepository.MAX_ATTEMPTS) {
+    return { ok: false, error: 'Слишком много попыток. Запроси новый код.' };
+  }
+  if (row.code_hash !== hashCode(code)) {
+    await emailCodesRepository.incrementAttempts(row.id, row.attempts);
+    return invalid;
+  }
+  await emailCodesRepository.markUsed(row.id);
+  return { ok: true };
+}
+
+export { issueAndSendCode, hashCode, generateCode, checkCode };

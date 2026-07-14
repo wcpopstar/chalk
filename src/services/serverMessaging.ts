@@ -5,8 +5,8 @@
  * rules live in exactly one place. Returns plain result objects (no HTTP, no
  * socket) that each caller translates to its own transport.
  */
-const repo = require('../repositories/serversRepository');
-const { PERMISSIONS, ALL_PERMISSIONS, can } = require('./serverPermissions');
+import * as repo from '../repositories/serversRepository';
+import { PERMISSIONS, ALL_PERMISSIONS, can } from './serverPermissions';
 import { checkMessage } from './autoModeration';
 
 export interface MemberContext {

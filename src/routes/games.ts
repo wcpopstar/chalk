@@ -1,12 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
-const router = require('express').Router();
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { userLimiter } = require('../middleware/rateLimit');
-const { submitScoreSchema, leaderboardQuerySchema, gameParamSchema } = require('../validation/gameSchemas');
+import { Router } from 'express';
+const router = Router();
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { userLimiter } from '../middleware/rateLimit';
+import { submitScoreSchema, leaderboardQuerySchema, gameParamSchema } from '../validation/gameSchemas';
 import { supabaseAdmin } from '../services/supabase';
-const { cached, invalidate } = require('../utils/cache');
-const { isEnabled } = require('../services/featureFlags');
+import { cached, invalidate } from '../utils/cache';
+import { isEnabled } from '../services/featureFlags';
 
 const LEADERBOARD_CACHE_KEY = 'leaderboard:tetris:top50';
 // Short TTL: leaderboard is read constantly but doesn't need to be

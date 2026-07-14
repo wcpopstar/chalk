@@ -1,14 +1,15 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { requireAuth } = require('../../middleware/auth');
-const { validate } = require('../../middleware/validate');
-const { userLimiter } = require('../../middleware/rateLimit');
-const usersRepository = require('../../repositories/usersRepository');
-const userGamesRepository = require('../../repositories/userGamesRepository');
-const statsRepository = require('../../repositories/statsRepository');
-const { invalidate } = require('../../utils/cache');
-const { profileCacheKey } = require('./shared');
-const { updateProfileSchema, onboardingSchema, updateGamesSchema } = require('../../validation/userSchemas');
+import { Router } from 'express';
+const router = Router();
+import { requireAuth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { userLimiter } from '../../middleware/rateLimit';
+import * as usersRepository from '../../repositories/usersRepository';
+import * as userGamesRepository from '../../repositories/userGamesRepository';
+import * as statsRepository from '../../repositories/statsRepository';
+import { invalidate } from '../../utils/cache';
+import { profileCacheKey } from './shared';
+import { updateProfileSchema, onboardingSchema, updateGamesSchema } from '../../validation/userSchemas';
 
 // Profile edits are occasional, not something legitimately hit dozens of
 // times a minute — cap generously enough for "tweak a few fields in a row"
@@ -81,7 +82,7 @@ router.patch('/me', requireAuth, profileWriteLimiter, validate({ body: updatePro
   const { data, error } = await usersRepository.updateProfile(
     req.user.id,
     updates,
-    'id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status_text, presence, gaming_links, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
+    'id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status_text, presence, gaming_links, privacy, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
   );
 
   if (error) return res.status(500).json({ error: error.message });

@@ -1,5 +1,6 @@
 import { redis } from '../socket/redisClient';
-const logger = require('../utils/logger').child({ module: 'matchmakingRedis' });
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'matchmakingRedis' });
 
 /**
  * Redis-backed matchmaking queue.

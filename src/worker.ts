@@ -18,11 +18,11 @@ require('dotenv').config();
 // process once you outgrow that, and set RUN_WORKERS_IN_PROCESS=false so
 // jobs aren't processed twice.
 
-const logger = require('./utils/logger');
-const { validateEnv } = require('./config/env');
-const { startWorkers, closeWorkers } = require('./workers');
-const { closeQueues } = require('./queues');
-const { redis, waitForRedisReady } = require('./socket/redisClient');
+import logger from './utils/logger';
+import { validateEnv } from './config/env';
+import { startWorkers, closeWorkers } from './workers';
+import { closeQueues } from './queues';
+import { redis, waitForRedisReady } from './socket/redisClient';
 
 validateEnv();
 

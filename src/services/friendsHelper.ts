@@ -1,4 +1,4 @@
-const { v4: uuid } = require('uuid');
+import { v4 as uuid } from 'uuid';
 import { supabaseAdmin } from './supabase';
 
 /**

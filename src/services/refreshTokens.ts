@@ -1,6 +1,6 @@
-const crypto = require('crypto');
+import crypto from 'crypto';
 import { supabaseAdmin } from './supabase';
-const { generateOpaqueToken, hashOpaqueToken, REFRESH_TOKEN_TTL_MS } = require('../utils/jwt');
+import { generateOpaqueToken, hashOpaqueToken, REFRESH_TOKEN_TTL_MS } from '../utils/jwt';
 
 class InvalidRefreshTokenError extends Error {}
 class TokenReuseError extends Error {}
@@ -13,7 +13,11 @@ interface SessionMeta {
   userAgent?: string | null;
 }
 
-async function issueRefreshToken(userId: string, meta: SessionMeta = {}, familyId = crypto.randomUUID()) {
+// familyId is annotated `string` rather than left to inference: crypto.randomUUID()
+// returns the template literal type `${string}-${string}-...`, which would make
+// every caller passing a plain string (e.g. a family_id read back from the DB)
+// a type error.
+async function issueRefreshToken(userId: string, meta: SessionMeta = {}, familyId: string = crypto.randomUUID()) {
   const raw = generateOpaqueToken();
   const tokenHash = hashOpaqueToken(raw);
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS).toISOString();
@@ -118,12 +122,48 @@ async function revokeAllForUser(userId: string) {
     .is('revoked_at', null);
 }
 
+// ── Device / session management (settings → Устройства) ─────────────────────
+// One active (non-revoked, non-expired) row per family = one signed-in device:
+// rotation always revokes the old row when minting the next one, so the set of
+// active rows maps 1:1 to live sessions.
+async function listActiveSessionsForUser(userId: string) {
+  return supabaseAdmin
+    .from('refresh_tokens')
+    .select('id, family_id, token_hash, user_agent, ip, created_at, expires_at')
+    .eq('user_id', userId)
+    .is('revoked_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .order('created_at', { ascending: false });
+}
+
+// Revokes one device's session by refresh-token row id — the whole family, so
+// the device can't resurrect itself with an in-flight rotated sibling. Scoped
+// to userId so nobody can revoke somebody else's session by guessing ids.
+async function revokeSessionById(userId: string, sessionId: string) {
+  const { data: row } = await supabaseAdmin
+    .from('refresh_tokens')
+    .select('id, family_id, user_id')
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (!row) return false;
+  await revokeFamily(row.family_id);
+  return true;
+}
+
+function hashRefreshToken(rawToken: string) {
+  return hashOpaqueToken(rawToken);
+}
+
 export {
   issueRefreshToken,
   rotateRefreshToken,
   revokeRefreshToken,
   revokeAllForUser,
   revokeFamily,
+  listActiveSessionsForUser,
+  revokeSessionById,
+  hashRefreshToken,
   InvalidRefreshTokenError,
   TokenReuseError,
 };

@@ -27,6 +27,7 @@ import http from 'http';
 import path from 'path';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
+import { setIO } from './socket/registry';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
@@ -99,7 +100,7 @@ const io = new Server(server, {
 io.adapter(createAdapter(pubClient, subClient));
 
 // Expose io to non-socket code (REST routes broadcasting server messages).
-require('./socket/registry').setIO(io);
+setIO(io);
 
 // CSP: locked to what public/index.html actually needs. The frontend is
 // vanilla JS with ~230 inline onclick= handlers, so script-src-attr must

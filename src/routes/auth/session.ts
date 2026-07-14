@@ -1,17 +1,12 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const usersRepository = require('../../repositories/usersRepository');
-const { requireAuth, optionalAuth } = require('../../middleware/auth');
-const { signAccessToken } = require('../../utils/jwt');
-const {
-  rotateRefreshToken,
-  revokeRefreshToken,
-  revokeAllForUser,
-  InvalidRefreshTokenError,
-  TokenReuseError,
-} = require('../../services/refreshTokens');
-const { refreshLimiter, requestMeta, blacklistCurrentAccessToken, bannedResponse } = require('./shared');
-const { userLimiter } = require('../../middleware/rateLimit');
+import { Router } from 'express';
+const router = Router();
+import * as usersRepository from '../../repositories/usersRepository';
+import { requireAuth, optionalAuth } from '../../middleware/auth';
+import { signAccessToken } from '../../utils/jwt';
+import { rotateRefreshToken, revokeRefreshToken, revokeAllForUser, InvalidRefreshTokenError, TokenReuseError } from '../../services/refreshTokens';
+import { refreshLimiter, requestMeta, blacklistCurrentAccessToken, bannedResponse } from './shared';
+import { userLimiter } from '../../middleware/rateLimit';
 
 // Session-lifecycle reads/writes after the initial refresh — loose (a page
 // reload calls GET /me, logout is one-click) but not unbounded.

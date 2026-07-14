@@ -15,14 +15,15 @@
  * lets us rate-limit per-account on top of Giphy's own per-key limit.
  */
 import type { Request, Response } from 'express';
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { userLimiter } = require('../middleware/rateLimit');
-const { gifSearchQuerySchema } = require('../validation/gifSchemas');
-const logger = require('../utils/logger').child({ module: 'gifs' });
-const { config } = require('../config/env');
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { userLimiter } from '../middleware/rateLimit';
+import { gifSearchQuerySchema } from '../validation/gifSchemas';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'gifs' });
+import { config } from '../config/env';
 
 // Giphy's own beta key is capped at 100 calls/hour total; this just keeps
 // any single chatty account from being the one that burns through it.

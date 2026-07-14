@@ -13,9 +13,9 @@
  * See .env.example for SENTRY_DSN / SENTRY_TRACES_SAMPLE_RATE.
  */
 
-const Sentry = require('@sentry/node');
-const logger = require('./logger');
-const { config } = require('../config/env');
+import Sentry from '@sentry/node';
+import logger from './logger';
+import { config } from '../config/env';
 
 if (config.sentry.dsn) {
   Sentry.init({

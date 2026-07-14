@@ -148,6 +148,8 @@ export interface ServerToClientEvents {
   // ── swipe ──
   'swipe:match': (data: { with: string }) => void;
   'swipe:error': (data: { error: string }) => void;
+  // Someone liked you (or sent a letter) in discovery — refresh the likes inbox.
+  'like:received': (data: { from: string; action: 'like' | 'letter'; message: string | null }) => void;
 
   // ── calls ──
   'call:incoming': (data: {

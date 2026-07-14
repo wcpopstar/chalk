@@ -1,11 +1,11 @@
 import type { Request } from 'express';
 import type { UserRow } from '../../types/db';
-const crypto = require('crypto');
-const rateLimit = require('express-rate-limit');
-const { createRateLimitStore } = require('../../middleware/rateLimit');
-const { signAccessToken, ACCESS_TOKEN_TTL_SECONDS } = require('../../utils/jwt');
-const { issueRefreshToken } = require('../../services/refreshTokens');
-const tokenBlacklist = require('../../services/tokenBlacklist');
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
+import { createRateLimitStore } from '../../middleware/rateLimit';
+import { signAccessToken, ACCESS_TOKEN_TTL_SECONDS } from '../../utils/jwt';
+import { issueRefreshToken } from '../../services/refreshTokens';
+import tokenBlacklist from '../../services/tokenBlacklist';
 
 const USER_FIELDS =
   'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, presence, created_at';

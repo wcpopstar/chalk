@@ -1,4 +1,9 @@
-const router = require('express').Router();
+import { Router } from 'express';
+import profile from './profile';
+import discovery from './discovery';
+import moderation from './moderation';
+import publicProfile from './publicProfile';
+const router = Router();
 
 // ── IMPORTANT: specific routes MUST be mounted before /:id ────────────────
 // Otherwise Express matches "me", "me/stats", "discover" as :id — see
@@ -7,9 +12,9 @@ const router = require('express').Router();
 //   discovery.js      — GET /discover, GET /search
 //   moderation.js      — GET /me/blocked, /:id/block, /:id/report
 //   publicProfile.js   — GET /:id  (must stay last)
-router.use(require('./profile'));
-router.use(require('./discovery'));
-router.use(require('./moderation'));
-router.use(require('./publicProfile'));
+router.use(profile);
+router.use(discovery);
+router.use(moderation);
+router.use(publicProfile);
 
 export = router;
