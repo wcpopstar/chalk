@@ -29,6 +29,15 @@ async function openUserProfilePopup(userId) {
       return;
     }
 
+    // External gaming profiles (Steam, PSN, tracker.gg, ...) — handles are
+    // charset-validated server-side and the URL is built from a fixed
+    // per-platform template, so these hrefs can't be arbitrary links.
+    const gl = u.gaming_links || {};
+    const linkBtns = GAMING_LINK_PLATFORMS
+      .filter((p) => gl[p.key])
+      .map((p) => `<a class="up-gaming-link" href="${  gamingLinkUrl(p.key, gl[p.key])  }" target="_blank" rel="noopener noreferrer" title="${  escHtml(gl[p.key])  }">${  p.ico  } ${  p.label  }</a>`)
+      .join('');
+
     body.innerHTML =
       `<button class="gc-close-btn" style="float:right" onclick="closeUserProfilePopup()">✕</button>` +
       `<div class="up-avatar">${  avatarHtml(u.avatar_emoji, u.avatar_url)  }</div>` +
@@ -36,6 +45,7 @@ async function openUserProfilePopup(userId) {
       (u.status_text ? `<div class="up-status-text">💬 ${  escHtml(u.status_text)  }</div>` : '') +
       `<div class="up-meta">${  escHtml(meta.join(' · ') || T('default_player_name'))  }</div>` +
       `<div class="up-bio">${  escHtml(u.bio || T('looking_for_teammates_status'))  }</div>` +
+      (linkBtns ? `<div class="up-gaming-links">${  linkBtns  }</div>` : '') +
       `<div class="up-actions">` +
         `<button class="auth-btn" id="upAddFriendBtn" ${  alreadyFriend ? 'disabled style="opacity:.6"' : ''  } onclick="sendFriendRequestFromPopup('${  u.id  }','${  uname  }')">${  alreadyFriend ? `✓ ${  T('friends_already')}` : `+ ${  T('friends_add')}`  }</button>` +
         `<button class="auth-btn" style="background:var(--surface2);color:var(--text)" onclick="callFriend('${  u.id  }','${  uname  }','${  u.avatar_emoji || '🎮'  }',${  Boolean(friendCallStatus[u.id] && friendCallStatus[u.id].inCall)  },${  (friendCallStatus[u.id] && friendCallStatus[u.id].roomSize) || 0  })">📞 ${  T('btn_call')  }</button>` +

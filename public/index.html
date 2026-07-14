@@ -298,6 +298,16 @@
       <div class="chip chip-game" data-value="chat" onclick="selectChip(this,'epGameChips',false)">💬<br><span data-i18n="status_communication">Общение</span></div>
     </div>
 
+    <div class="ob-field-label"><span data-i18n="gaming_links_label">Игровые профили</span></div>
+    <div class="ep-links-grid">
+      <div class="ep-link-row"><span class="ep-link-ico" title="Steam">🎮</span><input class="auth-input" id="epLinkSteam" type="text" placeholder="Steam: ник или SteamID64" data-i18n-placeholder="gl_steam_ph"></div>
+      <div class="ep-link-row"><span class="ep-link-ico" title="PlayStation">🕹️</span><input class="auth-input" id="epLinkPsn" type="text" placeholder="PSN ID" data-i18n-placeholder="gl_psn_ph"></div>
+      <div class="ep-link-row"><span class="ep-link-ico" title="Xbox">❎</span><input class="auth-input" id="epLinkXbox" type="text" placeholder="Xbox Gamertag" data-i18n-placeholder="gl_xbox_ph"></div>
+      <div class="ep-link-row"><span class="ep-link-ico" title="Valorant tracker">🎯</span><input class="auth-input" id="epLinkValorant" type="text" placeholder="Riot ID (Ник#TAG)" data-i18n-placeholder="gl_valorant_ph"></div>
+      <div class="ep-link-row"><span class="ep-link-ico" title="FACEIT">🟧</span><input class="auth-input" id="epLinkFaceit" type="text" placeholder="FACEIT ник" data-i18n-placeholder="gl_faceit_ph"></div>
+      <div class="ep-link-row"><span class="ep-link-ico" title="Twitch">📺</span><input class="auth-input" id="epLinkTwitch" type="text" placeholder="Twitch логин" data-i18n-placeholder="gl_twitch_ph"></div>
+    </div>
+
     <div class="ob-error" id="epError"></div>
     <div class="modal-actions">
       <button class="modal-cancel" onclick="closeEditProfile()"><span data-i18n="status_cancel">Отмена</span></button>
