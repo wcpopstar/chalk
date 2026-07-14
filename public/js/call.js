@@ -143,5 +143,7 @@ async function loadProfile() {
   if (currentUser.age) tags.innerHTML += `<span class="ptag ptag-rank">🎂 ${  currentUser.age  }</span>`;
   if (currentUser.country) tags.innerHTML += `<span class="ptag ptag-rank">📍 ${  currentUser.country  }</span>`;
   gameNames.forEach((g) =>{ tags.innerHTML += `<span class="ptag ptag-game">${  g  }</span>`; });
+
+  if (typeof loadPasskeys === 'function') loadPasskeys();
 }
 

@@ -12,5 +12,6 @@ router.use(require('./login'));
 router.use(require('./session'));
 router.use(require('./passwordReset'));
 router.use(require('./emailCodes'));
+router.use(require('./passkeys'));
 
 export = router;
