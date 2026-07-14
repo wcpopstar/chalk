@@ -1363,7 +1363,9 @@
 <script src="/js/chess-engine.js"></script>
 <script src="/js/call-games.js"></script>
 
-<script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.20.2.js"></script>
+<!-- Keep in sync with agora-rtc-sdk-ng in package.json — newer 4.x builds carry
+     audio-pipeline (3A) and reconnection fixes that directly affect call quality. -->
+<script src="https://download.agora.io/sdk/release/AgoraRTC_N-4.24.5.js"></script>
 <script type="module" src="/voice.js"></script>
 
 </body>
