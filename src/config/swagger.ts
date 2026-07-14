@@ -26,9 +26,9 @@
  * at a given path just matches nothing, harmlessly.
  */
 
-const path = require('path');
-const swaggerJsdoc = require('swagger-jsdoc');
-const packageJson = require('../../package.json');
+import path from 'path';
+import swaggerJsdoc from 'swagger-jsdoc';
+import packageJson from '../../package.json';
 
 const definition = {
   openapi: '3.0.3',

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-const { paginationQuery, isoDateTimeOptional } = require('./common');
+import { paginationQuery, isoDateTimeOptional } from './common';
 
 const createDirectSchema = z.object({
   targetUserId: z.string().uuid(),

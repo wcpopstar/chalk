@@ -286,6 +286,12 @@ function connectSocket() {
 
   socket.on('swipe:match', (data) => {
     showToast(`🎉 ${  T('match_mutual_like')}`);
+    if (typeof refreshLikesBadge === 'function') refreshLikesBadge();
+  });
+
+  socket.on('like:received', (data) => {
+    showToast(data && data.action === 'letter' ? `💌 ${  T('discover_got_letter', 'Тебе прислали письмо!')}` : `❤️ ${  T('discover_got_like', 'Тебя лайкнули!')}`);
+    if (typeof refreshLikesBadge === 'function') refreshLikesBadge();
   });
 
   socket.on('swipe:error', (data) => {

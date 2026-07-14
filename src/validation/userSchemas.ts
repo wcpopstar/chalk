@@ -23,7 +23,19 @@ const gameEntry = z.object({
   game_id: gameIdField,
   rank: z.string().trim().max(50).nullish(),
   hours_played: z.coerce.number().int().min(0).max(1_000_000).optional(),
+  wins: z.coerce.number().int().min(0).max(1_000_000).optional(),
 });
+
+// Advanced privacy settings (settings → Безопасность). Flat booleans stored
+// as jsonb; a missing key means the default (everything visible).
+const privacySchema = z
+  .object({
+    discoverable: z.boolean().optional(),
+    show_age: z.boolean().optional(),
+    show_country: z.boolean().optional(),
+    show_online: z.boolean().optional(),
+  })
+  .strict();
 
 // E2EE long-term public key (X25519, 32 raw bytes -> 40-44 base64 chars
 // depending on padding). Client-generated, uploaded once on first login and
@@ -74,6 +86,7 @@ const updateProfileSchema = z
     gender: z.enum(GENDERS as any).optional(),
     presence: z.enum(PRESENCE_STATES as any).optional(),
     gaming_links: gamingLinksSchema.optional(),
+    privacy: privacySchema.optional(),
     public_key: publicKeyField.optional(),
     e2ee_backup_secret: b64Backup(44, 128).optional(),
     e2ee_backup_nonce: b64Backup(32, 32).optional(),

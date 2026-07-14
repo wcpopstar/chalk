@@ -1,6 +1,7 @@
-const crypto = require('crypto');
-const logger = require('../utils/logger').child({ module: 'feature-flags' });
-const { queueConnection: redis } = require('../queues/connection');
+import crypto from 'crypto';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'feature-flags' });
+import { queueConnection as redis } from '../queues/connection';
 
 /**
  * Feature flags — three layers, checked in this order:

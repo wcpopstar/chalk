@@ -9,12 +9,13 @@
  * `voice-notes` bucket — never an arbitrary attacker-supplied URL.
  */
 import type { Request, Response } from 'express';
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
-const { userLimiter } = require('../middleware/rateLimit');
-const logger = require('../utils/logger').child({ module: 'transcribe' });
-const { config } = require('../config/env');
+import { requireAuth } from '../middleware/auth';
+import { userLimiter } from '../middleware/rateLimit';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'transcribe' });
+import { config } from '../config/env';
 
 // Transcription hits a paid/quota'd external API, so keep it modest per user.
 const transcribeLimiter = userLimiter({
@@ -90,7 +91,9 @@ router.post('/', requireAuth, transcribeLimiter, async (req: Request, res: Respo
   // 2) Forward to the Whisper-compatible endpoint as multipart/form-data.
   const ext = contentType.includes('ogg') ? 'ogg' : contentType.includes('mp4') ? 'mp4' : 'webm';
   const form = new FormData();
-  form.append('file', new Blob([audioBuf], { type: contentType }), `voice.${ext}`);
+  // Node's Buffer isn't a BlobPart as far as the DOM lib is concerned; the
+  // Uint8Array view over the same memory is, and copies nothing.
+  form.append('file', new Blob([new Uint8Array(audioBuf)], { type: contentType }), `voice.${ext}`);
   form.append('model', config.stt.model);
   form.append('response_format', 'json');
 

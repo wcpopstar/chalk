@@ -33,7 +33,7 @@
  * module (see test/env.test.ts for the pattern).
  */
 
-const logger = require('../utils/logger');
+import logger from '../utils/logger';
 
 // Read every var exactly once, at module load time.
 const config = Object.freeze({

@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { v4: uuid } = require('uuid');
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { uuidParam } = require('../validation/common');
-const { userLimiter } = require('../middleware/rateLimit');
-const { createStorySchema } = require('../validation/storySchemas');
+import { Router } from 'express';
+const router = Router();
+import { v4 as uuid } from 'uuid';
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { uuidParam } from '../validation/common';
+import { userLimiter } from '../middleware/rateLimit';
+import { createStorySchema } from '../validation/storySchemas';
 import { supabaseAdmin } from '../services/supabase';
 
 // Posting a story writes a row (+ a fairly large image payload), so keep it

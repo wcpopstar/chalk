@@ -37,9 +37,10 @@
  * app_errors_total — a cache miss is not an application error.
  */
 
-const { redis } = require('../socket/redisClient');
-const logger = require('./logger').child({ module: 'cache' });
-const metrics = require('./metrics');
+import { redis } from '../socket/redisClient';
+import loggerBase from './logger';
+const logger = loggerBase.child({ module: 'cache' });
+import * as metrics from './metrics';
 
 function keyPrefixOf(key: string): string {
   return key.split(':')[0] ?? key;

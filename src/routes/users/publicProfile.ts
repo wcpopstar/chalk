@@ -1,13 +1,14 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { requireAuth } = require('../../middleware/auth');
-const { validate } = require('../../middleware/validate');
-const { userLimiter } = require('../../middleware/rateLimit');
-const { uuidParam } = require('../../validation/common');
+import { Router } from 'express';
+const router = Router();
+import { requireAuth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { userLimiter } from '../../middleware/rateLimit';
+import { uuidParam } from '../../validation/common';
 import * as usersRepository from '../../repositories/usersRepository';
 import * as blocksRepository from '../../repositories/blocksRepository';
-const { cached } = require('../../utils/cache');
-const { profileCacheKey, PROFILE_CACHE_TTL_SECONDS } = require('./shared');
+import { cached } from '../../utils/cache';
+import { profileCacheKey, PROFILE_CACHE_TTL_SECONDS } from './shared';
 import { supabaseAdmin } from '../../services/supabase';
 
 // Loose — normal browsing hits this a lot — but caps a script from walking
@@ -102,6 +103,18 @@ router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), 
 
   user.blocked_by_me = !!(blockRows || []).find((r) => r.blocker_id === req.user.id);
   user.has_blocked_me = !!(blockRows || []).find((r) => r.blocker_id === req.params.id);
+
+  // Advanced privacy settings: strip fields the profile owner chose to hide.
+  // The privacy object itself is the owner's business — never sent to viewers.
+  const privacy = user.privacy || {};
+  delete user.privacy;
+  if (privacy.show_age === false) user.age = null;
+  if (privacy.show_country === false) user.country = null;
+  if (privacy.show_online === false) {
+    user.status = 'offline';
+    user.presence = null;
+    user.last_seen = null;
+  }
 
   return res.json({ user });
 });

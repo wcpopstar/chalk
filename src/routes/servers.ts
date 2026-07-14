@@ -9,16 +9,15 @@
  * per-channel slow-mode, invite-creation caps, and an is_banned block.
  */
 import type { Request, Response } from 'express';
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const { requireAuth } = require('../middleware/auth');
-const { userLimiter } = require('../middleware/rateLimit');
-const logger = require('../utils/logger').child({ module: 'servers' });
-const repo = require('../repositories/serversRepository');
-const {
-  PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, ALL_PERMISSIONS, can,
-} = require('../services/serverPermissions');
-const { sendChannelMessage, deleteChannelMessage } = require('../services/serverMessaging');
+import { requireAuth } from '../middleware/auth';
+import { userLimiter } from '../middleware/rateLimit';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'servers' });
+import * as repo from '../repositories/serversRepository';
+import { PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, ALL_PERMISSIONS, can } from '../services/serverPermissions';
+import { sendChannelMessage, deleteChannelMessage } from '../services/serverMessaging';
 
 router.use(requireAuth);
 

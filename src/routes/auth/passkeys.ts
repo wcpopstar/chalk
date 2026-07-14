@@ -1,17 +1,16 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const crypto = require('crypto');
-const {
-  generateRegistrationOptions,
-  verifyRegistrationResponse,
-  generateAuthenticationOptions,
-  verifyAuthenticationResponse,
-} = require('@simplewebauthn/server');
-const { requireAuth } = require('../../middleware/auth');
-const { supabaseAdmin } = require('../../services/supabase');
-const { redis } = require('../../socket/redisClient');
-const { authLimiter, issueSession, bannedResponse, USER_FIELDS } = require('./shared');
-const logger = require('../../utils/logger').child({ module: 'passkeys' });
+import type { AuthenticatorTransportFuture } from '@simplewebauthn/types';
+import { Router } from 'express';
+const router = Router();
+import crypto from 'crypto';
+import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
+import { requireAuth } from '../../middleware/auth';
+import { supabaseAdmin } from '../../services/supabase';
+import { redis } from '../../socket/redisClient';
+import { authLimiter, issueSession, bannedResponse, USER_FIELDS, requestMeta } from './shared';
+import { recordLoginEvent } from '../../services/loginEvents';
+import loggerBase from '../../utils/logger';
+const logger = loggerBase.child({ module: 'passkeys' });
 
 /**
  * Passkey (WebAuthn) support.
@@ -55,7 +54,11 @@ router.post('/passkey/register-options', requireAuth, authLimiter, async (req: R
     userDisplayName: user.username,
     // Discoverable credential so passkey login can be usernameless.
     authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
-    excludeCredentials: (existing || []).map((c: any) => ({ id: c.id, transports: c.transports })),
+    excludeCredentials: (existing || []).map((c) => ({
+      id: c.id,
+      // text[] column -> the library's narrower transport union (see login-verify).
+      transports: c.transports as AuthenticatorTransportFuture[],
+    })),
   });
 
   await redis.set(regChallengeKey(req.user.id), options.challenge, 'EX', CHALLENGE_TTL_SEC);
@@ -144,7 +147,9 @@ router.post('/passkey/login-verify', authLimiter, async (req: Request, res: Resp
         id: cred.id,
         publicKey: Buffer.from(cred.public_key, 'base64url'),
         counter: Number(cred.counter) || 0,
-        transports: cred.transports,
+        // Stored as a plain text[] column; the library wants its narrower
+        // union of known transport names ('usb' | 'nfc' | 'internal' | ...).
+        transports: cred.transports as AuthenticatorTransportFuture[],
       },
     });
   } catch (err: any) {
@@ -171,6 +176,7 @@ router.post('/passkey/login-verify', authLimiter, async (req: Request, res: Resp
   const { banned_until, ban_reason, ...safeUser } = user;
   const { token, refreshToken, expiresIn } = await issueSession(user, req);
   logger.info({ userId: user.id }, 'Passkey login');
+  recordLoginEvent(user.id, 'passkey', true, requestMeta(req));
   return res.json({ user: safeUser, token, refreshToken, expiresIn });
 });
 

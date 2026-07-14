@@ -40,9 +40,9 @@
  * would hide it from the caller too, not just from the logs.
  */
 
-const logger = require('./logger');
-const Sentry = require('./sentry');
-const metrics = require('./metrics');
+import logger from './logger';
+import Sentry from './sentry';
+import * as metrics from './metrics';
 
 interface SafeAsyncOptions {
   label?: string;

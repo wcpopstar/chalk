@@ -1,7 +1,8 @@
-const { v4: uuid } = require('uuid');
-const blocksRepository = require('../repositories/blocksRepository');
-const friendsRepository = require('../repositories/friendsRepository');
-const logger = require('../utils/logger').child({ module: 'blockHelper' });
+import { v4 as uuid } from 'uuid';
+import * as blocksRepository from '../repositories/blocksRepository';
+import * as friendsRepository from '../repositories/friendsRepository';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'blockHelper' });
 
 /**
  * True if either user has blocked the other (block is one-directional in

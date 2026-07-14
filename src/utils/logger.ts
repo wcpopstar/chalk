@@ -20,7 +20,7 @@
  *   log.warn({ userId }, 'Refresh token reuse detected');
  */
 
-const pino = require('pino');
+import pino from 'pino';
 
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const IS_PRODUCTION = NODE_ENV === 'production';

@@ -1,15 +1,16 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { requireAuth } = require('../middleware/auth');
-const { requireAdminKey } = require('../middleware/requireAdminKey');
-const { validate } = require('../middleware/validate');
-const { userLimiter } = require('../middleware/rateLimit');
+import { Router } from 'express';
+const router = Router();
+import { requireAuth } from '../middleware/auth';
+import { requireAdminKey } from '../middleware/requireAdminKey';
+import { validate } from '../middleware/validate';
+import { userLimiter } from '../middleware/rateLimit';
 
 // Bootstrap call fired once per session — loose, but not unbounded.
 const bootstrapLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Too many requests, slow down.' });
 import { setOverride, listFlags } from '../services/featureFlags';
-const { flagKeyParam, setFlagBodySchema } = require('../validation/featureFlagSchemas');
-const { config } = require('../config/env');
+import { flagKeyParam, setFlagBodySchema } from '../validation/featureFlagSchemas';
+import { config } from '../config/env';
 
 // Toggling flags is an ops action, not something that needs to survive a
 // mash-click — a loose cap is just here to stop a leaked/rotated admin key

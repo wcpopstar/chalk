@@ -36,7 +36,13 @@ function existsByUsername(username: string) {
     .maybeSingle();
 }
 
-function createUser(record: UserInsert, selectFields: string = FULL_PROFILE_FIELDS) {
+// `selectFields` is generic rather than plain `string` on purpose: supabase-js
+// parses the column list from its *literal* type to shape the returned row, and
+// widening it to `string` collapses that result to an unusable error type.
+function createUser<F extends string = typeof FULL_PROFILE_FIELDS>(
+  record: UserInsert,
+  selectFields: F = FULL_PROFILE_FIELDS as F,
+) {
   return supabaseAdmin.from('users').insert(record).select(selectFields).single();
 }
 
@@ -50,7 +56,7 @@ function findForLogin(identifier: string) {
   return supabaseAdmin
     .from('users')
     .select(
-      'id, username, email, email_verified, password_hash, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters, banned_until, ban_reason'
+      'id, username, email, email_verified, twofa_email_enabled, password_hash, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters, banned_until, ban_reason'
     )
     .or(`email.eq.${id.toLowerCase()},username.eq.${id}`)
     .maybeSingle();
@@ -64,7 +70,7 @@ function findForCodeAuth(identifier: string) {
   return supabaseAdmin
     .from('users')
     .select(
-      'id, username, email, email_verified, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters, banned_until, ban_reason'
+      'id, username, email, email_verified, twofa_email_enabled, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters, banned_until, ban_reason'
     )
     .or(`email.eq.${id.toLowerCase()},username.eq.${id}`)
     .maybeSingle();
@@ -103,10 +109,23 @@ function findFullProfileById(userId: string) {
   return supabaseAdmin
     .from('users')
     .select(
-      'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, bio, created_at, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
+      'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, status, status_text, presence, bio, created_at, gaming_links, privacy, twofa_email_enabled, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
     )
     .eq('id', userId)
     .single();
+}
+
+// ── auth/security.js: change password + 2FA settings ─────────────────────
+function findAuthById(userId: string) {
+  return supabaseAdmin
+    .from('users')
+    .select('id, username, email, password_hash, twofa_email_enabled')
+    .eq('id', userId)
+    .single();
+}
+
+function setTwofaEmailEnabled(userId: string, enabled: boolean) {
+  return supabaseAdmin.from('users').update({ twofa_email_enabled: enabled }).eq('id', userId);
 }
 
 // ── passwordReset.js ─────────────────────────────────────────────────────
@@ -141,8 +160,8 @@ function findDiscoverCandidates({ excludeIds, gameFilterIds, limit }: { excludeI
   let query = supabaseAdmin
     .from('users')
     .select(
-      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence,
-       user_games ( rank, games ( id, name, emoji ) )`
+      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, presence, privacy,
+       user_games ( game_id, rank, hours_played, wins, games ( id, name, emoji ) )`
     )
     .eq('status', 'online')
     .not('id', 'in', `(${excludeIds.join(',')})`)
@@ -152,6 +171,16 @@ function findDiscoverCandidates({ excludeIds, gameFilterIds, limit }: { excludeI
     query = query.in('id', gameFilterIds);
   }
   return query;
+}
+
+// The viewer's own tastes, used to rank discovery candidates by shared
+// interests (games + ranks, languages, age proximity — see discovery.ts).
+function findDiscoveryProfileById(userId: string) {
+  return supabaseAdmin
+    .from('users')
+    .select('id, age, languages, user_games ( game_id, rank )')
+    .eq('id', userId)
+    .single();
 }
 
 function findByUsernameExact(username: string, excludeUserId: string) {
@@ -177,8 +206,8 @@ function findPublicProfileById(userId: string) {
   return supabaseAdmin
     .from('users')
     .select(
-      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, status_text, presence, last_seen, gaming_links, public_key,
-       user_games ( game_id, rank, hours_played, games ( name, emoji ) )`
+      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, status_text, presence, last_seen, gaming_links, privacy, public_key,
+       user_games ( game_id, rank, hours_played, wins, games ( id, name, emoji ) )`
     )
     .eq('id', userId)
     .single();
@@ -196,11 +225,14 @@ export {
   setStatus,
   findBasicById,
   findFullProfileById,
+  findAuthById,
+  setTwofaEmailEnabled,
   findByEmailForPasswordReset,
   updatePasswordHash,
   existsByUsernameExcludingId,
   updateProfile,
   findDiscoverCandidates,
+  findDiscoveryProfileById,
   findByUsernameExact,
   searchByUsername,
   findPublicProfileById,

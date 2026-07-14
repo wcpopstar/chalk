@@ -1,13 +1,14 @@
 import type { Request, Response } from 'express';
-const router  = require('express').Router();
-const { v4: uuid } = require('uuid');
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { userLimiter } = require('../middleware/rateLimit');
-const { uuidParam } = require('../validation/common');
-const { startCallSchema, endCallSchema } = require('../validation/callSchemas');
+import { Router } from 'express';
+const router = Router();
+import { v4 as uuid } from 'uuid';
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { userLimiter } from '../middleware/rateLimit';
+import { uuidParam } from '../validation/common';
+import { startCallSchema, endCallSchema } from '../validation/callSchemas';
 import { supabaseAdmin } from '../services/supabase';
-const analytics = require('../services/analytics');
+import * as analytics from '../services/analytics';
 
 // Call lifecycle writes — generous enough for normal use (nobody starts more
 // than a handful of calls a minute) while capping a runaway client/script.

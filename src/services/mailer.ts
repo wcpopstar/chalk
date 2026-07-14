@@ -1,6 +1,7 @@
-const nodemailer = require('nodemailer');
-const logger = require('../utils/logger').child({ module: 'mailer' });
-const { config } = require('../config/env');
+import nodemailer from 'nodemailer';
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'mailer' });
+import { config } from '../config/env';
 
 let transporter: any = null;
 
@@ -30,7 +31,9 @@ function getTransporter() {
     port: config.smtp.port,
     secure: config.smtp.secure,
     auth: config.smtp.user
-      ? { user: config.smtp.user, pass: config.smtp.pass }
+      // pass is `string | null` in config; nodemailer's auth takes an optional
+      // string, and null is not the same thing as absent to its type.
+      ? { user: config.smtp.user, pass: config.smtp.pass ?? undefined }
       : undefined,
   });
 

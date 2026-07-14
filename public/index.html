@@ -393,7 +393,7 @@
       </div>
     </div>
     <div class="online-counter"><span style="width:7px;height:7px;background:var(--online);border-radius:50%;box-shadow:0 0 5px var(--online);display:inline-block"></span><span id="onlineCount">—</span></div>
-    <button class="profile-btn" onclick="showPage('profile',this);loadProfile()"><span class="tab-icon">⚙️</span><span class="btn-label"><span data-i18n="nav_profile">Профиль</span></span></button>
+    <button class="profile-btn" onclick="showPage('profile',this);loadProfile()"><span class="tab-icon">⚙️</span><span class="btn-label"><span data-i18n="nav_settings">Настройки</span></span></button>
     <button class="logout-btn" onclick="logout()"><span data-i18n="btn_logout">Выйти</span></button>
   </div>
 </nav>
@@ -533,9 +533,12 @@
     <!-- TINDER PAGE -->
     <div class="page" id="page-tinder">
       <div class="tinder-wrap">
-        <div style="text-align:center;margin-bottom:2px">
-          <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--accent-text)"><span data-i18n="profile_choose_yourself">Выбери сам</span></div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px"><span data-i18n="discover_swipe_hint">Листай профили, добавляй тиммейтов</span></div>
+        <div class="discover-head">
+          <div style="text-align:center;flex:1">
+            <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:var(--accent-text)"><span data-i18n="profile_choose_yourself">Выбери сам</span></div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px"><span data-i18n="discover_swipe_hint">Листай профили, добавляй тиммейтов</span></div>
+          </div>
+          <button class="discover-likes-btn" id="discoverLikesBtn" onclick="openLikesInbox()" title="Кто меня лайкнул" data-i18n-title="discover_likes_title">💖<span class="discover-likes-badge" id="likesBadge" style="display:none">0</span></button>
         </div>
         <div class="tinder-stack" id="tinderStack">
           <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;flex-direction:column;gap:10px">
@@ -543,11 +546,11 @@
           </div>
         </div>
         <div class="swipe-btns">
-          <button class="swipe-btn swipe-no" onclick="swipe('left')">✗</button>
-          <button class="swipe-btn swipe-super" onclick="swipe('super')">⚡</button>
-          <button class="swipe-btn swipe-yes" onclick="swipe('right')">✓</button>
+          <button class="swipe-btn swipe-no" onclick="discoverAct('dislike')" title="Дизлайк" data-i18n-title="discover_dislike">👎</button>
+          <button class="swipe-btn swipe-letter" onclick="openLetterCompose()" title="Письмо с сердечком" data-i18n-title="discover_letter">💌</button>
+          <button class="swipe-btn swipe-yes" onclick="discoverAct('like')" title="Лайк" data-i18n-title="discover_like">❤️</button>
         </div>
-        <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:10px">✗ Пропустить &nbsp;·&nbsp; ⚡ Суперлайк &nbsp;·&nbsp; ✓ Добавить</div>
+        <div style="font-size:10px;color:var(--muted);text-align:center;margin-top:10px">👎 <span data-i18n="discover_dislike">Дизлайк</span> &nbsp;·&nbsp; 💌 <span data-i18n="discover_letter">Письмо</span> &nbsp;·&nbsp; ❤️ <span data-i18n="discover_like">Лайк</span></div>
       </div>
     </div>
 
@@ -677,43 +680,225 @@
       </div>
     </div>
 
-    <!-- PROFILE PAGE -->
+    <!-- SETTINGS PAGE (was "Профиль") -->
     <div class="page" id="page-profile">
-      <div class="profile-inner">
-        <div class="profile-header">
-          <div class="profile-ava-big" id="profileAva">🎮</div>
-          <div>
-            <div class="profile-username" id="profileUsername">...</div>
-            <div class="profile-tagline" id="profileTagline"><span data-i18n="status_loading">Загрузка...</span></div>
-            <div class="profile-tags" id="profileTags"></div>
-            <button class="edit-profile-btn" onclick="openEditProfile()">✏️ <span data-i18n="profile_edit">Редактировать профиль</span></button>
-          </div>
-        </div>
-        <div class="profile-stats">
-          <div class="stat-card"><div class="stat-num" id="statMatches">—</div><div class="stat-label"><span data-i18n="status_matches_found">Матчей найдено</span></div></div>
-          <div class="stat-card"><div class="stat-num" id="statRating">—</div><div class="stat-label"><span data-i18n="rating_teammate_label">Рейтинг тиммейта</span></div></div>
-          <div class="stat-card"><div class="stat-num" id="statFriends">—</div><div class="stat-label"><span data-i18n="friends_title">Друзья</span></div></div>
-        </div>
-        <div class="profile-games">
-          <div class="section-title"><span data-i18n="match_search_settings">Настройки поиска</span></div>
-          <div class="settings-row"><span class="settings-label"><span data-i18n="placeholder_email">Email</span></span><span class="settings-value" id="profileEmail">...</span></div>
-          <div class="settings-row"><span class="settings-label"><span data-i18n="ob_field_age">Возраст</span></span><span class="settings-value" id="profileAge">...</span></div>
-          <div class="settings-row"><span class="settings-label"><span data-i18n="ob_field_gender">Пол</span></span><span class="settings-value" id="profileGender">...</span></div>
-          <div class="settings-row"><span class="settings-label"><span data-i18n="label_country">Страна</span></span><span class="settings-value" id="profileCountry">...</span></div>
-          <div class="settings-row"><span class="settings-label"><span data-i18n="profile_languages_label">Языки</span></span><span class="settings-value" id="profileLangs">...</span></div>
-          <div class="settings-row"><span class="settings-label"><span data-i18n="games_title">Игры</span></span><span class="settings-value" id="profileGames">...</span></div>
-          <div class="settings-row" style="border:none"><span class="settings-label"><span data-i18n="call_status_label">Статус</span></span><span class="settings-value" style="color:var(--online)">● Онлайн</span></div>
-        </div>
-        <div class="profile-games" style="margin-top:14px">
-          <div class="section-title">🔑 <span data-i18n="passkeys_title">Ключи доступа</span></div>
-          <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px"><span data-i18n="passkeys_hint">Входи без пароля — по Touch ID, Face ID или аппаратному ключу.</span></div>
-          <div id="passkeyList" style="margin-bottom:10px"></div>
-          <button class="edit-profile-btn" onclick="addPasskey()">＋ <span data-i18n="passkeys_add">Добавить ключ доступа</span></button>
-        </div>
-        <div class="profile-games" style="margin-top:14px">
-          <div class="section-title"><span data-i18n="status_app">Приложение</span></div>
-          <button class="edit-profile-btn" id="profileThemeToggle" onclick="toggleTheme()">☀️ Светлая тема</button>
-          <button class="edit-profile-btn" style="margin-left:8px;background:transparent;border-color:var(--border);color:var(--muted)" onclick="logout()"><span data-i18n="btn_logout">Выйти</span></button>
+      <div class="settings-shell">
+        <!-- Settings nav -->
+        <aside class="settings-nav" id="settingsNav">
+          <div class="settings-nav-title" data-i18n="settings_title">Настройки</div>
+          <button class="settings-nav-item active" data-sect="profile" onclick="showSettingsSection('profile',this)"><span class="sn-ico">👤</span><span data-i18n="settings_tab_profile">Профиль</span></button>
+          <button class="settings-nav-item" data-sect="card" onclick="showSettingsSection('card',this)"><span class="sn-ico">📇</span><span data-i18n="settings_tab_card">Анкета</span></button>
+          <button class="settings-nav-item" data-sect="security" onclick="showSettingsSection('security',this)"><span class="sn-ico">🔒</span><span data-i18n="settings_tab_security">Безопасность</span></button>
+          <button class="settings-nav-item" data-sect="devices" onclick="showSettingsSection('devices',this);loadDevicesSection()"><span class="sn-ico">💻</span><span data-i18n="settings_tab_devices">Устройства</span></button>
+          <button class="settings-nav-item" data-sect="sound" onclick="showSettingsSection('sound',this);loadSoundSection()"><span class="sn-ico">🎚️</span><span data-i18n="settings_tab_sound">Звук</span></button>
+        </aside>
+
+        <div class="settings-body">
+          <!-- ══ PROFILE ══ -->
+          <section class="settings-section active" id="settings-profile">
+            <div class="profile-header">
+              <div class="profile-ava-big" id="profileAva">🎮</div>
+              <div>
+                <div class="profile-username" id="profileUsername">...</div>
+                <div class="profile-tagline" id="profileTagline"><span data-i18n="status_loading">Загрузка...</span></div>
+                <div class="profile-tags" id="profileTags"></div>
+                <button class="edit-profile-btn" onclick="openEditProfile()">✏️ <span data-i18n="profile_edit">Редактировать профиль</span></button>
+              </div>
+            </div>
+            <div class="profile-stats">
+              <div class="stat-card"><div class="stat-num" id="statMatches">—</div><div class="stat-label"><span data-i18n="status_matches_found">Матчей найдено</span></div></div>
+              <div class="stat-card"><div class="stat-num" id="statRating">—</div><div class="stat-label"><span data-i18n="rating_teammate_label">Рейтинг тиммейта</span></div></div>
+              <div class="stat-card"><div class="stat-num" id="statFriends">—</div><div class="stat-label"><span data-i18n="friends_title">Друзья</span></div></div>
+            </div>
+            <div class="profile-games">
+              <div class="section-title"><span data-i18n="match_search_settings">Настройки поиска</span></div>
+              <div class="settings-row"><span class="settings-label"><span data-i18n="placeholder_email">Email</span></span><span class="settings-value" id="profileEmail">...</span></div>
+              <div class="settings-row"><span class="settings-label"><span data-i18n="ob_field_age">Возраст</span></span><span class="settings-value" id="profileAge">...</span></div>
+              <div class="settings-row"><span class="settings-label"><span data-i18n="ob_field_gender">Пол</span></span><span class="settings-value" id="profileGender">...</span></div>
+              <div class="settings-row"><span class="settings-label"><span data-i18n="label_country">Страна</span></span><span class="settings-value" id="profileCountry">...</span></div>
+              <div class="settings-row"><span class="settings-label"><span data-i18n="profile_languages_label">Языки</span></span><span class="settings-value" id="profileLangs">...</span></div>
+              <div class="settings-row"><span class="settings-label"><span data-i18n="games_title">Игры</span></span><span class="settings-value" id="profileGames">...</span></div>
+              <div class="settings-row" style="border:none"><span class="settings-label"><span data-i18n="call_status_label">Статус</span></span><span class="settings-value" style="color:var(--online)">● Онлайн</span></div>
+            </div>
+            <div class="profile-games" style="margin-top:14px">
+              <div class="section-title"><span data-i18n="status_app">Приложение</span></div>
+              <button class="edit-profile-btn" id="profileThemeToggle" onclick="toggleTheme()">☀️ Светлая тема</button>
+              <button class="edit-profile-btn" style="margin-left:8px;background:transparent;border-color:var(--border);color:var(--muted)" onclick="logout()"><span data-i18n="btn_logout">Выйти</span></button>
+            </div>
+          </section>
+
+          <!-- ══ АНКЕТА (discovery card) ══ -->
+          <section class="settings-section" id="settings-card">
+            <div class="section-head">
+              <h2 data-i18n="settings_card_title">Анкета</h2>
+              <p class="section-sub" data-i18n="settings_card_sub">Так тебя видят в разделе «Найти». Фото, подпись, аккаунты и статистика по каждой игре.</p>
+            </div>
+
+            <div class="ob-avatar-wrap" style="margin-bottom:14px">
+              <div class="ob-avatar" id="cardAvatarPreview" onclick="document.getElementById('cardAvatarInput').click()">🎮</div>
+              <div class="ob-avatar-actions">
+                <span class="ob-avatar-link" onclick="document.getElementById('cardAvatarInput').click()">📁 <span data-i18n="ob_photo">Фото</span></span>
+                <span class="ob-avatar-link" onclick="toggleGifPicker('avatar-card')">🎞️ GIF</span>
+              </div>
+              <input type="file" accept="image/*" id="cardAvatarInput" style="display:none" onchange="handleAvatarFile(event,'cardAvatarPreview')">
+              <div class="gif-picker gif-picker-avatar" id="gifPicker-avatar-card" style="display:none">
+                <input class="gif-picker-input" type="text" placeholder="Поиск GIF..." data-i18n-placeholder="gif_search_placeholder" oninput="searchGifs('avatar-card', this.value)">
+                <div class="gif-picker-grid" id="gifGrid-avatar-card"><div class="gif-picker-hint"><span data-i18n="gif_start_typing_hint">Начни печатать, чтобы найти GIF</span></div></div>
+              </div>
+            </div>
+
+            <div class="ob-field-label"><span data-i18n="settings_card_tagline">Подпись</span></div>
+            <textarea class="auth-input" id="cardBio" rows="3" maxlength="200" placeholder="Пара слов о себе — так тебя увидят в анкете" data-i18n-placeholder="settings_card_tagline_ph" style="resize:none;font-family:'Inter',sans-serif" oninput="document.getElementById('cardBioCount').textContent=this.value.length+'/200'"></textarea>
+            <div style="text-align:right;font-size:11px;color:var(--muted);margin:-6px 0 10px" id="cardBioCount">0/200</div>
+
+            <div class="ob-field-label"><span data-i18n="gaming_links_label">Игровые профили</span></div>
+            <div class="ep-links-grid">
+              <div class="ep-link-row"><span class="ep-link-ico" title="Steam">🎮</span><input class="auth-input" id="cardLinkSteam" type="text" placeholder="Steam: ник или SteamID64" data-i18n-placeholder="gl_steam_ph"></div>
+              <div class="ep-link-row"><span class="ep-link-ico" title="PlayStation">🕹️</span><input class="auth-input" id="cardLinkPsn" type="text" placeholder="PSN ID" data-i18n-placeholder="gl_psn_ph"></div>
+              <div class="ep-link-row"><span class="ep-link-ico" title="Xbox">❎</span><input class="auth-input" id="cardLinkXbox" type="text" placeholder="Xbox Gamertag" data-i18n-placeholder="gl_xbox_ph"></div>
+              <div class="ep-link-row"><span class="ep-link-ico" title="Valorant tracker">🎯</span><input class="auth-input" id="cardLinkValorant" type="text" placeholder="Riot ID (Ник#TAG)" data-i18n-placeholder="gl_valorant_ph"></div>
+              <div class="ep-link-row"><span class="ep-link-ico" title="FACEIT">🟧</span><input class="auth-input" id="cardLinkFaceit" type="text" placeholder="FACEIT ник" data-i18n-placeholder="gl_faceit_ph"></div>
+              <div class="ep-link-row"><span class="ep-link-ico" title="Twitch">📺</span><input class="auth-input" id="cardLinkTwitch" type="text" placeholder="Twitch логин" data-i18n-placeholder="gl_twitch_ph"></div>
+            </div>
+
+            <div class="ob-field-label" style="margin-top:14px"><span data-i18n="settings_card_games">Игры и статистика</span></div>
+            <div class="section-sub" style="margin:-4px 0 8px" data-i18n="settings_card_games_hint">Для каждой игры укажи ранг и число побед — они показываются в анкете при переключении иконок игр.</div>
+            <div class="card-games-list" id="cardGamesList"></div>
+            <div class="card-add-game-wrap">
+              <select class="auth-input" id="cardAddGameSelect" style="flex:1">
+                <option value="" data-i18n="settings_card_add_game">Добавить игру…</option>
+              </select>
+              <button class="edit-profile-btn" type="button" onclick="cardAddGame()">＋</button>
+            </div>
+
+            <div class="ob-error" id="cardError"></div>
+            <button class="modal-save" id="cardSaveBtn" style="margin-top:14px;width:auto;padding:10px 24px" onclick="saveCard()"><span data-i18n="profile_save">Сохранить</span></button>
+          </section>
+
+          <!-- ══ БЕЗОПАСНОСТЬ ══ -->
+          <section class="settings-section" id="settings-security">
+            <div class="section-head">
+              <h2 data-i18n="settings_tab_security">Безопасность</h2>
+            </div>
+
+            <!-- Change password -->
+            <div class="settings-block">
+              <div class="section-title">🔑 <span data-i18n="settings_change_pw">Изменить пароль</span></div>
+              <input class="auth-input" id="secCurrentPw" type="password" placeholder="Текущий пароль" data-i18n-placeholder="settings_current_pw">
+              <input class="auth-input" id="secNewPw" type="password" placeholder="Новый пароль (мин. 6 символов)" data-i18n-placeholder="placeholder_new_password_min6">
+              <input class="auth-input" id="secNewPw2" type="password" placeholder="Повтори новый пароль" data-i18n-placeholder="placeholder_repeat_password">
+              <div class="ob-error" id="secPwError"></div>
+              <button class="modal-save" id="secPwBtn" style="width:auto;padding:9px 20px" onclick="changePassword()"><span data-i18n="settings_save_pw">Сменить пароль</span></button>
+            </div>
+
+            <!-- Email 2FA -->
+            <div class="settings-block">
+              <div class="section-title">📧 <span data-i18n="settings_2fa">Двухфакторная аутентификация по почте</span></div>
+              <div class="section-sub" data-i18n="settings_2fa_hint">При входе после пароля мы будем присылать код на почту — так аккаунт защищён, даже если пароль узнают.</div>
+              <div class="settings-toggle-row">
+                <span class="settings-value" id="twofaStatus">…</span>
+                <label class="switch"><input type="checkbox" id="twofaToggle" onchange="onTwofaToggle(this)"><span class="switch-slider"></span></label>
+              </div>
+              <!-- code confirm step -->
+              <div id="twofaCodeWrap" style="display:none;margin-top:10px">
+                <div class="section-sub" data-i18n="settings_2fa_code_hint">Мы отправили код на твою почту. Введи его, чтобы подтвердить.</div>
+                <div style="display:flex;gap:8px">
+                  <input class="auth-input" id="twofaCode" type="text" inputmode="numeric" maxlength="6" placeholder="______" style="letter-spacing:6px;text-align:center;font-family:monospace;margin-bottom:0">
+                  <button class="modal-save" id="twofaConfirmBtn" style="width:auto;padding:9px 18px" onclick="confirmTwofa()"><span data-i18n="auth_confirm_code_btn">Подтвердить</span></button>
+                </div>
+                <div class="ob-error" id="twofaError"></div>
+              </div>
+            </div>
+
+            <!-- Privacy -->
+            <div class="settings-block">
+              <div class="section-title">🕶️ <span data-i18n="settings_privacy">Расширенная приватность</span></div>
+              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_discoverable">Показывать меня в «Найти»</b><small data-i18n="settings_priv_discoverable_hint">Другие смогут находить твою анкету при поиске тиммейтов</small></span><label class="switch"><input type="checkbox" id="privDiscoverable" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
+              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_age">Показывать возраст</b></span><label class="switch"><input type="checkbox" id="privShowAge" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
+              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_country">Показывать страну</b></span><label class="switch"><input type="checkbox" id="privShowCountry" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
+              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_online">Показывать статус онлайн</b><small data-i18n="settings_priv_online_hint">Не-друзья не увидят, что ты в сети, и когда был последний раз</small></span><label class="switch"><input type="checkbox" id="privShowOnline" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
+            </div>
+
+            <!-- Passkeys -->
+            <div class="settings-block">
+              <div class="section-title">🔐 <span data-i18n="passkeys_title">Ключи доступа</span></div>
+              <div class="section-sub" data-i18n="passkeys_hint">Входи без пароля — по Touch ID, Face ID или аппаратному ключу.</div>
+              <div id="passkeyList" style="margin-bottom:10px"></div>
+              <button class="edit-profile-btn" onclick="addPasskey()">＋ <span data-i18n="passkeys_add">Добавить ключ доступа</span></button>
+            </div>
+
+            <!-- Sign out everywhere -->
+            <div class="settings-block">
+              <div class="section-title">🚪 <span data-i18n="settings_danger">Сессии</span></div>
+              <button class="edit-profile-btn" style="background:transparent;border-color:var(--danger);color:var(--danger)" onclick="logoutAllDevices()"><span data-i18n="settings_logout_all">Выйти на всех устройствах</span></button>
+            </div>
+          </section>
+
+          <!-- ══ УСТРОЙСТВА ══ -->
+          <section class="settings-section" id="settings-devices">
+            <div class="section-head">
+              <h2 data-i18n="settings_tab_devices">Устройства</h2>
+              <p class="section-sub" data-i18n="settings_devices_sub">Активные сессии и журнал входов. Заверши сессию на устройстве, которое не узнаёшь.</p>
+            </div>
+            <div class="settings-block">
+              <div class="section-title">💻 <span data-i18n="settings_active_sessions">Активные устройства</span></div>
+              <div id="devicesList"><div class="section-sub"><span data-i18n="status_loading">Загрузка...</span></div></div>
+            </div>
+            <div class="settings-block">
+              <div class="section-title">📜 <span data-i18n="settings_login_journal">Журнал входов</span></div>
+              <div id="loginHistoryList"><div class="section-sub"><span data-i18n="status_loading">Загрузка...</span></div></div>
+            </div>
+          </section>
+
+          <!-- ══ ЗВУК ══ -->
+          <section class="settings-section" id="settings-sound">
+            <div class="section-head">
+              <h2 data-i18n="settings_tab_sound">Звук</h2>
+              <p class="section-sub" data-i18n="settings_sound_sub">Микрофон, наушники, громкость, режим передачи голоса и эквалайзер.</p>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">🎙️ <span data-i18n="settings_devices_audio">Устройства</span></div>
+              <label class="ca-label" data-i18n="call_input_device">Микрофон</label>
+              <select class="auth-input" id="soundMicSelect"></select>
+              <label class="ca-label" data-i18n="call_output_device">Наушники / динамики</label>
+              <select class="auth-input" id="soundSpeakerSelect"></select>
+              <button class="edit-profile-btn" style="margin-top:6px" onclick="soundTestMic()">🎧 <span data-i18n="settings_test_mic">Проверить микрофон</span></button>
+              <div class="mic-meter"><div class="mic-meter-fill" id="soundMicMeter"></div></div>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">🔊 <span data-i18n="settings_volume">Громкость</span></div>
+              <label class="ca-label"><span data-i18n="settings_out_volume">Громкость собеседников</span>: <span id="soundOutVolLabel">100%</span></label>
+              <input type="range" id="soundOutVol" min="0" max="200" value="100" class="sound-range" oninput="onOutVolInput(this.value)">
+              <label class="ca-label"><span data-i18n="settings_mic_gain">Чувствительность микрофона</span>: <span id="soundMicGainLabel">100%</span></label>
+              <input type="range" id="soundMicGain" min="0" max="200" value="100" class="sound-range" oninput="onMicGainInput(this.value)">
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">🎚️ <span data-i18n="settings_voice_mode">Режим передачи голоса</span></div>
+              <div class="ptt-modes">
+                <label class="ptt-mode"><input type="radio" name="voiceMode" value="open" onchange="onVoiceModeChange('open')"><span><b data-i18n="settings_mode_open">Свободный режим</b><small data-i18n="settings_mode_open_hint">Тебя слышно постоянно, пока микрофон включён</small></span></label>
+                <label class="ptt-mode"><input type="radio" name="voiceMode" value="ptt" onchange="onVoiceModeChange('ptt')"><span><b data-i18n="settings_mode_ptt">Push-to-talk</b><small data-i18n="settings_mode_ptt_hint">Слышно только когда зажата выбранная клавиша</small></span></label>
+              </div>
+              <div id="pttKeyRow" style="display:none;margin-top:8px">
+                <label class="ca-label" data-i18n="settings_ptt_key">Клавиша push-to-talk</label>
+                <button class="edit-profile-btn" id="pttKeyBtn" onclick="startPttKeyCapture()">—</button>
+                <span class="section-sub" id="pttKeyHint" data-i18n="settings_ptt_key_hint">Нажми кнопку и выбери клавишу</span>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">📊 <span data-i18n="settings_equalizer">Эквалайзер микрофона</span></div>
+              <div class="section-sub" data-i18n="settings_eq_hint">Двигай ползунки, чтобы усилить или убрать бас, средние и высокие частоты.</div>
+              <div class="eq-toggle-row">
+                <label class="switch"><input type="checkbox" id="eqEnabled" onchange="onEqToggle(this)"><span class="switch-slider"></span></label>
+                <span class="settings-value" data-i18n="settings_eq_on">Включить эквалайзер</span>
+              </div>
+              <div class="eq-bands" id="eqBands"></div>
+              <button class="edit-profile-btn" style="margin-top:8px" onclick="resetEqualizer()">↺ <span data-i18n="settings_eq_reset">Сбросить</span></button>
+            </div>
+          </section>
         </div>
       </div>
     </div>
@@ -1279,6 +1464,31 @@
   </div>
 </div>
 
+<!-- LETTER COMPOSE MODAL — send a like with a short message (💌) -->
+<div class="modal-overlay" id="letterOverlay">
+  <div class="modal-card" style="width:380px">
+    <div class="modal-title">💌 <span data-i18n="discover_letter_title">Письмо с сердечком</span></div>
+    <div class="section-sub" data-i18n="discover_letter_sub">Отправь короткое сообщение вместе с лайком. Если человек ответит — вы продолжите общение.</div>
+    <div class="letter-target" id="letterTarget"></div>
+    <textarea class="auth-input" id="letterText" rows="3" maxlength="300" placeholder="Напиши что-нибудь, напр. «Го катку в Valorant вечером?»" data-i18n-placeholder="discover_letter_ph" style="resize:none;font-family:'Inter',sans-serif"></textarea>
+    <div class="ob-error" id="letterError"></div>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeLetterCompose()"><span data-i18n="status_cancel">Отмена</span></button>
+      <button class="modal-save" id="letterSendBtn" onclick="sendLetter()">💌 <span data-i18n="discover_letter_send">Отправить</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- LIKES INBOX MODAL — who liked me, with their profile -->
+<div class="modal-overlay" id="likesInboxOverlay">
+  <div class="modal-card" style="width:400px">
+    <button class="gc-close-btn" style="float:right" onclick="closeLikesInbox()">✕</button>
+    <div class="modal-title">💖 <span data-i18n="discover_likes_title">Тебя лайкнули</span></div>
+    <div class="section-sub" data-i18n="discover_likes_sub">Ответь взаимностью — и вы сразу сможете списаться.</div>
+    <div id="likesInboxList" style="max-height:60vh;overflow-y:auto;margin-top:10px"></div>
+  </div>
+</div>
+
 <!-- REPORT USER MODAL -->
 <div class="modal-overlay" id="reportUserOverlay">
   <div class="modal-card" style="width:380px">
@@ -1363,6 +1573,8 @@
 <script src="/js/auth.js"></script>
 <script src="/js/passkeys.js"></script>
 <script src="/js/profile.js"></script>
+<script src="/js/settings.js"></script>
+<script src="/js/sound-settings.js"></script>
 <script src="/js/socket.js"></script>
 <script src="/js/nav-match-call.js"></script>
 <script src="/js/rating.js"></script>

@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { v4: uuid } = require('uuid');
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { uuidParam } = require('../validation/common');
-const { createDirectSchema, createGroupSchema, messagesQuerySchema, muteSchema, deleteConvQuerySchema } = require('../validation/chatSchemas');
-const { userLimiter } = require('../middleware/rateLimit');
+import { Router } from 'express';
+const router = Router();
+import { v4 as uuid } from 'uuid';
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { uuidParam } from '../validation/common';
+import { createDirectSchema, createGroupSchema, messagesQuerySchema, muteSchema, deleteConvQuerySchema } from '../validation/chatSchemas';
+import { userLimiter } from '../middleware/rateLimit';
 import { supabaseAdmin } from '../services/supabase';
 
 // "Message" buttons get-or-create a DM, so this is hit a lot legitimately —
@@ -395,7 +396,7 @@ router.get('/search', requireAuth, readLimiter, async (req: Request, res: Respon
     .from('conversation_members')
     .select('conversation_id')
     .eq('user_id', uid);
-  const convIds = (memberships || []).map((m: any) => m.conversation_id);
+  const convIds = (memberships || []).map((m) => m.conversation_id);
   if (!convIds.length) return res.json({ results: [] });
 
   // Escape LIKE wildcards in the user's query so "50%" searches literally.

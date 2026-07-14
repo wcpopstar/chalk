@@ -1,5 +1,6 @@
-const logger = require('../utils/logger').child({ module: 'workers' });
-const { createEmailWorker } = require('./emailWorker');
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'workers' });
+import { createEmailWorker } from './emailWorker';
 
 let workers: any[] = [];
 
@@ -14,7 +15,7 @@ function startWorkers() {
 }
 
 async function closeWorkers() {
-  await Promise.allSettled(workers.map((w: any) => w.close()));
+  await Promise.allSettled(workers.map((w) => w.close()));
   workers = [];
 }
 

@@ -1,16 +1,17 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const analytics = require('../services/analytics');
-const { v4: uuid } = require('uuid');
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { uuidParam } = require('../validation/common');
-const { targetUserBodySchema } = require('../validation/friendSchemas');
-const { userLimiter } = require('../middleware/rateLimit');
+import { Router } from 'express';
+const router = Router();
+import * as analytics from '../services/analytics';
+import { v4 as uuid } from 'uuid';
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { uuidParam } from '../validation/common';
+import { targetUserBodySchema } from '../validation/friendSchemas';
+import { userLimiter } from '../middleware/rateLimit';
 import { supabaseAdmin } from '../services/supabase';
-const { addFriendPairInstant } = require('../services/friendsHelper');
-const { areUsersBlocked } = require('../services/blockHelper');
-const { wereRecentCallPartners } = require('../socket/state');
+import { addFriendPairInstant } from '../services/friendsHelper';
+import { areUsersBlocked } from '../services/blockHelper';
+import { wereRecentCallPartners } from '../socket/state';
 
 // Sending friend requests is a one-click action — cap it so someone can't
 // script-spam requests at every user id on the platform.

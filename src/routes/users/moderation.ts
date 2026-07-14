@@ -1,15 +1,16 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { v4: uuid } = require('uuid');
-const { requireAuth } = require('../../middleware/auth');
-const { validate } = require('../../middleware/validate');
-const { uuidParam } = require('../../validation/common');
-const { reportBodySchema } = require('../../validation/userSchemas');
-const { userLimiter } = require('../../middleware/rateLimit');
+import { Router } from 'express';
+const router = Router();
+import { v4 as uuid } from 'uuid';
+import { requireAuth } from '../../middleware/auth';
+import { validate } from '../../middleware/validate';
+import { uuidParam } from '../../validation/common';
+import { reportBodySchema } from '../../validation/userSchemas';
+import { userLimiter } from '../../middleware/rateLimit';
 import * as blocksRepository from '../../repositories/blocksRepository';
-const reportsRepository = require('../../repositories/reportsRepository');
-const { blockUser, unblockUser } = require('../../services/blockHelper');
-const { moderationLimiter } = require('./shared');
+import * as reportsRepository from '../../repositories/reportsRepository';
+import { blockUser, unblockUser } from '../../services/blockHelper';
+import { moderationLimiter } from './shared';
 
 const blockedListLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Слишком много запросов, подожди немного.' });
 
@@ -78,7 +79,10 @@ router.get('/me/blocked', requireAuth, blockedListLimiter, async (req: Request, 
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 router.post('/:id/block', requireAuth, moderationLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
-  const targetId = req.params.id;
+  // `!` here (and at the other :id routes below): noUncheckedIndexedAccess types
+  // req.params.id as `string | undefined`, but validate({ params: uuidParam() })
+  // has already rejected the request if it isn't a uuid.
+  const targetId = req.params.id!;
   const uid = req.user.id;
   if (targetId === uid) return res.status(400).json({ error: 'Cannot block yourself' });
 
@@ -115,7 +119,7 @@ router.post('/:id/block', requireAuth, moderationLimiter, validate({ params: uui
  */
 router.delete('/:id/block', requireAuth, moderationLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   try {
-    await unblockUser(req.user.id, req.params.id);
+    await unblockUser(req.user.id, req.params.id!);
     return res.json({ ok: true });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
@@ -167,7 +171,7 @@ router.post(
   moderationLimiter,
   validate({ params: uuidParam(), body: reportBodySchema }),
   async (req: Request, res: Response) => {
-    const targetId = req.params.id;
+    const targetId = req.params.id!;
     const uid = req.user.id;
     const { reason, details, context } = req.body;
 

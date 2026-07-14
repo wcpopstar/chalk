@@ -1,6 +1,7 @@
-const logger = require('../utils/logger').child({ module: 'queues' });
-const { queueConnection } = require('./connection');
-const { getEmailQueue, closeEmailQueue, enqueuePasswordResetEmail, enqueueEmailCode } = require('./emailQueue');
+import loggerBase from '../utils/logger';
+const logger = loggerBase.child({ module: 'queues' });
+import { queueConnection } from './connection';
+import { getEmailQueue, closeEmailQueue, enqueuePasswordResetEmail, enqueueEmailCode } from './emailQueue';
 
 // Every queue's close-if-open helper should be listed here so shutdown
 // closes all of them, not just the one someone remembered to wire in. Each

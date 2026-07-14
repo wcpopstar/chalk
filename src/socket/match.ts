@@ -119,7 +119,7 @@ async function handleTextMatch(io: TypedServer, participants: QueueEntry[]) {
     .from('users')
     .select('id, username, avatar_emoji, avatar_url')
     .in('id', [a!.userId, b!.userId]);
-  const byId: Map<string, any> = new Map((profiles || []).map((p: any) => [p.id, p]));
+  const byId: Map<string, any> = new Map((profiles || []).map((p) => [p.id, p]));
 
   for (const p of participants) {
     const other = participants.find((q) => q.userId !== p.userId);
@@ -167,12 +167,12 @@ async function handleMatch(io: TypedServer, participants: QueueEntry[], mode: 's
     .select('id, username, avatar_emoji, avatar_url')
     .in('id', participantIds);
 
-  const profileMap: Map<string, any> = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+  const profileMap: Map<string, any> = new Map((profiles || []).map((profile) => [profile.id, profile]));
   const payload = {
     roomId,
     mode,
     gameId,
-    participants: participants.map((p: any) => {
+    participants: participants.map((p) => {
       const profile = profileMap.get(p.userId) || {};
       return {
         userId: p.userId,

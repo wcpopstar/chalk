@@ -1,11 +1,12 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const { v4: uuid } = require('uuid');
-const { requireAuth } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
-const { userLimiter } = require('../middleware/rateLimit');
-const { uuidParam } = require('../validation/common');
-const { historyQuerySchema, recordCallSchema, rateMatchSchema } = require('../validation/matchSchemas');
+import { Router } from 'express';
+const router = Router();
+import { v4 as uuid } from 'uuid';
+import { requireAuth } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { userLimiter } from '../middleware/rateLimit';
+import { uuidParam } from '../validation/common';
+import { historyQuerySchema, recordCallSchema, rateMatchSchema } from '../validation/matchSchemas';
 import { supabaseAdmin } from '../services/supabase';
 
 // History is just a read, so it's kept loose. record-call and rate both

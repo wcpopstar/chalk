@@ -1,15 +1,16 @@
 import type { Request, Response } from 'express';
-const router = require('express').Router();
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
-const usersRepository = require('../../repositories/usersRepository');
-const passwordResetsRepository = require('../../repositories/passwordResetsRepository');
-const { enqueuePasswordResetEmail } = require('../../queues');
-const { revokeAllForUser } = require('../../services/refreshTokens');
-const { config } = require('../../config/env');
-const { authLimiter, forgotPasswordEmailLimiter, hashToken } = require('./shared');
-const { validate } = require('../../middleware/validate');
-const { forgotPasswordSchema, resetPasswordSchema } = require('../../validation/schemas');
+import { Router } from 'express';
+const router = Router();
+import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import * as usersRepository from '../../repositories/usersRepository';
+import * as passwordResetsRepository from '../../repositories/passwordResetsRepository';
+import { enqueuePasswordResetEmail } from '../../queues';
+import { revokeAllForUser } from '../../services/refreshTokens';
+import { config } from '../../config/env';
+import { authLimiter, forgotPasswordEmailLimiter, hashToken } from './shared';
+import { validate } from '../../middleware/validate';
+import { forgotPasswordSchema, resetPasswordSchema } from '../../validation/schemas';
 
 // ── POST /api/auth/forgot-password ─────────────────────────────────────────
 /**

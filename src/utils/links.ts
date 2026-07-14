@@ -11,8 +11,9 @@ export interface YouTubePreview extends YouTubeLink {
   title: string;
 }
 
-const https = require('node:https');
-const logger = require('./logger').child({ module: 'links' });
+import https from 'node:https';
+import loggerBase from './logger';
+const logger = loggerBase.child({ module: 'links' });
 
 function isYouTubeUrl(value: unknown): YouTubeLink | null {
   if (typeof value !== 'string') return null;
