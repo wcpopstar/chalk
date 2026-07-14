@@ -11,6 +11,7 @@ import { startMatchLoop, registerMatchHandlers } from './match';
 import { registerCallHandlers } from './calls';
 import { registerChatHandlers } from './chat';
 import { registerGlobalChatHandlers } from './globalChat';
+import { registerServerHandlers } from './servers';
 import { registerSwipeHandlers } from './swipe';
 import * as metrics from '../utils/metrics';
 import { safeAsync } from '../utils/safeAsync';
@@ -95,6 +96,7 @@ function initSocket(io: TypedServer) {
     registerCallHandlers(io, socket, userId, username);
     registerChatHandlers(io, socket, userId, username);
     registerGlobalChatHandlers(io, socket, userId);
+    registerServerHandlers(io, socket, userId, username);
     registerSwipeHandlers(io, socket, userId);
 
     // ── PRESENCE ──────────────────────────────────────────────────────────
@@ -104,11 +106,12 @@ function initSocket(io: TypedServer) {
       await removeOnline(userId);
       await dequeue(userId);
       await clearUserRoom(io, userId);
+      const lastSeen = new Date().toISOString();
       safeAsync(
-        () => supabaseAdmin.from('users').update({ status: 'offline', last_seen: new Date().toISOString() }).eq('id', userId),
+        () => supabaseAdmin.from('users').update({ status: 'offline', last_seen: lastSeen }).eq('id', userId),
         { label: 'mark user offline in DB', context: { userId } }
       );
-      notifyFriendsPresence(io, userId, 'offline');
+      notifyFriendsPresence(io, userId, 'offline', lastSeen);
       io.emit('online:count', await onlineCount());
       socket.data.log.info('Socket disconnected');
     });

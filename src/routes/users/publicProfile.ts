@@ -8,6 +8,7 @@ import * as usersRepository from '../../repositories/usersRepository';
 import * as blocksRepository from '../../repositories/blocksRepository';
 const { cached } = require('../../utils/cache');
 const { profileCacheKey, PROFILE_CACHE_TTL_SECONDS } = require('./shared');
+import { supabaseAdmin } from '../../services/supabase';
 
 // Loose — normal browsing hits this a lot — but caps a script from walking
 // through every user id on the platform scraping profiles.
@@ -39,6 +40,35 @@ const viewLimiter = userLimiter({ windowMs: 60 * 1000, max: 60, message: 'Сли
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
+/**
+ * @openapi
+ * /api/users/{id}/reviews:
+ *   get:
+ *     tags: [Users]
+ *     summary: Text reviews left for a user after calls
+ *     description: The subset of post-call ratings that include a written comment, newest first, with the reviewer's basic profile.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200: { description: OK }
+ */
+// More specific than the '/:id' catch-all below, so it must be declared first.
+router.get('/:id/reviews', requireAuth, viewLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
+  const { data, error } = await supabaseAdmin
+    .from('ratings')
+    .select('rating, comment, created_at, rater:users!ratings_rater_user_id_fkey ( id, username, avatar_emoji, avatar_url )')
+    .eq('rated_user_id', req.params.id!)
+    .not('comment', 'is', null)
+    .neq('comment', '')
+    .order('created_at', { ascending: false })
+    .limit(30);
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ reviews: data || [] });
+});
+
 // Must be mounted LAST so it doesn't swallow /me, /me/stats, /discover, etc.
 router.get('/:id', requireAuth, viewLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   // Only the viewer-independent fields are cached — same behavior as

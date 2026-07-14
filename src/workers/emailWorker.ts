@@ -3,13 +3,18 @@ const logger = require('../utils/logger').child({ module: 'email-worker' });
 const { queueConnection } = require('../queues/connection');
 const { EMAIL } = require('../queues/queueNames');
 const { JOBS } = require('../queues/emailQueue');
-const { sendPasswordResetEmail } = require('../services/mailer');
+const { sendPasswordResetEmail, sendCodeEmail } = require('../services/mailer');
 
-async function processEmailJob(job: { name: string; data: { to: string; resetUrl: string } }) {
+async function processEmailJob(job: { name: string; data: any }) {
   switch (job.name) {
     case JOBS.PASSWORD_RESET: {
       const { to, resetUrl } = job.data;
       await sendPasswordResetEmail(to, resetUrl);
+      return;
+    }
+    case JOBS.EMAIL_CODE: {
+      const { to, code, purpose } = job.data;
+      await sendCodeEmail(to, code, purpose);
       return;
     }
     default:

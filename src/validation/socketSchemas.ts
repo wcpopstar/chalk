@@ -95,6 +95,24 @@ const chatVoice = z.object({
 const chatVideoNote = z.object({
   conversationId: uuidField, video: mediaBlob, mime: mimeField, duration: durationField,
 });
+
+// Chat attachments (photo / video / arbitrary file) allow a larger payload than
+// voice/video notes — the real content-type + type are decided server-side by
+// sniffing the bytes (see socket/media.ts). `name` is the original filename,
+// shown for `file` messages.
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024; // 25MB, matches socket/media.ts
+const attachmentBlob = z.union([
+  z.custom(
+    (v: unknown) => (Buffer.isBuffer(v) || v instanceof Uint8Array || v instanceof ArrayBuffer) &&
+      (((v as any).byteLength ?? (v as any).length ?? 0) <= MAX_ATTACHMENT_BYTES),
+    { message: 'Файл повреждён или слишком большой (макс. 25 МБ)' },
+  ),
+  z.array(z.number().int().min(0).max(255)).max(MAX_ATTACHMENT_BYTES),
+]);
+const fileNameField = z.string().trim().min(1).max(200).optional();
+const chatMedia = z.object({
+  conversationId: uuidField, data: attachmentBlob, mime: mimeField, name: fileNameField,
+});
 const chatEdit = withEncryptedOrPlainText({ conversationId: uuidField, messageId: uuidField }, 2000);
 const chatDelete = z.object({ conversationId: uuidField, messageId: uuidField });
 // kind distinguishes what the person is composing: plain typing, a voice
@@ -109,6 +127,23 @@ const chatRead = z.object({ conversationId: uuidField });
 // button in the chat header). Enabling requires both members to have keys —
 // enforced in socket/chat.ts, a schema can't know that.
 const chatE2ee = z.object({ conversationId: uuidField, enabled: z.boolean() });
+// Pin (or unpin, with messageId null) a single message in a conversation.
+// The pinned message must belong to THIS conversation — verified server-side
+// in socket/chat.ts, a schema can't know it.
+const chatPin = z.object({ conversationId: uuidField, messageId: uuidField.nullable() });
+// Forward an existing (non-encrypted) message into another conversation the
+// user is also a member of. Membership of both ends is verified server-side.
+const chatForward = z.object({ fromMessageId: uuidField, toConversationId: uuidField });
+// React to a message with a single emoji (toggle). `emoji` is short free text
+// — an emoji is 1-8 UTF-16 code units depending on ZWJ sequences / skin-tone
+// modifiers, so 16 chars is a safe cap that matches the column check in
+// migration 020. We don't restrict to a fixed set: any emoji the client's
+// picker offers is fine.
+const chatReact = z.object({
+  conversationId: uuidField,
+  messageId: uuidField,
+  emoji: z.string().trim().min(1).max(16),
+});
 
 // ── globalChat.js (public room, shorter text cap than DMs) ──────────────────
 const globalMessage = z.object({ text: messageText(500) });
@@ -127,6 +162,13 @@ const matchJoin = z.object({
   rankScore: z.number().finite().min(0).max(100000).default(0),
   languages: z.array(z.string().trim().min(2).max(10)).max(10).default(['en']),
   region: z.string().trim().max(20).default('eu'),
+  // Optional pre-match filters (respected as hard constraints, both ways).
+  genderPref: z.array(z.enum(['male', 'female', 'other', 'prefer_not_to_say'])).max(4).optional(),
+  ageMin: z.number().int().min(13).max(100).optional(),
+  ageMax: z.number().int().min(13).max(100).optional(),
+  // Text-only matching: land in a chat instead of a voice call. Text seekers
+  // only ever pair with other text seekers (see compatibility()).
+  chatOnly: z.boolean().optional(),
 });
 const matchLeave = z.undefined().or(z.object({}).strict());
 const trialVote = z.object({ roomId: uuidField, vote: z.enum(['yes', 'no']) });
@@ -145,6 +187,42 @@ const callReject = z.object({ roomId: uuidField, inviterId: uuidField });
 const callRequestJoin = z.object({ targetUserId: uuidField });
 const callJoinResponse = z.object({ roomId: uuidField, requesterId: uuidField, accept: z.boolean() });
 const friendsCallStatus = z.undefined().or(z.object({}).strict());
+// In-call shared clipboard: relay a link / text / code snippet / image to the
+// other people in the call. `content` is capped generously so a resized-JPEG
+// data URL (an image share) fits, same order of magnitude as a story image.
+const callClipboard = z.object({
+  roomId: uuidField,
+  kind: z.enum(['text', 'link', 'code', 'image']),
+  content: z.string().min(1).max(1_500_000),
+});
+// In-call collaborative whiteboard: a batch of freehand line segments, each
+// [x0,y0,x1,y1] in normalized 0..1 board coordinates so it renders at any
+// canvas size. Batched (client throttles pointermove) to keep event volume
+// sane. draw_clear wipes the shared board for everyone.
+const callDraw = z.object({
+  roomId: uuidField,
+  color: z.string().regex(/^#[0-9a-fA-F]{3,8}$/).optional(),
+  width: z.number().finite().min(1).max(40).optional(),
+  segments: z.array(z.array(z.number().finite().min(0).max(1)).length(4)).min(1).max(200),
+});
+const callDrawClear = z.object({ roomId: uuidField });
+// In-call 1v1 mini-games (tetris duel / chess). The server is a dumb relay —
+// game rules live entirely on the clients (it's a friendly duel between two
+// people already talking to each other, not a ranked ladder). `data` is a
+// small primitives-only bag: a chess move, a score number, etc.
+const callGame = z.object({
+  roomId: uuidField,
+  game: z.enum(['tetris', 'chess']),
+  action: z.enum(['invite', 'accept', 'decline', 'move', 'score', 'over', 'quit']),
+  data: z.record(z.string().max(30), z.union([z.string().max(200), z.number().finite(), z.boolean()])).optional(),
+});
+
+// ── servers.ts (Discord-style server channels) ───────────────────────────────
+const serverJoin = z.object({ channelId: uuidField });
+const serverLeave = z.object({ channelId: uuidField });
+const serverMessage = z.object({ channelId: uuidField, content: messageText(4000) });
+const serverTyping = z.object({ channelId: uuidField });
+const serverDelete = z.object({ channelId: uuidField, messageId: uuidField });
 
 // ── Registry: event name -> zod schema ──────────────────────────────────────
 // Anything not listed here is rejected by default by validateSocketEvent()
@@ -156,11 +234,15 @@ const socketEventSchemas = {
   'chat:gif': chatGif,
   'chat:voice': chatVoice,
   'chat:video_note': chatVideoNote,
+  'chat:media': chatMedia,
   'chat:edit': chatEdit,
   'chat:delete': chatDelete,
   'chat:typing': chatTyping,
   'chat:read': chatRead,
   'chat:e2ee': chatE2ee,
+  'chat:pin': chatPin,
+  'chat:forward': chatForward,
+  'chat:react': chatReact,
 
   'global:message': globalMessage,
   'global:gif': globalGif,
@@ -181,7 +263,17 @@ const socketEventSchemas = {
   'call:reject': callReject,
   'call:request_join': callRequestJoin,
   'call:join_response': callJoinResponse,
+  'call:clipboard': callClipboard,
+  'call:draw': callDraw,
+  'call:draw_clear': callDrawClear,
+  'call:game': callGame,
   'friends:call_status': friendsCallStatus,
+
+  'server:join': serverJoin,
+  'server:leave': serverLeave,
+  'server:message': serverMessage,
+  'server:typing': serverTyping,
+  'server:delete': serverDelete,
 };
 
 export { socketEventSchemas, GAME_IDS };
@@ -199,11 +291,15 @@ export type ChatMessagePayload = z.infer<typeof chatMessage>;
 export type ChatGifPayload = z.infer<typeof chatGif>;
 export type ChatVoicePayload = z.infer<typeof chatVoice>;
 export type ChatVideoNotePayload = z.infer<typeof chatVideoNote>;
+export type ChatMediaPayload = z.infer<typeof chatMedia>;
 export type ChatEditPayload = z.infer<typeof chatEdit>;
 export type ChatDeletePayload = z.infer<typeof chatDelete>;
 export type ChatTypingPayload = z.infer<typeof chatTyping>;
 export type ChatReadPayload = z.infer<typeof chatRead>;
 export type ChatE2eePayload = z.infer<typeof chatE2ee>;
+export type ChatPinPayload = z.infer<typeof chatPin>;
+export type ChatForwardPayload = z.infer<typeof chatForward>;
+export type ChatReactPayload = z.infer<typeof chatReact>;
 
 export type GlobalMessagePayload = z.infer<typeof globalMessage>;
 export type GlobalGifPayload = z.infer<typeof globalGif>;
@@ -224,7 +320,17 @@ export type CallAcceptPayload = z.infer<typeof callAccept>;
 export type CallRejectPayload = z.infer<typeof callReject>;
 export type CallRequestJoinPayload = z.infer<typeof callRequestJoin>;
 export type CallJoinResponsePayload = z.infer<typeof callJoinResponse>;
+export type CallClipboardPayload = z.infer<typeof callClipboard>;
+export type CallDrawPayload = z.infer<typeof callDraw>;
+export type CallDrawClearPayload = z.infer<typeof callDrawClear>;
+export type CallGamePayload = z.infer<typeof callGame>;
 export type FriendsCallStatusPayload = z.infer<typeof friendsCallStatus>;
+
+export type ServerJoinPayload = z.infer<typeof serverJoin>;
+export type ServerLeavePayload = z.infer<typeof serverLeave>;
+export type ServerMessagePayload = z.infer<typeof serverMessage>;
+export type ServerTypingPayload = z.infer<typeof serverTyping>;
+export type ServerDeletePayload = z.infer<typeof serverDelete>;
 
 // Event name -> inferred payload type, keyed identically to
 // `socketEventSchemas` above. `keyof ClientToServerPayloadMap` is the
@@ -236,11 +342,15 @@ export type ClientToServerPayloadMap = {
   'chat:gif': ChatGifPayload;
   'chat:voice': ChatVoicePayload;
   'chat:video_note': ChatVideoNotePayload;
+  'chat:media': ChatMediaPayload;
   'chat:edit': ChatEditPayload;
   'chat:delete': ChatDeletePayload;
   'chat:typing': ChatTypingPayload;
   'chat:read': ChatReadPayload;
   'chat:e2ee': ChatE2eePayload;
+  'chat:pin': ChatPinPayload;
+  'chat:forward': ChatForwardPayload;
+  'chat:react': ChatReactPayload;
 
   'global:message': GlobalMessagePayload;
   'global:gif': GlobalGifPayload;
@@ -261,5 +371,15 @@ export type ClientToServerPayloadMap = {
   'call:reject': CallRejectPayload;
   'call:request_join': CallRequestJoinPayload;
   'call:join_response': CallJoinResponsePayload;
+  'call:clipboard': CallClipboardPayload;
+  'call:draw': CallDrawPayload;
+  'call:draw_clear': CallDrawClearPayload;
+  'call:game': CallGamePayload;
   'friends:call_status': FriendsCallStatusPayload;
+
+  'server:join': ServerJoinPayload;
+  'server:leave': ServerLeavePayload;
+  'server:message': ServerMessagePayload;
+  'server:typing': ServerTypingPayload;
+  'server:delete': ServerDeletePayload;
 };

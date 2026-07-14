@@ -7,10 +7,11 @@ const logger = loggerBase.child({ module: 'messages' });
 
 const MESSAGE_SELECT = `
   id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
-  preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id,
+  preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id, forwarded_from,
   is_encrypted, nonce, sender_public_key,
   sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url ),
-  reply_to:reply_to_id ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) )
+  reply_to:reply_to_id ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) ),
+  reactions:message_reactions ( emoji, user_id )
 `;
 // ^ the self-join embed uses the FK COLUMN name (reply_to_id), not a
 // `messages!<hint>` form: this PostgREST deployment doesn't resolve the
@@ -34,6 +35,9 @@ interface MessageInput {
   type?: MessageType;
   mediaUrl?: string | null;
   duration?: number | null;
+  // Non-null only for forwarded copies: the original author's display name,
+  // used to render a "Forwarded from X" label (see socket/chat.ts chat:forward).
+  forwardedFrom?: string | null;
   preview?: { title?: string; url?: string; thumbnail?: string; videoId?: string } | null;
   // ── E2EE (direct chats only, type 'text') ──────────────────────────────
   // When ciphertext is present, `text` is ignored and the row is stored as
@@ -45,7 +49,7 @@ interface MessageInput {
   senderPublicKey?: string | null;
 }
 
-async function saveMessage({ conversationId, senderId, text, type, mediaUrl, duration, preview, replyToId, ciphertext, nonce, senderPublicKey }: MessageInput & { conversationId: string }) {
+async function saveMessage({ conversationId, senderId, text, type, mediaUrl, duration, preview, replyToId, forwardedFrom, ciphertext, nonce, senderPublicKey }: MessageInput & { conversationId: string }) {
   const isEncrypted = Boolean(ciphertext);
   const { data, error } = await supabaseAdmin
     .from('messages')
@@ -56,6 +60,9 @@ async function saveMessage({ conversationId, senderId, text, type, mediaUrl, dur
       // set only when actually replying — keeps plain sends working even if
       // migration 014 hasn't been applied yet (column absent)
       ...(replyToId ? { reply_to_id: replyToId } : {}),
+      // only stamped on forwarded copies (migration 019); omitted otherwise so
+      // plain sends still work if the column isn't there yet
+      ...(forwardedFrom ? { forwarded_from: forwardedFrom } : {}),
       // Encrypted rows reuse `text` to carry the base64 ciphertext; nonce and
       // sender_public_key ride alongside (see migration 015_e2ee.sql).
       text: isEncrypted ? ciphertext : (text || null),
@@ -204,6 +211,94 @@ async function getConversationE2ee(conversationId: string): Promise<boolean> {
   return Boolean(data && data.e2ee_enabled);
 }
 
+// ── Pinned message (single per conversation, migration 019) ───────────────
+// Set to a messageId to pin, or null to unpin. Returns nothing; the caller
+// re-reads the pinned message via getPinnedMessage() to broadcast it.
+async function setConversationPin(conversationId: string, messageId: string | null) {
+  const { error } = await supabaseAdmin
+    .from('conversations')
+    .update({ pinned_message_id: messageId })
+    .eq('id', conversationId);
+  if (error) { logger.error({ err: error, conversationId, messageId }, 'Failed to set pinned message'); throw new Error('Не удалось закрепить сообщение'); }
+}
+
+// The currently-pinned message of a conversation, fully hydrated for
+// rendering (or null if nothing is pinned / it was since deleted).
+async function getPinnedMessage(conversationId: string) {
+  const { data: conv } = await supabaseAdmin
+    .from('conversations')
+    .select('pinned_message_id')
+    .eq('id', conversationId)
+    .maybeSingle();
+  const pinnedId = conv && (conv as any).pinned_message_id;
+  if (!pinnedId) return null;
+  const { data } = await supabaseAdmin
+    .from('messages')
+    .select(MESSAGE_SELECT)
+    .eq('id', pinnedId)
+    .is('deleted_at', null)
+    .maybeSingle();
+  return data || null;
+}
+
+// ── Fetch one message by id (used by pin + forward) ───────────────────────
+// Returns the raw row (conversation_id included) or null. The caller is
+// responsible for verifying the requesting user may actually see it.
+async function getMessageById(messageId: string) {
+  const { data } = await supabaseAdmin
+    .from('messages')
+    .select('id, conversation_id, sender_id, text, type, media_url, duration_seconds, is_encrypted, deleted_at, preview_title, preview_url, preview_thumbnail, preview_video_id, sender:users!messages_sender_id_fkey ( username )')
+    .eq('id', messageId)
+    .maybeSingle();
+  return data || null;
+}
+
+// ── Message reactions (migration 020) ─────────────────────────────────────
+// Toggle one emoji reaction by one user on one message: if the (message,
+// user, emoji) row already exists it's removed, otherwise inserted. Returns
+// the full, fresh reaction list for the message so the caller can broadcast
+// the new aggregate state. The caller is responsible for verifying the user
+// may actually see/react in this conversation.
+async function toggleReaction(messageId: string, userId: string, emoji: string) {
+  const { data: existing } = await supabaseAdmin
+    .from('message_reactions')
+    .select('message_id')
+    .eq('message_id', messageId)
+    .eq('user_id', userId)
+    .eq('emoji', emoji)
+    .maybeSingle();
+
+  if (existing) {
+    await supabaseAdmin
+      .from('message_reactions')
+      .delete()
+      .eq('message_id', messageId)
+      .eq('user_id', userId)
+      .eq('emoji', emoji);
+  } else {
+    const { error } = await supabaseAdmin
+      .from('message_reactions')
+      .insert({ message_id: messageId, user_id: userId, emoji });
+    // A duplicate (someone double-tapped before the first insert committed)
+    // isn't an error worth failing the toggle over.
+    if (error && !String(error.code).startsWith('23')) {
+      logger.error({ err: error, messageId, userId }, 'Failed to add reaction');
+      throw new Error('Не удалось поставить реакцию');
+    }
+  }
+  return getReactionsForMessage(messageId);
+}
+
+// The raw reaction rows for a message ({ emoji, user_id }), used to rebuild
+// the aggregate counts client-side after a toggle.
+async function getReactionsForMessage(messageId: string) {
+  const { data } = await supabaseAdmin
+    .from('message_reactions')
+    .select('emoji, user_id')
+    .eq('message_id', messageId);
+  return data || [];
+}
+
 async function setConversationE2ee(conversationId: string, enabled: boolean) {
   const { error } = await supabaseAdmin
     .from('conversations')
@@ -258,4 +353,9 @@ export {
   getPublicKey,
   getConversationE2ee,
   setConversationE2ee,
+  setConversationPin,
+  getPinnedMessage,
+  getMessageById,
+  toggleReaction,
+  getReactionsForMessage,
 };

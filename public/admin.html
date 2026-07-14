@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Chalk — Админ-панель</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .admin-wrap{max-width:860px;margin:0 auto;padding:26px 16px}
+    .admin-title{font-family:'Rajdhani',sans-serif;font-size:26px;font-weight:700;color:var(--accent-text);margin-bottom:14px}
+    .admin-key-row{display:flex;gap:8px;margin-bottom:18px}
+    .admin-key-row input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 13px;color:var(--text);font-size:14px;outline:none}
+    .admin-key-row input:focus{border-color:var(--accent-border)}
+    .admin-btn{background:var(--accent);border:none;border-radius:10px;padding:11px 18px;color:#000;font-weight:700;font-size:13px;cursor:pointer}
+    .admin-btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+    .admin-btn.danger{background:var(--danger);color:#fff}
+    .admin-btn:disabled{opacity:.5;cursor:default}
+    .admin-tabs{display:flex;gap:8px;margin-bottom:14px}
+    .admin-tab{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:8px 18px;color:var(--text);font-size:13px;font-weight:600;cursor:pointer}
+    .admin-tab.active{background:var(--accent-dim);border-color:var(--accent-border);color:var(--accent-text)}
+    .admin-search{display:flex;gap:8px;margin-bottom:12px}
+    .admin-search input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:var(--text);font-size:14px;outline:none}
+    .admin-list{display:flex;flex-direction:column;gap:8px}
+    .admin-row{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+    .admin-row.banned{border-color:rgba(239,68,68,.5)}
+    .admin-row-main{flex:1;min-width:0}
+    .admin-row-name{font-weight:700;color:var(--text);font-size:14px}
+    .admin-row-sub{font-size:12px;color:var(--muted);word-break:break-word}
+    .admin-badge{font-size:11px;font-weight:700;border-radius:8px;padding:3px 8px;flex-shrink:0}
+    .admin-badge.ban{background:rgba(239,68,68,.15);color:var(--danger)}
+    .admin-badge.open{background:var(--accent-dim);color:var(--accent-text)}
+    .admin-actions{display:flex;gap:6px;flex-shrink:0}
+    .admin-empty{color:var(--muted);font-size:13px;padding:14px;text-align:center}
+    .admin-error{color:var(--danger);font-size:13px;margin:8px 0}
+    .admin-hidden{display:none}
+  </style>
+</head>
+<body>
+<div class="admin-wrap">
+  <div class="admin-title">🛡 Chalk — Админ-панель</div>
+
+  <div class="admin-key-row">
+    <input type="password" id="adminKey" placeholder="ADMIN_API_KEY" autocomplete="off">
+    <button class="admin-btn" onclick="adminConnect()">Войти</button>
+  </div>
+  <div class="admin-error admin-hidden" id="adminError"></div>
+
+  <div id="adminPanel" class="admin-hidden">
+    <div class="admin-tabs">
+      <button class="admin-tab active" id="tabUsers" onclick="adminShowTab('users')">👥 Пользователи</button>
+      <button class="admin-tab" id="tabReports" onclick="adminShowTab('reports')">🚩 Жалобы</button>
+    </div>
+
+    <div id="paneUsers">
+      <div class="admin-search">
+        <input type="text" id="userSearch" placeholder="Поиск по нику или email…" onkeydown="if(event.key==='Enter')adminLoadUsers()">
+        <button class="admin-btn secondary" onclick="adminLoadUsers()">Найти</button>
+        <button class="admin-btn secondary" onclick="adminLoadUsers(true)">Только забаненные</button>
+      </div>
+      <div class="admin-list" id="usersList"><div class="admin-empty">Введите ключ и нажмите «Войти»</div></div>
+    </div>
+
+    <div id="paneReports" class="admin-hidden">
+      <div class="admin-list" id="reportsList"></div>
+    </div>
+  </div>
+</div>
+<script src="/js/admin.js"></script>
+</body>
+</html>

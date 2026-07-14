@@ -155,6 +155,47 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     }
   });
 
+  // ── IN-CALL SHARED CLIPBOARD + COLLABORATIVE WHITEBOARD ────────────────
+  // Both relay to the OTHER participants of the sender's call room. We emit to
+  // each participant's socket individually (via getOnlineSocket) rather than
+  // io.to(roomId): the call inviter isn't necessarily joined to the socket.io
+  // room, and this also works across server instances. The sender is skipped
+  // (it already rendered its own action locally).
+  const relayToRoom = async (roomId: string, emit: (socketId: string) => void) => {
+    const room = await getRoom(roomId);
+    if (!room || !room.participants.includes(userId)) return; // must be a participant
+    await Promise.all(
+      room.participants
+        .filter((pid) => pid !== userId)
+        .map(async (pid) => {
+          const s = await getOnlineSocket(pid);
+          if (s) emit(s);
+        })
+    );
+  };
+
+  secureOn(io, socket, userId, 'call:clipboard', async ({ roomId, kind, content }) => {
+    await relayToRoom(roomId, (s) =>
+      io.to(s).emit('call:clipboard', { from: userId, fromName: username, kind, content, at: Date.now() })
+    );
+  });
+
+  secureOn(io, socket, userId, 'call:draw', async ({ roomId, color, width, segments }) => {
+    await relayToRoom(roomId, (s) => io.to(s).emit('call:draw', { from: userId, color, width, segments }));
+  });
+
+  secureOn(io, socket, userId, 'call:draw_clear', async ({ roomId }) => {
+    await relayToRoom(roomId, (s) => io.to(s).emit('call:draw_clear', { from: userId }));
+  });
+
+  // ── IN-CALL 1v1 MINI-GAMES (tetris duel / chess) ───────────────────────
+  // Pure relay, same trust model as the whiteboard: rules run on the clients.
+  secureOn(io, socket, userId, 'call:game', async ({ roomId, game, action, data }) => {
+    await relayToRoom(roomId, (s) =>
+      io.to(s).emit('call:game', { from: userId, fromName: username, game, action, data: data ?? null })
+    );
+  });
+
   // ── FRIENDS' CURRENT CALL STATUS (one-shot request with ack) ───────────
   secureOn(io, socket, userId, 'friends:call_status', async (_payload, ack) => {
     // No local try/catch here on purpose: secureOn() (see socket/validation.ts)

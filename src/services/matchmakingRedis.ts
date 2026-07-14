@@ -75,6 +75,17 @@ export interface QueueEntry {
   languages?: string[];
   region?: string | null;
   enqueuedAt?: number;
+  // Pre-match filters. `age`/`gender` describe THIS player (stamped from their
+  // profile server-side); `genderPref`/`ageMin`/`ageMax` are who they're
+  // willing to match with. Enforced mutually in compatibility().
+  age?: number | null;
+  gender?: string | null;
+  genderPref?: string[];
+  ageMin?: number;
+  ageMax?: number;
+  // Text-only match: pairs only with other text seekers; the room is a chat,
+  // not a voice call (handled in socket/match.ts handleMatch).
+  chatOnly?: boolean;
 }
 
 const queueSetKey = (mode: string, gameId: string) => `${NS}:queue:${mode}:${gameId}`;
@@ -182,8 +193,24 @@ async function removeMatched(mode: string, gameId: string, userIds: string[]) {
   await pipeline.exec();
 }
 
+// Does `seeker`'s gender preference accept `candidate`? No preference = accepts
+// anyone; a preference requires the candidate to have a known, matching gender.
+function genderOk(seeker: QueueEntry, candidate: QueueEntry) {
+  if (!seeker.genderPref || seeker.genderPref.length === 0) return true;
+  return candidate.gender != null && seeker.genderPref.includes(candidate.gender);
+}
+
+// Does `candidate`'s age fall within `seeker`'s [ageMin, ageMax]? No range = any
+// age; a range requires the candidate to have a known age inside it.
+function ageOk(seeker: QueueEntry, candidate: QueueEntry) {
+  if (seeker.ageMin == null && seeker.ageMax == null) return true;
+  if (candidate.age == null) return false;
+  if (seeker.ageMin != null && candidate.age < seeker.ageMin) return false;
+  if (seeker.ageMax != null && candidate.age > seeker.ageMax) return false;
+  return true;
+}
+
 // ── Score compatibility between two entries (higher = better match) ──────
-// Pure function, unchanged from the previous in-memory/Redis-hash version.
 function compatibility(a: QueueEntry, b: QueueEntry) {
   let score = 0;
   const wait = Math.min(Date.now() - (a.joinedAt ?? Date.now()), Date.now() - (b.joinedAt ?? Date.now()));
@@ -192,6 +219,17 @@ function compatibility(a: QueueEntry, b: QueueEntry) {
   // Queues are already partitioned per gameId, but keep this as a defensive
   // guard in case callers ever mix entries from different sources.
   if (a.gameId !== b.gameId) return -1;
+
+  // Gender / age filters are user intent — enforced as HARD constraints (never
+  // relaxed by the wait timer) and mutually (each side's preference must hold).
+  // A filter set against an attribute the other player didn't fill in excludes
+  // them: a filter means "only match people I can confirm fit".
+  if (!genderOk(a, b) || !genderOk(b, a)) return -1;
+  if (!ageOk(a, b) || !ageOk(b, a)) return -1;
+
+  // Text seekers and voice seekers never pair — the post-match experience
+  // (chat vs call) has to be the same for both people.
+  if (Boolean(a.chatOnly) !== Boolean(b.chatOnly)) return -1;
 
   if (a.region && b.region) {
     if (a.region === b.region) score += 30;

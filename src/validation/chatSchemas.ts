@@ -16,4 +16,14 @@ const messagesQuerySchema = paginationQuery({ limit: 50, maxLimit: 100, offset: 
   before: isoDateTimeOptional,
 });
 
-export { createDirectSchema, createGroupSchema, messagesQuerySchema };
+const muteSchema = z.object({
+  muted: z.boolean(),
+});
+
+// DELETE /api/chats/:id — "self" hides & clears for me, "both" hard-deletes the
+// whole conversation (direct chats only).
+const deleteConvQuerySchema = z.object({
+  mode: z.enum(['self', 'both']).default('self'),
+});
+
+export { createDirectSchema, createGroupSchema, messagesQuerySchema, muteSchema, deleteConvQuerySchema };

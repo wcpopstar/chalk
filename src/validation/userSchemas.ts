@@ -53,6 +53,9 @@ const updateProfileSchema = z
     avatar_emoji: z.string().trim().max(16).optional(),
     avatar_url: avatarUrlField.optional(),
     bio: z.string().trim().max(500).optional(),
+    // Free-text custom status the user writes themselves ("го играть"), shown
+    // under their name. Empty string clears it (normalised to null at the DB).
+    status_text: z.string().trim().max(100).nullable().optional(),
     age: z.coerce.number().int().min(13).max(100).optional(),
     gender: z.enum(GENDERS as any).optional(),
     presence: z.enum(PRESENCE_STATES as any).optional(),

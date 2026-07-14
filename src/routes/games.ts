@@ -3,7 +3,7 @@ const router = require('express').Router();
 const { requireAuth } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { userLimiter } = require('../middleware/rateLimit');
-const { submitScoreSchema, leaderboardQuerySchema } = require('../validation/gameSchemas');
+const { submitScoreSchema, leaderboardQuerySchema, gameParamSchema } = require('../validation/gameSchemas');
 import { supabaseAdmin } from '../services/supabase';
 const { cached, invalidate } = require('../utils/cache');
 const { isEnabled } = require('../services/featureFlags');
@@ -30,6 +30,17 @@ async function requireTetrisEnabled(req: Request, res: Response, next: NextFunct
   }
   return next();
 }
+
+// Same kill-switch, but for every arcade game sharing the generic
+// /:game/{score,leaderboard} endpoints below.
+async function requireArcadeEnabled(req: Request, res: Response, next: NextFunction) {
+  if (!(await isEnabled('games.arcade.enabled', { userId: req.user?.id }))) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  return next();
+}
+
+const arcadeLeaderboardKey = (game: string) => `leaderboard:arcade:${game}:top50`;
 
 /**
  * @openapi
@@ -210,6 +221,168 @@ router.get('/tetris/leaderboard', requireAuth, requireTetrisEnabled, leaderboard
     })),
     me: mine ? { bestScore: mine.best_score, gamesPlayed: mine.games_played, rank: myRank } : null,
     totalPlayers,
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GENERIC ARCADE ENDPOINTS — every new mini-game (F1 racing, 2048, battleship,
+// typing speed, the chalk platformer) shares these. `:game` is validated
+// against the ARCADE_GAMES allowlist in gameParamSchema, so an unknown game id
+// 400s before touching the DB. Tetris is deliberately excluded (its literal
+// /tetris/* routes above are registered first and match first anyway) — it
+// keeps its own table.
+//
+// Behaviour mirrors the tetris endpoints exactly, just parameterised by
+// `game` and reading/writing the shared game_scores table.
+
+/**
+ * @openapi
+ * /api/games/{game}/score:
+ *   post:
+ *     tags: [Games]
+ *     summary: Submit an arcade mini-game score
+ *     description: Keeps only the best score per (user, game); games_played increments every submission. Invalidates that game's cached leaderboard.
+ *     parameters:
+ *       - in: path
+ *         name: game
+ *         required: true
+ *         schema: { type: string, enum: [racing, g2048, battleship, typing, platformer] }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [score]
+ *             properties:
+ *               score: { type: integer, minimum: 0, maximum: 1000000 }
+ *     responses:
+ *       200: { description: OK }
+ *       400: { description: unknown game or invalid score }
+ *       500: { description: Database error }
+ */
+router.post('/:game/score', requireAuth, requireArcadeEnabled, scoreLimiter, validate({ params: gameParamSchema, body: submitScoreSchema }), async (req: Request, res: Response) => {
+  const { score } = req.body;
+  const game = req.params.game as string;
+  const uid = req.user.id;
+
+  const { data: existing, error: fetchErr } = await supabaseAdmin
+    .from('game_scores')
+    .select('best_score, games_played')
+    .eq('user_id', uid)
+    .eq('game', game)
+    .maybeSingle();
+
+  if (fetchErr) return res.status(500).json({ error: fetchErr.message });
+
+  const bestScore = Math.max(score, existing?.best_score || 0);
+  const gamesPlayed = (existing?.games_played || 0) + 1;
+
+  const { error: upsertErr } = await supabaseAdmin
+    .from('game_scores')
+    .upsert({ user_id: uid, game, best_score: bestScore, games_played: gamesPlayed, updated_at: new Date().toISOString() });
+
+  if (upsertErr) return res.status(500).json({ error: upsertErr.message });
+
+  invalidate(arcadeLeaderboardKey(game));
+
+  const { count, error: rankErr } = await supabaseAdmin
+    .from('game_scores')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('game', game)
+    .gt('best_score', bestScore);
+
+  if (rankErr) return res.status(500).json({ error: rankErr.message });
+
+  const { count: totalCount } = await supabaseAdmin
+    .from('game_scores')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('game', game);
+
+  return res.json({
+    score,
+    bestScore,
+    gamesPlayed,
+    rank: (count || 0) + 1,
+    totalPlayers: totalCount || 1,
+  });
+});
+
+/**
+ * @openapi
+ * /api/games/{game}/leaderboard:
+ *   get:
+ *     tags: [Games]
+ *     summary: Get an arcade mini-game leaderboard
+ *     description: Top-50 is served from a short-lived per-game Redis cache; the `me` section is always fresh.
+ *     parameters:
+ *       - in: path
+ *         name: game
+ *         required: true
+ *         schema: { type: string, enum: [racing, g2048, battleship, typing, platformer] }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 10, maximum: 50 }
+ *     responses:
+ *       200: { description: OK }
+ *       400: { description: unknown game }
+ *       500: { description: Database error }
+ */
+router.get('/:game/leaderboard', requireAuth, requireArcadeEnabled, leaderboardLimiter, validate({ params: gameParamSchema, query: leaderboardQuerySchema }), async (req: Request, res: Response) => {
+  const { limit } = req.query;
+  const game = req.params.game as string;
+
+  let top50: any;
+  try {
+    top50 = await cached(arcadeLeaderboardKey(game), LEADERBOARD_CACHE_TTL_SECONDS, async () => {
+      const { data, error } = await supabaseAdmin
+        .from('game_scores')
+        .select('user_id, best_score, games_played, users(username, avatar_emoji)')
+        .eq('game', game)
+        .order('best_score', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+
+  const top = top50.slice(0, limit);
+
+  const uid = req.user.id;
+  const { data: mine } = await supabaseAdmin
+    .from('game_scores')
+    .select('best_score, games_played')
+    .eq('user_id', uid)
+    .eq('game', game)
+    .maybeSingle();
+
+  let myRank: any = null;
+  if (mine) {
+    const { count } = await supabaseAdmin
+      .from('game_scores')
+      .select('user_id', { count: 'exact', head: true })
+      .eq('game', game)
+      .gt('best_score', mine.best_score);
+    myRank = (count || 0) + 1;
+  }
+  const { count: total } = await supabaseAdmin
+    .from('game_scores')
+    .select('user_id', { count: 'exact', head: true })
+    .eq('game', game);
+
+  return res.json({
+    top: (top || []).map((row: any, i: number) => ({
+      rank: i + 1,
+      userId: row.user_id,
+      username: row.users?.username || 'Игрок',
+      avatarEmoji: row.users?.avatar_emoji || '🎮',
+      bestScore: row.best_score,
+      gamesPlayed: row.games_played,
+    })),
+    me: mine ? { bestScore: mine.best_score, gamesPlayed: mine.games_played, rank: myRank } : null,
+    totalPlayers: total || 0,
   });
 });
 

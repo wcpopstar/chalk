@@ -41,6 +41,18 @@ const forgotPasswordEmailLimiter = rateLimit({
   message: { error: 'Слишком много запросов на сброс пароля для этого email. Попробуй позже.' },
 });
 
+// Emailing a code (verification / passwordless login) is mailbox-spam-prone,
+// so cap it per identifier (nickname or email) on top of the IP authLimiter.
+const codeRequestLimiter = rateLimit({
+  store: createRateLimitStore(),
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => (req.body && req.body.identifier ? String(req.body.identifier).toLowerCase().trim() : (req.ip as string)),
+  message: { error: 'Слишком много запросов кода. Попробуй позже.' },
+});
+
 // Refresh/rotation gets its own generous-but-bounded limit, keyed by IP —
 // it's hit far more often than login but should still be capped against abuse.
 const refreshLimiter = rateLimit({
@@ -68,6 +80,16 @@ async function issueSession(user: Pick<UserRow, 'id' | 'username'>, req: Request
   return { token, refreshToken, expiresIn: ACCESS_TOKEN_TTL_SECONDS, jti };
 }
 
+// If the account is currently banned, returns the 403 response body to send;
+// null otherwise. Shared by every session-issuing flow (password login,
+// login-code, verify-email) so a banned user can't slip in via a side door.
+function bannedResponse(user: { banned_until?: string | null; ban_reason?: string | null }) {
+  if (user.banned_until && new Date(user.banned_until) > new Date()) {
+    return { error: 'Account banned', banned: true, bannedUntil: user.banned_until, reason: user.ban_reason || null };
+  }
+  return null;
+}
+
 // Blacklists whatever access token authenticated the current request, if any
 // — used by /logout and /logout-all so the token that's still "live" for up
 // to 15 more minutes can't keep being used after the user asked to sign out.
@@ -82,9 +104,11 @@ export {
   authLimiter,
   loginEmailLimiter,
   forgotPasswordEmailLimiter,
+  codeRequestLimiter,
   refreshLimiter,
   hashToken,
   requestMeta,
   issueSession,
+  bannedResponse,
   blacklistCurrentAccessToken,
 };

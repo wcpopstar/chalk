@@ -158,7 +158,13 @@ async function api(path, opts, _isRetry) {
       if (renewed) return api(path, opts, true);
       forceLogout();
     }
-    throw new Error(data.error || T('auth_err_server'));
+    // Carry the parsed body + status on the error so callers that need more
+    // than the message (e.g. auth's needsVerification flag) can read them.
+    // Existing catches that only use e.message keep working unchanged.
+    const err = new Error(data.error || T('auth_err_server'));
+    err.data = data;
+    err.status = r.status;
+    throw err;
   }
   return data;
 }

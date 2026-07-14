@@ -72,6 +72,17 @@ const config = Object.freeze({
     appCertificate: process.env.AGORA_APP_CERTIFICATE || null,
   }),
 
+  // Speech-to-text for transcribing voice messages. Any OpenAI-compatible
+  // /audio/transcriptions endpoint works (Groq, OpenAI, self-hosted
+  // whisper.cpp). Defaults to Groq — it has a free tier and whisper-large-v3
+  // handles Russian well. Feature is inert (button hidden) until a key is set.
+  stt: Object.freeze({
+    apiUrl: process.env.STT_API_URL || 'https://api.groq.com/openai/v1/audio/transcriptions',
+    apiKey: process.env.STT_API_KEY || null,
+    model: process.env.STT_MODEL || 'whisper-large-v3',
+    enabled: !!process.env.STT_API_KEY,
+  }),
+
   smtp: Object.freeze({
     // host === null is the documented signal (see services/mailer.ts) to
     // fall back to logging the email instead of sending it — useful for

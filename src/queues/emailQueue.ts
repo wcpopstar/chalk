@@ -6,6 +6,7 @@ const { EMAIL } = require('./queueNames');
 // Job names within the 'email' queue — the worker switches on these.
 const JOBS = {
   PASSWORD_RESET: 'password-reset',
+  EMAIL_CODE: 'email-code',
 };
 
 let _emailQueue: any = null;
@@ -50,6 +51,12 @@ async function enqueuePasswordResetEmail(to: string, resetUrl: string) {
   await getEmailQueue().add(JOBS.PASSWORD_RESET, { to, resetUrl });
 }
 
+// Enqueues a verification/login code email. `purpose` is 'verify_email' or
+// 'login' — the worker forwards it to sendCodeEmail, which picks the copy.
+async function enqueueEmailCode(to: string, code: string, purpose: string) {
+  await getEmailQueue().add(JOBS.EMAIL_CODE, { to, code, purpose });
+}
+
 // Closes the queue only if it was actually instantiated (i.e. something
 // called enqueuePasswordResetEmail at least once) — deliberately does NOT
 // call getEmailQueue(), which would create one just to immediately close it.
@@ -57,4 +64,4 @@ async function closeEmailQueue() {
   if (_emailQueue) await _emailQueue.close();
 }
 
-export { getEmailQueue, closeEmailQueue, JOBS, enqueuePasswordResetEmail };
+export { getEmailQueue, closeEmailQueue, JOBS, enqueuePasswordResetEmail, enqueueEmailCode };

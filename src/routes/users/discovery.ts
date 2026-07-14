@@ -52,6 +52,24 @@ const { isEnabled } = require('../../services/featureFlags');
  *           application/json:
  *             schema: { $ref: '#/components/schemas/Error' }
  */
+/**
+ * @openapi
+ * /api/users/leaderboard:
+ *   get:
+ *     tags: [Users]
+ *     summary: Most active users by time spent in calls
+ *     description: Ranks users by cumulative call time (total_call_seconds), with their average rating. Powers the "most active" board opened from the global chat.
+ *     responses:
+ *       200: { description: OK }
+ */
+// Literal path — declared here (before '/:id' in publicProfile.js) so it isn't
+// swallowed by the id catch-all.
+router.get('/leaderboard', requireAuth, searchLimiter, async (_req: Request, res: Response) => {
+  const { data, error } = await usersRepository.getCallLeaderboard(50);
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ leaders: data || [] });
+});
+
 router.get('/discover', requireAuth, validate({ query: discoverQuerySchema }), async (req: Request, res: Response) => {
   if (!(await isEnabled('discovery.enabled', { userId: req.user.id }))) {
     return res.status(404).json({ error: 'Not found' });

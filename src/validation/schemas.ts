@@ -15,9 +15,38 @@ const registerSchema = z.object({
   languages: z.array(z.string().trim()).optional(),
 });
 
+// Login now accepts a nickname OR an email in the same field. Charset is the
+// union of the email and username charsets, deliberately excluding commas and
+// parentheses so the value is safe to drop into a PostgREST .or() filter
+// (usersRepository.findForLogin). Kept as `email` for request-body
+// compatibility with existing clients.
+const identifierSchema = z
+  .string()
+  .trim()
+  .min(3)
+  .max(254)
+  .regex(/^[a-zA-Z0-9 _.@+-]+$/, 'invalid login identifier');
+
 const loginSchema = z.object({
-  email: z.string().trim().email(),
+  email: identifierSchema,
   password: z.string().min(1),
+});
+
+// 6-digit numeric code as mailed by services/emailCodes.ts.
+const emailCodeSchema = z.string().trim().regex(/^\d{6}$/, 'code must be 6 digits');
+
+const requestCodeSchema = z.object({
+  identifier: identifierSchema,
+});
+
+const verifyCodeSchema = z.object({
+  identifier: identifierSchema,
+  code: emailCodeSchema,
+});
+
+const resendCodeSchema = z.object({
+  identifier: identifierSchema,
+  purpose: z.enum(['verify_email', 'login']),
 });
 
 const forgotPasswordSchema = z.object({
@@ -32,4 +61,14 @@ const resetPasswordSchema = z.object({
   password: passwordSchema,
 });
 
-export { registerSchema, loginSchema, passwordSchema, forgotPasswordSchema, resetPasswordSchema };
+export {
+  registerSchema,
+  loginSchema,
+  passwordSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  identifierSchema,
+  requestCodeSchema,
+  verifyCodeSchema,
+  resendCodeSchema,
+};

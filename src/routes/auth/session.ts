@@ -10,7 +10,7 @@ const {
   InvalidRefreshTokenError,
   TokenReuseError,
 } = require('../../services/refreshTokens');
-const { refreshLimiter, requestMeta, blacklistCurrentAccessToken } = require('./shared');
+const { refreshLimiter, requestMeta, blacklistCurrentAccessToken, bannedResponse } = require('./shared');
 const { userLimiter } = require('../../middleware/rateLimit');
 
 // Session-lifecycle reads/writes after the initial refresh — loose (a page
@@ -79,6 +79,11 @@ router.post('/refresh', refreshLimiter, async (req: Request, res: Response) => {
     if (error || !user) {
       return res.status(401).json({ error: 'Account no longer exists' });
     }
+
+    // A ban must also cut off session refresh — otherwise a banned user could
+    // keep minting fresh access tokens from a pre-ban refresh token.
+    const banned = bannedResponse(user);
+    if (banned) return res.status(403).json(banned);
 
     const { token, expiresIn } = signAccessToken({ id: user.id, username: user.username });
     return res.json({ token, refreshToken: newRefreshToken, expiresIn });

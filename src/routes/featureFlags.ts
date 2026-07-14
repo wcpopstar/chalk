@@ -9,6 +9,7 @@ const { userLimiter } = require('../middleware/rateLimit');
 const bootstrapLimiter = userLimiter({ windowMs: 60 * 1000, max: 30, message: 'Too many requests, slow down.' });
 import { setOverride, listFlags } from '../services/featureFlags';
 const { flagKeyParam, setFlagBodySchema } = require('../validation/featureFlagSchemas');
+const { config } = require('../config/env');
 
 // Toggling flags is an ops action, not something that needs to survive a
 // mash-click — a loose cap is just here to stop a leaked/rotated admin key
@@ -39,6 +40,9 @@ router.get('/', requireAuth, bootstrapLimiter, async (req: Request, res: Respons
   const flags = await listFlags({ userId: req.user.id });
   const resolved: any = {};
   flags.forEach((f) => { resolved[f.key] = f.enabled; });
+  // Not a stored flag — derived from server config so the client can hide the
+  // "transcribe" button when no STT provider key is set.
+  resolved['transcription.enabled'] = !!config.stt.enabled;
   return res.json({ flags: resolved });
 });
 

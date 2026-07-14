@@ -62,6 +62,29 @@ function connectSocket() {
     showFoundOverlay(data);
   });
 
+  // Text-only match: no call overlay — just open the chat with the partner.
+  socket.on('match:found_text', (data) => {
+    isSearching = false;
+    const btn = document.getElementById('matchBtn');
+    if (btn) { btn.textContent = T('btn_find_caps'); btn.classList.remove('searching'); }
+    const st = document.getElementById('searchStatus');
+    if (st) st.classList.remove('show');
+    if (typeof tetrisPause === 'function') tetrisPause();
+    if (window.chalkSounds) window.chalkSounds.message();
+    const partner = data.partner || {};
+    showToast(`💬 ${  T('match_text_found')}`);
+    // Switch to the Chats tab (its nav button also refreshes the list) and open
+    // the new conversation.
+    const navBtn = Array.prototype.find.call(
+      document.querySelectorAll('button'),
+      (b) => /showPage\('chat'/.test(b.getAttribute('onclick') || ''),
+    );
+    if (navBtn) navBtn.click();
+    setTimeout(() => {
+      if (typeof openConv === 'function') openConv(data.conversationId, partner.username || T('status_user'));
+    }, 200);
+  });
+
   socket.on('trial:voted', (data) => {
     if (data.userId !== currentUser.id) {
       showToast(`✓ ${  T('call_other_player_voted')}`);
@@ -89,7 +112,11 @@ function connectSocket() {
   });
 
   socket.on('call:incoming', (data) => {
-    if (confirm(`${T('call_incoming_from')  } ${  data.from.username  }. ${  T('call_accept_q')}`)) {
+    if (typeof notifyIncomingCall === 'function') notifyIncomingCall(data.from && data.from.username);
+    if (window.chalkSounds) window.chalkSounds.startRingtone();
+    const accepted = confirm(`${T('call_incoming_from')  } ${  data.from.username  }. ${  T('call_accept_q')}`);
+    if (window.chalkSounds) window.chalkSounds.stopRingtone();
+    if (accepted) {
       socket.emit('call:accept', { roomId: data.roomId, inviterId: data.from.id });
       currentRoomId = data.roomId;
       currentCallParticipants = [data.from];
@@ -152,15 +179,51 @@ function connectSocket() {
     renderFriendsList();
   });
 
+  // In-call shared clipboard + collaborative whiteboard (see call-collab.js).
+  socket.on('call:clipboard', (data) => { if (typeof onCallClipboard === 'function') onCallClipboard(data); });
+  socket.on('call:draw', (data) => { if (typeof onCallDraw === 'function') onCallDraw(data); });
+  socket.on('call:draw_clear', (data) => { if (typeof onCallDrawClear === 'function') onCallDrawClear(data); });
+  // In-call 1v1 mini-games (tetris duel / chess) — handled in call-games.js.
+  socket.on('call:game', (data) => { if (typeof onCallGame === 'function') onCallGame(data); });
+
+  // Server (guild) channel realtime — handled in servers.js
+  socket.on('server:message', (msg) => { if (typeof onServerMessage === 'function') onServerMessage(msg); });
+  socket.on('server:message:deleted', (data) => { if (typeof onServerMessageDeleted === 'function') onServerMessageDeleted(data); });
+  socket.on('server:typing', (data) => { if (typeof onServerTyping === 'function') onServerTyping(data); });
+
   socket.on('chat:message', (msg) => {
+    // A muted conversation stays silent — no chime and no OS notification.
+    const muted = typeof isConversationMuted === 'function' && isConversationMuted(msg.conversation_id);
+    // Chime on any incoming message that isn't our own (whether or not the
+    // conversation is currently open). See js/sounds.js.
+    if (msg.sender_id !== currentUser.id && !muted && window.chalkSounds) window.chalkSounds.message();
     if (msg.conversation_id === currentConvId) {
       appendMessage(msg); // dedupes the echo of our own ack-rendered sends
       // The conversation is open on screen — confirm the read right away so
       // the sender's ✓ flips to ✓✓ in real time.
       if (msg.sender_id !== currentUser.id) {
         socket.emit('chat:read', { conversationId: currentConvId });
+        // OS notification if the tab isn't focused (see notifications.js).
+        if (!muted && typeof notifyNewMessage === 'function') {
+          notifyNewMessage((msg.sender && msg.sender.username) || '');
+        }
       }
     }
+  });
+
+  // A direct chat was deleted "for everyone" by the other participant.
+  socket.on('chat:deleted', (data) => {
+    if (typeof onConversationDeleted === 'function') onConversationDeleted(data.conversationId);
+  });
+
+  // Someone pinned/unpinned a message in this conversation — update the banner.
+  socket.on('chat:pinned', (data) => {
+    if (typeof applyPinnedUpdate === 'function') applyPinnedUpdate(data);
+  });
+
+  // Someone reacted to (or un-reacted from) a message — re-render its chips.
+  socket.on('chat:reaction', (data) => {
+    if (typeof applyReactionUpdate === 'function') applyReactionUpdate(data);
   });
 
   // Someone (either member — io.to() echoes this back to the toggler too)
@@ -207,6 +270,7 @@ function connectSocket() {
     const badge = document.getElementById('globalChatBadge');
     if ((!panel || panel.style.display === 'none') && msg.sender.id !== currentUser.id) {
       badge.style.display = 'flex';
+      if (typeof notifyNewMessage === 'function') notifyNewMessage(msg.sender.username || '');
     }
   });
 
@@ -239,6 +303,17 @@ function connectSocket() {
 
   socket.on('presence', (data) => {
     loadFriends();
+    // Keep the open direct-chat header's "online / last seen …" line live.
+    if (currentConvPartner && data.userId === currentConvPartner.id) {
+      currentConvPartner.status = data.status;
+      if (data.status === 'offline' && data.lastSeen) currentConvPartner.last_seen = data.lastSeen;
+      // Mirror into the cached chats-list snapshot so re-renders agree.
+      if (typeof dmPartnersByConv !== 'undefined' && dmPartnersByConv[currentConvId]) {
+        dmPartnersByConv[currentConvId].status = data.status;
+        if (data.status === 'offline' && data.lastSeen) dmPartnersByConv[currentConvId].last_seen = data.lastSeen;
+      }
+      if (typeof updateChatHeaderPresence === 'function') updateChatHeaderPresence();
+    }
   });
 
   socket.on('disconnect', () => { console.log('[socket] disconnected'); });

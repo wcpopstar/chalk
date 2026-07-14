@@ -248,6 +248,9 @@
     if (bestEl) bestEl.textContent = Math.max(bestScore, score);
     const lvlEl = document.getElementById('tetrisLevel');
     if (lvlEl) lvlEl.textContent = level;
+    // Observed by the in-call tetris duel (call-games.js) to relay the live
+    // score to the opponent. No-op when nothing listens.
+    document.dispatchEvent(new CustomEvent('tetris:score', { detail: { score } }));
   }
 
   function startLoop() {
@@ -291,6 +294,7 @@
     if (rankEl) rankEl.textContent = T('games_saving_result');
     if (resEl) resEl.classList.remove('hide');
     hideOverlay();
+    document.dispatchEvent(new CustomEvent('tetris:gameover', { detail: { score } }));
     saveScoreAndRefresh(score, rankEl);
   }
 
@@ -339,6 +343,24 @@
       ctx = canvas.getContext('2d');
     }
     if (!board || gameOver) resetGame();
+    running = true;
+    paused = false;
+    hideOverlay();
+    hideResult();
+    startLoop();
+    startDifficultyTimer();
+    refreshLockState();
+    draw();
+  };
+
+  // Fresh game regardless of any paused mid-run state — the in-call tetris
+  // duel needs both players to start from zero at the same moment.
+  window.tetrisForceRestart = function () {
+    if (!canvas) {
+      canvas = document.getElementById('tetrisCanvas');
+      ctx = canvas.getContext('2d');
+    }
+    resetGame();
     running = true;
     paused = false;
     hideOverlay();
