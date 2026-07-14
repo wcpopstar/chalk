@@ -812,9 +812,9 @@
         <button type="button" class="fc-collab-close" onclick="fcCloseWatch()">✕</button>
       </div>
       <div class="fc-watch-player-wrap"><div id="fcWatchPlayer"></div></div>
-      <div class="fc-watch-hint" id="fcWatchHint"><span data-i18n="watch_hint">Вставь ссылку на YouTube-видео или Twitch-канал — плеер синхронизируется у всех в звонке. (TikTok не даёт управлять встроенным плеером, такие ссылки кидай в буфер 📋)</span></div>
+      <div class="fc-watch-hint" id="fcWatchHint"><span data-i18n="watch_hint">Вставь ссылку на YouTube-видео, Twitch-канал или трек SoundCloud — плеер синхронизируется у всех в звонке. (TikTok не даёт управлять встроенным плеером, такие ссылки кидай в буфер 📋)</span></div>
       <div class="fc-watch-input-row">
-        <input id="fcWatchInput" type="text" placeholder="https://youtube.com/watch?v=… или https://twitch.tv/…" data-i18n-placeholder="watch_input_ph" onkeydown="if(event.key==='Enter')fcStartWatch()">
+        <input id="fcWatchInput" type="text" placeholder="Ссылка YouTube / Twitch / SoundCloud" data-i18n-placeholder="watch_input_ph" onkeydown="if(event.key==='Enter')fcStartWatch()">
         <button type="button" onclick="fcStartWatch()" data-i18n="watch_play">Смотреть</button>
       </div>
     </div>

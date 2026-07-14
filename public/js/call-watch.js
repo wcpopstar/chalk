@@ -1,8 +1,9 @@
-// ── WATCH TOGETHER — synced YouTube video / Twitch stream inside a call ─────
+// ── WATCH TOGETHER — synced YouTube / Twitch / SoundCloud inside a call ─────
 // One participant pastes a link, everyone's embedded player loads it; play /
 // pause / seek are relayed through the 'call:watch' socket event (server is a
 // dumb relay, see src/socket/calls.ts). Twitch live streams are inherently
-// "live-synced", so for Twitch only start/stop are relayed.
+// "live-synced", so for Twitch only start/stop are relayed. SoundCloud plays
+// through the free Widget API — full play/pause/seek sync, no subscription.
 //
 // TikTok has no controllable embed API (no play/pause/seek from JS), so it
 // can't be synced — share TikTok links via the call clipboard instead.
@@ -11,7 +12,9 @@ let watchState = { provider: null, videoId: null };
 let ytPlayer = null;        // YT.Player instance
 let ytApiLoading = false;
 let ytApplyingRemote = false; // guard: don't re-broadcast events we just applied
-let watchLastSentSeek = 0;
+let scWidget = null;        // SC.Widget instance (SoundCloud)
+let scApiLoading = false;
+let scApplyingRemote = false;
 
 // ── URL parsing ─────────────────────────────────────────────────────────────
 // Returns { provider, videoId } or null. videoId is a bare id — the server
@@ -39,6 +42,14 @@ function parseWatchUrl(raw) {
     const parts = url.pathname.split('/').filter(Boolean);
     if (parts[0] === 'videos' && /^\d+$/.test(parts[1] || '')) return { provider: 'twitch', videoId: `v${parts[1]}` };
     if (parts[0] && /^[\w]{2,30}$/.test(parts[0])) return { provider: 'twitch', videoId: parts[0] };
+    return null;
+  }
+  if (host === 'soundcloud.com' || host === 'm.soundcloud.com') {
+    // "artist/track" or "artist/sets/playlist" — the path IS the id. The
+    // charset deliberately excludes dots/colons/queries so the id can only
+    // ever be appended to the fixed https://soundcloud.com/ host.
+    const path = url.pathname.split('/').filter(Boolean).join('/');
+    if (/^[\w-]+(?:\/[\w-]+){1,3}$/.test(path)) return { provider: 'soundcloud', videoId: path };
     return null;
   }
   return null;
@@ -85,6 +96,7 @@ function fcStopWatch() {
 function destroyWatchPlayer() {
   if (ytPlayer && typeof ytPlayer.destroy === 'function') { try { ytPlayer.destroy(); } catch (_) {} }
   ytPlayer = null;
+  scWidget = null; // the widget dies with its iframe
   const box = document.getElementById('fcWatchPlayer');
   if (box) box.innerHTML = '';
 }
@@ -97,6 +109,39 @@ function applyWatchStart(provider, videoId, t) {
   if (hint) hint.style.display = 'none';
   destroyWatchPlayer();
   watchState = { provider, videoId };
+
+  if (provider === 'soundcloud') {
+    const box = document.getElementById('fcWatchPlayer');
+    const trackUrl = `https://soundcloud.com/${videoId}`;
+    const src = `https://w.soundcloud.com/player/?url=${encodeURIComponent(trackUrl)}&auto_play=true&visual=true&show_teaser=false`;
+    box.innerHTML = `<iframe id="fcScFrame" src="${src}" allow="autoplay" style="width:100%;height:100%;border:0"></iframe>`;
+    const bind = () => {
+      scWidget = SC.Widget(document.getElementById('fcScFrame'));
+      const relay = (action) => () => {
+        if (scApplyingRemote || !socket || !currentRoomId) return;
+        scWidget.getPosition((ms) => {
+          if (scApplyingRemote) return;
+          socket.emit('call:watch', { roomId: currentRoomId, action, t: (ms || 0) / 1000 });
+        });
+      };
+      scWidget.bind(SC.Widget.Events.PLAY, relay('play'));
+      scWidget.bind(SC.Widget.Events.PAUSE, relay('pause'));
+      if (t) scWidget.bind(SC.Widget.Events.READY, () => scWidget.seekTo(t * 1000));
+    };
+    if (window.SC && SC.Widget) return bind();
+    if (!scApiLoading) {
+      scApiLoading = true;
+      const tag = document.createElement('script');
+      tag.src = 'https://w.soundcloud.com/player/api.js';
+      tag.onload = bind;
+      document.head.appendChild(tag);
+    } else {
+      // API script already requested by an earlier attempt — poll briefly.
+      const wait = setInterval(() => { if (window.SC && SC.Widget) { clearInterval(wait); bind(); } }, 200);
+      setTimeout(() => clearInterval(wait), 10_000);
+    }
+    return;
+  }
 
   if (provider === 'twitch') {
     const box = document.getElementById('fcWatchPlayer');
@@ -152,6 +197,26 @@ function onCallWatch(data) {
     if (hint) hint.style.display = '';
     return;
   }
+  // SoundCloud: apply through the widget, guarded against echo like YouTube.
+  if (watchState.provider === 'soundcloud') {
+    if (!scWidget) return;
+    scApplyingRemote = true;
+    try {
+      const t = typeof data.t === 'number' ? data.t : null;
+      if (data.action === 'play') {
+        if (t != null) scWidget.seekTo(t * 1000);
+        scWidget.play();
+      } else if (data.action === 'pause') {
+        if (t != null) scWidget.seekTo(t * 1000);
+        scWidget.pause();
+      } else if (data.action === 'seek' && t != null) {
+        scWidget.seekTo(t * 1000);
+      }
+    } catch (_) {}
+    setTimeout(() => { scApplyingRemote = false; }, 700);
+    return;
+  }
+
   // play/pause/seek only make sense for the controllable YouTube player.
   if (!ytPlayer || watchState.provider !== 'youtube') return;
   ytApplyingRemote = true;

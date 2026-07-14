@@ -216,15 +216,18 @@ const callGame = z.object({
   action: z.enum(['invite', 'accept', 'decline', 'move', 'score', 'over', 'quit']),
   data: z.record(z.string().max(30), z.union([z.string().max(200), z.number().finite(), z.boolean()])).optional(),
 });
-// Watch-together (YouTube video / Twitch stream inside a call). Another dumb
-// relay: whoever acts broadcasts, everyone else's player follows. `videoId`
-// is a platform id (YouTube 11-char id / Twitch channel login or video id),
-// never a URL — the client builds the embed URL itself.
+// Watch-together (YouTube video / Twitch stream / SoundCloud track inside a
+// call). Another dumb relay: whoever acts broadcasts, everyone else's player
+// follows. `videoId` is a platform id (YouTube 11-char id / Twitch channel
+// login or video id / SoundCloud "artist/track" path), never a URL — the
+// client builds the embed URL itself. Slashes are allowed only as segment
+// separators (SoundCloud paths); the charset still excludes everything that
+// could break out of a fixed-host URL (dots, colons, queries, quotes).
 const callWatch = z.object({
   roomId: uuidField,
   action: z.enum(['start', 'play', 'pause', 'seek', 'stop']),
-  provider: z.enum(['youtube', 'twitch']).optional(),
-  videoId: z.string().trim().min(1).max(80).regex(/^[\w-]+$/, 'Invalid video id').optional(),
+  provider: z.enum(['youtube', 'twitch', 'soundcloud']).optional(),
+  videoId: z.string().trim().min(1).max(120).regex(/^[\w-]+(?:\/[\w-]+){0,3}$/, 'Invalid video id').optional(),
   t: z.number().finite().min(0).max(360_000).optional(), // playback position, seconds
 });
 

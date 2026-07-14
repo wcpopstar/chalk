@@ -114,11 +114,12 @@ app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
-      // www.youtube.com serves the IFrame Player API (js/call-watch.js).
-      'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', 'https://www.youtube.com', "'wasm-unsafe-eval'"],
+      // www.youtube.com serves the IFrame Player API, w.soundcloud.com the
+      // SoundCloud Widget API (both used by js/call-watch.js).
+      'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', 'https://www.youtube.com', 'https://w.soundcloud.com', "'wasm-unsafe-eval'"],
       'script-src-attr': ["'unsafe-inline'"],
-      // Watch-together embeds: YouTube player iframes + Twitch player.
-      'frame-src': ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://player.twitch.tv'],
+      // Watch-together embeds: YouTube + Twitch + SoundCloud players.
+      'frame-src': ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://player.twitch.tv', 'https://w.soundcloud.com'],
       // Google Fonts: the stylesheet comes from fonts.googleapis.com and the
       // woff2 files it references from fonts.gstatic.com — without both
       // entries the browser refuses the @font-face load and silently falls
