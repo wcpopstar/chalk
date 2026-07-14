@@ -83,7 +83,10 @@ process.on('uncaughtException', (err: any) => {
 
 const { port, nodeEnv, clientOrigin } = config.server;
 const app = express();
-app.set('trust proxy', 1);
+// Configurable to match the real proxy chain (see config.server.trustProxy).
+// Behind Cloudflare + a hosting LB this must be 2, or every request keys by the
+// Cloudflare edge IP and the IP-based rate limiters stop working per-user.
+app.set('trust proxy', config.server.trustProxy);
 
 const server = http.createServer(app);
 const io = new Server(server, {
