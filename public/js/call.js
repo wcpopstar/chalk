@@ -78,6 +78,7 @@ async function endFullCall(silent) {
   if (!silent && socket && currentRoomId) socket.emit('call:end', { roomId: currentRoomId });
   if (window.leaveVoice) window.leaveVoice();
   if (typeof fcResetVideo === 'function') fcResetVideo();
+  if (typeof resetWatchOnCallEnd === 'function') resetWatchOnCallEnd();
   document.getElementById('fullCallOverlay').classList.remove('show');
   currentCallMatchIds = {};
   try {

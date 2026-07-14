@@ -804,6 +804,21 @@
       </div>
     </div>
 
+    <!-- Watch together (synced YouTube / Twitch player) -->
+    <div class="fc-watch" id="fcWatch" style="display:none">
+      <div class="fc-watch-head">
+        <span class="fc-watch-title">📺 <span data-i18n="watch_title">Смотрим вместе</span></span>
+        <button type="button" class="fc-watch-stop" onclick="fcStopWatch()" title="Остановить для всех" data-i18n-title="watch_stop_title">⏹</button>
+        <button type="button" class="fc-collab-close" onclick="fcCloseWatch()">✕</button>
+      </div>
+      <div class="fc-watch-player-wrap"><div id="fcWatchPlayer"></div></div>
+      <div class="fc-watch-hint" id="fcWatchHint"><span data-i18n="watch_hint">Вставь ссылку на YouTube-видео или Twitch-канал — плеер синхронизируется у всех в звонке. (TikTok не даёт управлять встроенным плеером, такие ссылки кидай в буфер 📋)</span></div>
+      <div class="fc-watch-input-row">
+        <input id="fcWatchInput" type="text" placeholder="https://youtube.com/watch?v=… или https://twitch.tv/…" data-i18n-placeholder="watch_input_ph" onkeydown="if(event.key==='Enter')fcStartWatch()">
+        <button type="button" onclick="fcStartWatch()" data-i18n="watch_play">Смотреть</button>
+      </div>
+    </div>
+
     <div class="fullcall-controls">
       <button class="fc-btn fc-mute" id="fcMuteBtn" onclick="toggleFCMute()">🎙️</button>
       <button class="fc-btn fc-deafen" id="fcDeafBtn" onclick="toggleFCDeaf()">🔊</button>
@@ -813,6 +828,7 @@
       <button class="fc-btn fc-audio-btn" id="fcAudioBtn" onclick="toggleCallAudioMenu(event)" title="Настройки звука" data-i18n-title="call_audio_settings_title">⚙️</button>
       <button class="fc-btn fc-collab-btn" id="fcCollabBtn" onclick="fcToggleCollab()" title="Буфер и доска" data-i18n-title="collab_open_title">📋</button>
       <button class="fc-btn fc-games-btn" id="fcGamesBtn" onclick="toggleCallGamesMenu(event)" title="Игры" data-i18n-title="callgame_open_title">🎮</button>
+      <button class="fc-btn fc-watch-btn" id="fcWatchBtn" onclick="fcToggleWatch()" title="Смотреть вместе" data-i18n-title="watch_open_title">📺</button>
       <button class="fc-btn fc-end" onclick="endFullCall()">📵</button>
     </div>
   </div>
@@ -1351,6 +1367,7 @@
 <script src="/js/trial-call.js"></script>
 <script src="/js/call.js"></script>
 <script src="/js/call-collab.js"></script>
+<script src="/js/call-watch.js"></script>
 <script src="/js/global-chat.js"></script>
 <script src="/js/media-notes.js"></script>
 <script src="/js/chat-pin-forward.js"></script>

@@ -216,6 +216,17 @@ const callGame = z.object({
   action: z.enum(['invite', 'accept', 'decline', 'move', 'score', 'over', 'quit']),
   data: z.record(z.string().max(30), z.union([z.string().max(200), z.number().finite(), z.boolean()])).optional(),
 });
+// Watch-together (YouTube video / Twitch stream inside a call). Another dumb
+// relay: whoever acts broadcasts, everyone else's player follows. `videoId`
+// is a platform id (YouTube 11-char id / Twitch channel login or video id),
+// never a URL — the client builds the embed URL itself.
+const callWatch = z.object({
+  roomId: uuidField,
+  action: z.enum(['start', 'play', 'pause', 'seek', 'stop']),
+  provider: z.enum(['youtube', 'twitch']).optional(),
+  videoId: z.string().trim().min(1).max(80).regex(/^[\w-]+$/, 'Invalid video id').optional(),
+  t: z.number().finite().min(0).max(360_000).optional(), // playback position, seconds
+});
 
 // ── servers.ts (Discord-style server channels) ───────────────────────────────
 const serverJoin = z.object({ channelId: uuidField });
@@ -267,6 +278,7 @@ const socketEventSchemas = {
   'call:draw': callDraw,
   'call:draw_clear': callDrawClear,
   'call:game': callGame,
+  'call:watch': callWatch,
   'friends:call_status': friendsCallStatus,
 
   'server:join': serverJoin,
@@ -324,6 +336,7 @@ export type CallClipboardPayload = z.infer<typeof callClipboard>;
 export type CallDrawPayload = z.infer<typeof callDraw>;
 export type CallDrawClearPayload = z.infer<typeof callDrawClear>;
 export type CallGamePayload = z.infer<typeof callGame>;
+export type CallWatchPayload = z.infer<typeof callWatch>;
 export type FriendsCallStatusPayload = z.infer<typeof friendsCallStatus>;
 
 export type ServerJoinPayload = z.infer<typeof serverJoin>;
@@ -375,6 +388,7 @@ export type ClientToServerPayloadMap = {
   'call:draw': CallDrawPayload;
   'call:draw_clear': CallDrawClearPayload;
   'call:game': CallGamePayload;
+  'call:watch': CallWatchPayload;
   'friends:call_status': FriendsCallStatusPayload;
 
   'server:join': ServerJoinPayload;

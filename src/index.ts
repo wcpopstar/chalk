@@ -114,8 +114,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     useDefaults: true,
     directives: {
-      'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', "'wasm-unsafe-eval'"],
+      // www.youtube.com serves the IFrame Player API (js/call-watch.js).
+      'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', 'https://www.youtube.com', "'wasm-unsafe-eval'"],
       'script-src-attr': ["'unsafe-inline'"],
+      // Watch-together embeds: YouTube player iframes + Twitch player.
+      'frame-src': ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://player.twitch.tv'],
       // Google Fonts: the stylesheet comes from fonts.googleapis.com and the
       // woff2 files it references from fonts.gstatic.com — without both
       // entries the browser refuses the @font-face load and silently falls
