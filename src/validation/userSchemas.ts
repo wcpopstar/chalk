@@ -42,6 +42,20 @@ const b64Backup = (min: number, max: number) =>
   z.string().trim().min(min).max(max).regex(/^[A-Za-z0-9+/]+={0,2}$/, 'Invalid base64');
 const E2EE_BACKUP_KEYS = ['e2ee_backup_secret', 'e2ee_backup_nonce', 'e2ee_backup_salt', 'e2ee_backup_iters'] as const;
 
+// Gaming platform handles (NOT urls — the client builds the profile URL from
+// the handle, so nobody can smuggle an arbitrary link onto their public
+// profile). Empty string clears a handle. Denylist rather than allowlist for
+// the charset: Riot ids and PSN names can contain unicode, but nothing here
+// may contain characters that could break out of a URL path segment or HTML.
+const GAMING_PLATFORMS = ['steam', 'psn', 'xbox', 'valorant', 'faceit', 'twitch'] as const;
+const gamingHandle = z.string().trim().max(80).regex(/^[^/\\<>"'`&?\n\r\t]*$/u, 'Handle contains forbidden characters');
+const gamingLinksSchema = z
+  .object(Object.fromEntries(GAMING_PLATFORMS.map((p) => [p, gamingHandle.optional()])) as Record<
+    (typeof GAMING_PLATFORMS)[number],
+    z.ZodOptional<typeof gamingHandle>
+  >)
+  .strict();
+
 // ── PATCH /api/users/me ──────────────────────────────────────────────────
 // All fields optional (partial update), but at least one must be present —
 // enforced with .refine() since Zod's own "at least one key" isn't built in.
@@ -59,6 +73,7 @@ const updateProfileSchema = z
     age: z.coerce.number().int().min(13).max(100).optional(),
     gender: z.enum(GENDERS as any).optional(),
     presence: z.enum(PRESENCE_STATES as any).optional(),
+    gaming_links: gamingLinksSchema.optional(),
     public_key: publicKeyField.optional(),
     e2ee_backup_secret: b64Backup(44, 128).optional(),
     e2ee_backup_nonce: b64Backup(32, 32).optional(),

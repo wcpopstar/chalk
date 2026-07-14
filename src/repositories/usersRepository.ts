@@ -17,7 +17,7 @@ import { supabaseAdmin } from '../services/supabase';
  */
 
 const FULL_PROFILE_FIELDS =
-  'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, presence, created_at, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters';
+  'id, username, email, country, languages, avatar_emoji, avatar_url, age, gender, onboarding_completed, presence, created_at, gaming_links, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters';
 
 // ── register.js ──────────────────────────────────────────────────────────
 function existsByEmailOrUsername(email: string, username: string) {
@@ -177,7 +177,7 @@ function findPublicProfileById(userId: string) {
   return supabaseAdmin
     .from('users')
     .select(
-      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, status_text, presence, last_seen, public_key,
+      `id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status, status_text, presence, last_seen, gaming_links, public_key,
        user_games ( game_id, rank, hours_played, games ( name, emoji ) )`
     )
     .eq('id', userId)

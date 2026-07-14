@@ -71,10 +71,17 @@ router.patch('/me', requireAuth, profileWriteLimiter, validate({ body: updatePro
     if (existing) return res.status(409).json({ error: 'Username already taken' });
   }
 
+  // Drop cleared handles so the stored jsonb only holds platforms actually set.
+  if (updates.gaming_links) {
+    updates.gaming_links = Object.fromEntries(
+      Object.entries(updates.gaming_links).filter(([, v]) => typeof v === 'string' && v.length > 0)
+    );
+  }
+
   const { data, error } = await usersRepository.updateProfile(
     req.user.id,
     updates,
-    'id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status_text, presence, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
+    'id, username, country, languages, avatar_emoji, avatar_url, age, gender, bio, status_text, presence, gaming_links, public_key, e2ee_backup_secret, e2ee_backup_nonce, e2ee_backup_salt, e2ee_backup_iters'
   );
 
   if (error) return res.status(500).json({ error: error.message });

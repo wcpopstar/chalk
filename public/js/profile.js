@@ -321,6 +321,32 @@ async function finishOnboarding() {
 // ── EDIT PROFILE MODAL ───────────────────────────────────────────────────────
 var epData = { avatar_url: null };
 
+// Gaming platform handles → external profile links. Shared by the edit modal
+// (inputs) and the public-profile popup (buttons, see misc.js). The URL is
+// always built client-side from the stored handle — handles are validated
+// server-side to never contain URL/HTML metacharacters.
+var GAMING_LINK_PLATFORMS = [
+  { key: 'steam',    inputId: 'epLinkSteam',    label: 'Steam',    ico: '🎮' },
+  { key: 'psn',      inputId: 'epLinkPsn',      label: 'PSN',      ico: '🕹️' },
+  { key: 'xbox',     inputId: 'epLinkXbox',     label: 'Xbox',     ico: '❎' },
+  { key: 'valorant', inputId: 'epLinkValorant', label: 'Valorant', ico: '🎯' },
+  { key: 'faceit',   inputId: 'epLinkFaceit',   label: 'FACEIT',   ico: '🟧' },
+  { key: 'twitch',   inputId: 'epLinkTwitch',   label: 'Twitch',   ico: '📺' },
+];
+
+function gamingLinkUrl(platform, handle) {
+  const v = encodeURIComponent(handle);
+  switch (platform) {
+    case 'steam':    return /^\d{17}$/.test(handle) ? `https://steamcommunity.com/profiles/${v}` : `https://steamcommunity.com/id/${v}`;
+    case 'psn':      return `https://psnprofiles.com/${v}`;
+    case 'xbox':     return `https://www.xboxgamertag.com/search/${v}`;
+    case 'valorant': return `https://tracker.gg/valorant/profile/riot/${v}/overview`;
+    case 'faceit':   return `https://www.faceit.com/en/players/${v}`;
+    case 'twitch':   return `https://www.twitch.tv/${v}`;
+    default:         return null;
+  }
+}
+
 async function openEditProfile() {
   epData = { avatar_url: currentUser.avatar_url || null };
   document.getElementById('epNickname').value = currentUser.username || '';
@@ -330,6 +356,11 @@ async function openEditProfile() {
   document.getElementById('epAvatarPreview').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
   setSelectedChipValues('epGenderChips', currentUser.gender ? [currentUser.gender] : []);
   setSelectedChipValues('epLangChips', currentUser.languages || ['ru']);
+  const gl = currentUser.gaming_links || {};
+  GAMING_LINK_PLATFORMS.forEach((p) => {
+    const input = document.getElementById(p.inputId);
+    if (input) input.value = gl[p.key] || '';
+  });
   document.getElementById('epError').classList.remove('show');
 
   // Pre-fill currently selected games
@@ -367,6 +398,11 @@ async function saveEditProfile() {
   try {
     const profileUpdate = { username: nickname, age, gender, languages: langs, bio };
     if (epData.avatar_url) profileUpdate.avatar_url = epData.avatar_url;
+    profileUpdate.gaming_links = {};
+    GAMING_LINK_PLATFORMS.forEach((p) => {
+      const input = document.getElementById(p.inputId);
+      profileUpdate.gaming_links[p.key] = input ? input.value.trim() : '';
+    });
 
     const data = await api('/api/users/me', { method: 'PATCH', body: JSON.stringify(profileUpdate) });
     await api('/api/users/me/games', { method: 'PUT', body: JSON.stringify({ games: gameIds.map((id) =>({ game_id: id })) }) });
