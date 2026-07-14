@@ -24,6 +24,8 @@
   .auth-btn{width:100%;background:var(--accent);border:none;border-radius:8px;padding:12px;color:#000;font-weight:700;font-size:14px;cursor:pointer;transition:all .15s;margin-top:4px}
   .auth-btn:hover{filter:brightness(1.1)}
   .auth-btn:disabled{opacity:.5;cursor:not-allowed}
+  .auth-btn-passkey{background:var(--surface2);color:var(--text);border:1px solid var(--border);margin-top:8px}
+  .auth-btn-passkey:hover{border-color:var(--accent-border);color:var(--accent-text);filter:none}
   .auth-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#f87171;border-radius:6px;padding:8px 12px;font-size:12px;margin-bottom:10px;display:none}
   .auth-error.auth-error-success{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3);color:#4ade80}
   .auth-error.show{display:block}

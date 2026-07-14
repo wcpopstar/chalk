@@ -21,6 +21,7 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
     "@opentelemetry/sdk-node": "^0.220.0",
     "@sentry/node": "^10.63.0",
+    "@simplewebauthn/server": "^11.0.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "@supabase/supabase-js": "^2.39.0",
     "agora-rtc-sdk-ng": "^4.24.5",
