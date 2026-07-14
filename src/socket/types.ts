@@ -177,7 +177,7 @@ export interface ServerToClientEvents {
     from: string; color?: string; width?: number; segments: number[][];
   }) => void;
   'call:draw_clear': (data: { from: string }) => void;
-  'call:game': (data: { from: string; fromName: string; game: 'tetris' | 'chess'; action: 'invite' | 'accept' | 'decline' | 'move' | 'score' | 'over' | 'quit'; data: Record<string, string | number | boolean> | null }) => void;
+  'call:game': (data: { from: string; fromName: string; game: 'tetris' | 'chess' | 'frontwars'; action: 'invite' | 'accept' | 'decline' | 'move' | 'score' | 'over' | 'quit'; data: Record<string, string | number | boolean> | null }) => void;
   'call:watch': (data: { from: string; fromName: string; action: 'start' | 'play' | 'pause' | 'seek' | 'stop'; provider: 'youtube' | 'twitch' | null; videoId: string | null; t: number | null }) => void;
 }
 

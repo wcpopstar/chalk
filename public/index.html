@@ -1204,6 +1204,25 @@
   </div>
 </div>
 
+<!-- FRONTWARS — in-call territory conquest duel (js/frontwars.js) -->
+<div class="tetris-modal" id="frontwarsModal">
+  <div class="tetris-modal-card" style="max-width:460px">
+    <div class="tetris-modal-head">
+      <div class="tetris-modal-title">🌍 <span data-i18n="callgame_frontwars">Захват планеты</span></div>
+      <button class="tetris-close-btn" onclick="closeFrontwarsModal()">✕</button>
+    </div>
+    <div class="fw-bar" id="fwBar"></div>
+    <div class="chess-status" id="fwStatus"></div>
+    <div class="fw-board" id="fwBoard"></div>
+    <div class="fw-actions">
+      <button type="button" id="fwRecruitBtn" onclick="fwRecruit()">⚔️ <span data-i18n="fw_recruit">Нанять</span> (2💰)</button>
+      <button type="button" id="fwBuildFarm" onclick="fwToggleBuild('farm')">🌾 <span data-i18n="fw_farm">Ферма</span> (8💰)</button>
+      <button type="button" id="fwBuildTower" onclick="fwToggleBuild('tower')">🗼 <span data-i18n="fw_tower">Башня</span> (8💰)</button>
+      <button type="button" class="fw-end-turn" id="fwEndTurnBtn" onclick="fwEndTurn()"><span data-i18n="fw_end_turn">Ход ✓</span></button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 
@@ -1386,6 +1405,7 @@
 <script src="/js/battleship.js"></script>
 <script src="/js/chalkrun.js"></script>
 <script src="/js/chess-engine.js"></script>
+<script src="/js/frontwars.js"></script>
 <script src="/js/call-games.js"></script>
 
 <!-- Keep in sync with agora-rtc-sdk-ng in package.json — newer 4.x builds carry

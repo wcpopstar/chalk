@@ -5,9 +5,10 @@
 // the normal tetris modal (each plays their own board, live opponent score);
 // chess uses ChessEngine (chess-engine.js) with the inviter playing white.
 
-// Which in-call game is running: null | 'tetris' | 'chess'
+// Which in-call game is running: null | 'tetris' | 'chess' | 'frontwars'
 var callGameActive = null;
 var callGamePendingInvite = null; // game we invited the partner to (awaiting answer)
+var callGameSeed = 0; // shared map seed for frontwars (inviter picks, sends with the invite)
 
 // ── Tetris duel state ────────────────────────────────────────────────────────
 var duelMyFinal = null;
@@ -37,7 +38,8 @@ function toggleCallGamesMenu(ev) {
   menu.id = 'callGamesMenu';
   menu.innerHTML =
     `<button onclick="inviteCallGame('tetris')">🧩 ${T('callgame_tetris')}</button>` +
-    `<button onclick="inviteCallGame('chess')">♟ ${T('callgame_chess')}</button>`;
+    `<button onclick="inviteCallGame('chess')">♟ ${T('callgame_chess')}</button>` +
+    `<button onclick="inviteCallGame('frontwars')">🌍 ${T('callgame_frontwars', 'Захват планеты')}</button>`;
   document.body.appendChild(menu);
   const rect = ev.currentTarget.getBoundingClientRect();
   menu.style.left = `${Math.min(rect.left, window.innerWidth - 210)}px`;
@@ -53,7 +55,10 @@ function inviteCallGame(game) {
   closeCallGamesMenu();
   if (!currentRoomId) return;
   callGamePendingInvite = game;
-  callGameEmit(game, 'invite');
+  // frontwars needs both clients to build the same map — the inviter rolls
+  // the seed and ships it inside the invite.
+  callGameSeed = Math.floor(Math.random() * 0x7fffffff);
+  callGameEmit(game, 'invite', game === 'frontwars' ? { seed: callGameSeed } : undefined);
   showToast(`🎮 ${T('callgame_invite_sent')}`);
 }
 
@@ -61,11 +66,14 @@ function inviteCallGame(game) {
 function onCallGame(data) {
   const { game } = data;
   if (data.action === 'invite') {
-    const gameName = game === 'chess' ? T('callgame_chess') : T('callgame_tetris');
+    const gameName = game === 'chess' ? T('callgame_chess')
+      : game === 'frontwars' ? T('callgame_frontwars', 'Захват планеты')
+      : T('callgame_tetris');
     const q = T('callgame_invite_q').replace('{name}', data.fromName || T('status_user')).replace('{game}', gameName);
     if (confirm(q)) {
+      callGameSeed = Number((data.data || {}).seed) || 1;
       callGameEmit(game, 'accept');
-      startCallGame(game, false); // acceptor: black in chess
+      startCallGame(game, false); // acceptor: black in chess / player 2 in frontwars
     } else {
       callGameEmit(game, 'decline');
     }
@@ -98,6 +106,10 @@ function onCallGame(data) {
   }
   if (game === 'chess' && callGameActive === 'chess' && data.action === 'move') {
     chessApplyRemote(String((data.data || {}).m || ''));
+    return;
+  }
+  if (game === 'frontwars' && callGameActive === 'frontwars' && data.action === 'move') {
+    fwApplyRemote(data.data || {});
   }
 }
 
@@ -109,6 +121,8 @@ function startCallGame(game, asInviter) {
     updateDuelUI();
     openTetrisModal();
     tetrisForceRestart();
+  } else if (game === 'frontwars') {
+    fwStart(asInviter, callGameSeed);
   } else {
     chessStart(asInviter);
   }
@@ -122,7 +136,10 @@ function endCallGame(fromRemote) {
   if (!fromRemote) callGameEmit(game, 'quit');
   else showToast(T('callgame_opponent_quit'));
   if (game === 'tetris') setDuelElementsVisible(false);
-  else {
+  else if (game === 'frontwars') {
+    const modal = document.getElementById('frontwarsModal');
+    if (modal) modal.classList.remove('show');
+  } else {
     const modal = document.getElementById('chessModal');
     if (modal) modal.classList.remove('show');
   }

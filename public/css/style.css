@@ -899,6 +899,25 @@
 .chat-bg-swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
 .chat-bg-none-label { font-size: 9px; color: var(--muted); text-align: center; line-height: 1.1; padding: 2px; }
 
+/* ── Frontwars (in-call territory conquest duel) ───────────────────────────── */
+.fw-bar { display: flex; gap: 12px; justify-content: center; font-size: 12.5px; font-weight: 700; color: var(--text); margin-bottom: 6px; flex-wrap: wrap; }
+.fw-board { display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr); width: 100%; aspect-ratio: 1; gap: 2px; user-select: none; }
+.fw-cell { position: relative; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 13px; font-weight: 700; cursor: default; }
+.fw-neutral { background: var(--surface2); color: var(--muted); }
+.fw-mine { background: rgba(200, 255, 0, .22); border: 1px solid var(--accent-border); color: var(--accent-text); }
+.fw-theirs { background: rgba(239, 68, 68, .22); border: 1px solid rgba(239, 68, 68, .4); color: #f87171; }
+.fw-can { cursor: pointer; box-shadow: inset 0 0 0 1px var(--accent-border); }
+.fw-can:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+.fw-can-build { cursor: pointer; box-shadow: inset 0 0 0 2px var(--accent2); }
+.fw-cost { position: absolute; right: 1px; bottom: 0; font-size: 9px; color: var(--accent-text); }
+.fw-cost-no { color: var(--danger); opacity: .8; }
+.fw-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+.fw-actions button { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; font-size: 11.5px; font-weight: 600; color: var(--text); cursor: pointer; white-space: nowrap; }
+.fw-actions button:hover { border-color: var(--accent-border); }
+.fw-actions button.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-text); }
+.fw-actions button:disabled { opacity: .45; cursor: default; }
+.fw-actions .fw-end-turn { background: var(--accent); color: #000; border: none; font-weight: 700; }
+
 /* ── Gaming profile links (edit modal inputs + public profile buttons) ─────── */
 .ep-links-grid { display: flex; flex-direction: column; gap: 0; }
 .ep-link-row { display: flex; align-items: center; gap: 8px; }

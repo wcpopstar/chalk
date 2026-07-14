@@ -212,7 +212,7 @@ const callDrawClear = z.object({ roomId: uuidField });
 // small primitives-only bag: a chess move, a score number, etc.
 const callGame = z.object({
   roomId: uuidField,
-  game: z.enum(['tetris', 'chess']),
+  game: z.enum(['tetris', 'chess', 'frontwars']),
   action: z.enum(['invite', 'accept', 'decline', 'move', 'score', 'over', 'quit']),
   data: z.record(z.string().max(30), z.union([z.string().max(200), z.number().finite(), z.boolean()])).optional(),
 });
