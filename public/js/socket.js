@@ -185,6 +185,8 @@ function connectSocket() {
   socket.on('call:draw_clear', (data) => { if (typeof onCallDrawClear === 'function') onCallDrawClear(data); });
   // In-call 1v1 mini-games (tetris duel / chess) — handled in call-games.js.
   socket.on('call:game', (data) => { if (typeof onCallGame === 'function') onCallGame(data); });
+  // Watch together (synced YouTube/Twitch player) — handled in call-watch.js.
+  socket.on('call:watch', (data) => { if (typeof onCallWatch === 'function') onCallWatch(data); });
 
   // Server (guild) channel realtime — handled in servers.js
   socket.on('server:message', (msg) => { if (typeof onServerMessage === 'function') onServerMessage(msg); });

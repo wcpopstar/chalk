@@ -85,6 +85,10 @@ const DEFAULT_RATE_LIMITS: any = {
   'call:clipboard': { windowMs: 10_000, max: 15 },
   'call:draw': { windowMs: 1_000, max: 40 },
   'call:draw_clear': { windowMs: 5_000, max: 10 },
+
+  // Watch-together control events — occasional (start/pause/seek), but seeks
+  // can come in small bursts while someone drags the progress bar.
+  'call:watch': { windowMs: 5_000, max: 20 },
 };
 
 // ── validateSocketEvent ──────────────────────────────────────────────────

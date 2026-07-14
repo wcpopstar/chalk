@@ -196,6 +196,23 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     );
   });
 
+  // ── WATCH TOGETHER (synced YouTube video / Twitch stream) ──────────────
+  // Relay again: whoever starts/pauses/seeks broadcasts, everyone else's
+  // embedded player follows. videoId is a bare platform id (schema-checked),
+  // never a URL, so only youtube.com/twitch.tv embeds can ever be loaded.
+  secureOn(io, socket, userId, 'call:watch', async ({ roomId, action, provider, videoId, t }) => {
+    await relayToRoom(roomId, (s) =>
+      io.to(s).emit('call:watch', {
+        from: userId,
+        fromName: username,
+        action,
+        provider: provider ?? null,
+        videoId: videoId ?? null,
+        t: t ?? null,
+      })
+    );
+  });
+
   // ── FRIENDS' CURRENT CALL STATUS (one-shot request with ack) ───────────
   secureOn(io, socket, userId, 'friends:call_status', async (_payload, ack) => {
     // No local try/catch here on purpose: secureOn() (see socket/validation.ts)
