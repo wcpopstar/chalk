@@ -132,14 +132,26 @@ describe('Gifs routes (/api/gifs)', () => {
       assert.equal(res.status, 502);
     });
 
-    it('returns 502 when Giphy answers non-OK', async () => {
-      fetchImpl = async () => ({ ok: false, status: 429 });
+    it('returns 502 when Giphy answers a generic non-OK', async () => {
+      fetchImpl = async () => ({ ok: false, status: 500 });
 
       const res = await request(app)
         .get('/api/gifs/search?q=cat')
         .set('Authorization', `Bearer ${token}`);
 
       assert.equal(res.status, 502);
+    });
+
+    it('surfaces Giphy 429 (beta-key hourly cap) as 429, not a generic 502', async () => {
+      fetchImpl = async () => ({ ok: false, status: 429 });
+
+      const res = await request(app)
+        // distinct query so a prior test's cached result can't mask this
+        .get('/api/gifs/search?q=ratelimited')
+        .set('Authorization', `Bearer ${token}`);
+
+      assert.equal(res.status, 429);
+      assert.ok(res.body.error);
     });
 
     it('handles a Giphy payload with no data array', async () => {
