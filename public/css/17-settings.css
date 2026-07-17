@@ -375,41 +375,26 @@
   margin: 8px 0;
 }
 
+/* Графический эквалайзер: canvas с кривой АЧХ и перетаскиваемыми точками */
 .eq-bands {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 14px 6px 6px;
+  padding: 10px 0 4px;
 }
 
-.eq-band {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
+.eq-canvas {
+  display: block;
+  width: 100%;
+  height: 180px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  touch-action: none; /* вертикальный drag точек не должен скроллить страницу */
 }
 
-.eq-band-val {
-  font-size: 11px;
-  color: var(--accent-text);
-  font-weight: 700;
-}
-
-.eq-band-freq {
+.eq-canvas-hint {
+  margin-top: 6px;
   font-size: 10px;
   color: var(--muted);
   text-align: center;
-  line-height: 1.2;
-}
-
-.eq-slider {
-  writing-mode: vertical-lr;
-  direction: rtl;
-  width: 8px;
-  height: 110px;
-  accent-color: var(--accent);
-  cursor: pointer;
 }
 
 /* ── Боты ─────────────────────────────────────────────────────────────────── */

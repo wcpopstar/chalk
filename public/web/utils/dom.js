@@ -28,12 +28,26 @@ export function jsStr(str) {
     .replace(/"/g, '&quot;');
 }
 
+// Rewrites a Giphy media URL to go through our backend proxy
+// (/api/gifs/media) so GIFs still load for users whose network blocks
+// Giphy's CDN. Non-Giphy URLs pass through untouched. Display-time only —
+// what's SENT/STORED stays the original https://media*.giphy.com URL.
+export function giphyProxyUrl(url) {
+  try {
+    const u = new URL(url);
+    if (u.protocol === 'https:' && /^(media\d*\.giphy\.com|i\.giphy\.com)$/.test(u.hostname)) {
+      return `/api/gifs/media?url=${encodeURIComponent(url)}`;
+    }
+  } catch (_) { /* not an absolute URL — leave as-is */ }
+  return url;
+}
+
 // Renders a user's avatar as an HTML string: an <img> for a photo URL, else the
 // emoji fallback. escHtml on the url too — the backend restricts avatar_url to
 // data:image / https shapes, but escaping here means a stray quote can never
 // break out of the src="" attribute even if something slips past validation
 // (defense in depth against stored XSS — this renders other users' avatars).
 export function avatarHtml(emoji, url) {
-  if (url) return `<img src="${escHtml(url)}" alt="">`;
+  if (url) return `<img src="${escHtml(giphyProxyUrl(url))}" alt="">`;
   return escHtml(emoji || '🎮');
 }

@@ -16,11 +16,13 @@
  */
 import type { Request, Response } from 'express';
 import express from 'express';
+import { Readable } from 'stream';
+import rateLimit from 'express-rate-limit';
 const router = express.Router();
 import { requireAuth } from '../middleware/auth';
 import { validate } from '../middleware/validate';
-import { userLimiter } from '../middleware/rateLimit';
-import { gifSearchQuerySchema } from '../validation/gifSchemas';
+import { userLimiter, createRateLimitStore } from '../middleware/rateLimit';
+import { gifSearchQuerySchema, gifProxyQuerySchema } from '../validation/gifSchemas';
 import loggerBase from '../utils/logger';
 const logger = loggerBase.child({ module: 'gifs' });
 import { config } from '../config/env';
@@ -117,6 +119,104 @@ router.get(
       .filter((r: { id: string; thumb: string; full: string }) => r.thumb);
 
     return res.json({ results });
+  },
+);
+
+// ── GIF media proxy ─────────────────────────────────────────────────────────
+// The picker/search above only returns *URLs* — the actual GIF bytes were
+// loaded by the browser straight from media*.giphy.com. For users whose
+// network can't reach Giphy's CDN (regional blocks, corporate filters), every
+// GIF in chat rendered as a broken image even though search worked fine.
+// This endpoint streams the image through our backend instead.
+//
+// Deliberately NOT behind requireAuth: it's fetched via <img src>, which
+// can't attach the Authorization header this app's auth uses. Abuse is
+// bounded instead by (a) a strict host allowlist — this can only ever fetch
+// from Giphy's own media hosts, so it's not an open proxy / SSRF surface,
+// (b) an IP rate limit, and (c) aggressive browser caching below so repeat
+// views don't hit us at all.
+const GIPHY_MEDIA_HOSTS = /^(media\d*\.giphy\.com|i\.giphy\.com)$/;
+const PROXY_MAX_BYTES = 15 * 1024 * 1024;
+
+const proxyLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  store: createRateLimitStore(),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Слишком много запросов, подожди немного.' },
+});
+
+/**
+ * @openapi
+ * /api/gifs/media:
+ *   get:
+ *     tags: [Gifs]
+ *     summary: Proxy a Giphy media URL (for clients that can't reach Giphy's CDN)
+ *     parameters:
+ *       - in: query
+ *         name: url
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: The image bytes }
+ *       400: { description: URL is not an allowed Giphy media URL }
+ *       502: { description: Upstream fetch failed }
+ */
+router.get(
+  '/media',
+  proxyLimiter,
+  validate({ query: gifProxyQuerySchema }),
+  async (req: Request, res: Response) => {
+    const { url } = req.query as unknown as { url: string };
+
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      return res.status(400).json({ error: 'Invalid URL' });
+    }
+    if (parsed.protocol !== 'https:' || !GIPHY_MEDIA_HOSTS.test(parsed.hostname)) {
+      return res.status(400).json({ error: 'Only Giphy media URLs are allowed' });
+    }
+
+    let upstream: globalThis.Response;
+    try {
+      upstream = await fetch(parsed.toString(), {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(15_000),
+      });
+    } catch (err) {
+      logger.warn({ err }, 'Giphy media fetch failed');
+      return res.status(502).json({ error: 'Media temporarily unavailable' });
+    }
+
+    // Redirects are followed above — re-check the FINAL host so a (however
+    // unlikely) redirect off giphy.com can't turn this into an open proxy.
+    try {
+      if (upstream.url && !GIPHY_MEDIA_HOSTS.test(new URL(upstream.url).hostname)) {
+        return res.status(502).json({ error: 'Media temporarily unavailable' });
+      }
+    } catch { /* keep the original-URL verdict */ }
+
+    const type = upstream.headers.get('content-type') || '';
+    const length = Number(upstream.headers.get('content-length') || 0);
+    if (!upstream.ok || !type.startsWith('image/') || length > PROXY_MAX_BYTES) {
+      logger.warn({ status: upstream.status, type, length }, 'Giphy media response rejected');
+      return res.status(502).json({ error: 'Media temporarily unavailable' });
+    }
+
+    res.setHeader('Content-Type', type);
+    if (length) res.setHeader('Content-Length', String(length));
+    // Giphy media URLs are content-addressed (the id is in the path), so the
+    // bytes never change for a given URL — let browsers/CDN cache hard.
+    res.setHeader('Cache-Control', 'public, max-age=604800, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    if (!upstream.body) return res.status(502).json({ error: 'Media temporarily unavailable' });
+    const stream = Readable.fromWeb(upstream.body as any);
+    stream.on('error', () => { res.destroy(); });
+    return stream.pipe(res);
   },
 );
 

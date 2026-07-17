@@ -54,19 +54,257 @@ async function loadSoundSection() {
 }
 window.loadSoundSection = loadSoundSection;
 
+// ── GRAPHICAL EQ ─────────────────────────────────────────────────────────────
+// A parametric-EQ-style canvas: log frequency axis, the combined frequency-
+// response curve of the five biquad bands (same math as the Web Audio filters
+// in /voice.js), and a draggable point per band. Drag a point vertically to
+// change that band's gain; double-click a point to reset it. While the mic
+// test is running, the live input spectrum is drawn behind the curve.
+var eqUi = null; // { canvas, ctx, freqs, gains, drag, raf, dirty }
+
+var EQ_MIN_DB = -12; var EQ_MAX_DB = 12;
+var EQ_FMIN = 40; var EQ_FMAX = 18000;
+var EQ_SAMPLE_RATE = 48000;
+
+function eqXForFreq(f, w) {
+  return ((Math.log(f / EQ_FMIN)) / Math.log(EQ_FMAX / EQ_FMIN)) * w;
+}
+function eqYForDb(db, h) {
+  const pad = 14;
+  return pad + (1 - (db - EQ_MIN_DB) / (EQ_MAX_DB - EQ_MIN_DB)) * (h - pad * 2);
+}
+function eqDbForY(y, h) {
+  const pad = 14;
+  const t = 1 - (y - pad) / (h - pad * 2);
+  return EQ_MIN_DB + t * (EQ_MAX_DB - EQ_MIN_DB);
+}
+
+// Magnitude (in dB) of one band's biquad at frequency f — RBJ cookbook
+// coefficients, the same formulas the Web Audio BiquadFilterNode uses, so the
+// drawn curve is exactly what the mic actually gets. Types match voice.js:
+// band 0 lowshelf, 1..3 peaking (Q=1, the Web Audio default), 4 highshelf.
+function eqBandDbAt(f, f0, gainDb, type) {
+  if (!gainDb) return 0;
+  const A = Math.pow(10, gainDb / 40);
+  const w0 = 2 * Math.PI * (f0 / EQ_SAMPLE_RATE);
+  const cw = Math.cos(w0); const sw = Math.sin(w0);
+  let b0; let b1; let b2; let a0; let a1; let a2;
+  if (type === 'peaking') {
+    const alpha = sw / 2; // Q = 1
+    b0 = 1 + alpha * A; b1 = -2 * cw; b2 = 1 - alpha * A;
+    a0 = 1 + alpha / A; a1 = -2 * cw; a2 = 1 - alpha / A;
+  } else {
+    const alpha = (sw / 2) * Math.sqrt((A + 1 / A) * (1 / 1 - 1) + 2); // S = 1
+    const two = 2 * Math.sqrt(A) * alpha;
+    if (type === 'lowshelf') {
+      b0 = A * ((A + 1) - (A - 1) * cw + two);
+      b1 = 2 * A * ((A - 1) - (A + 1) * cw);
+      b2 = A * ((A + 1) - (A - 1) * cw - two);
+      a0 = (A + 1) + (A - 1) * cw + two;
+      a1 = -2 * ((A - 1) + (A + 1) * cw);
+      a2 = (A + 1) + (A - 1) * cw - two;
+    } else {
+      b0 = A * ((A + 1) + (A - 1) * cw + two);
+      b1 = -2 * A * ((A - 1) + (A + 1) * cw);
+      b2 = A * ((A + 1) + (A - 1) * cw - two);
+      a0 = (A + 1) - (A - 1) * cw + two;
+      a1 = 2 * ((A - 1) - (A + 1) * cw);
+      a2 = (A + 1) - (A - 1) * cw - two;
+    }
+  }
+  const w = 2 * Math.PI * (f / EQ_SAMPLE_RATE);
+  const c1 = Math.cos(w); const s1 = Math.sin(w); const c2 = Math.cos(2 * w); const s2 = Math.sin(2 * w);
+  const num = Math.pow(b0 + b1 * c1 + b2 * c2, 2) + Math.pow(b1 * s1 + b2 * s2, 2);
+  const den = Math.pow(a0 + a1 * c1 + a2 * c2, 2) + Math.pow(a1 * s1 + a2 * s2, 2);
+  return 10 * Math.log10(num / den);
+}
+
+function eqBandType(i, count) {
+  if (i === 0) return 'lowshelf';
+  if (i === count - 1) return 'highshelf';
+  return 'peaking';
+}
+
+function eqTotalDbAt(f) {
+  let total = 0;
+  for (let i = 0; i < eqUi.freqs.length; i++) {
+    total += eqBandDbAt(f, eqUi.freqs[i], eqUi.gains[i], eqBandType(i, eqUi.freqs.length));
+  }
+  return total;
+}
+
+function eqCssVar(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+function drawEq() {
+  const { canvas, ctx } = eqUi;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth; const h = canvas.clientHeight;
+  if (!w || !h) return;
+  if (canvas.width !== Math.round(w * dpr)) { canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const muted = eqCssVar('--muted', '#4a5568');
+  const accent = eqCssVar('--accent', '#c8ff00');
+  const accentText = eqCssVar('--accent-text', '#c8ff00');
+  const border = eqCssVar('--border', '#1c2030');
+  const enabled = Boolean((document.getElementById('eqEnabled') || {}).checked);
+
+  // Live mic spectrum behind everything (only while the mic test runs).
+  if (soundTestState && soundTestState.analyser) {
+    const an = soundTestState.analyser;
+    const bins = new Uint8Array(an.frequencyBinCount);
+    an.getByteFrequencyData(bins);
+    const nyquist = (soundTestState.ctx && soundTestState.ctx.sampleRate || EQ_SAMPLE_RATE) / 2;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 3) {
+      const f = EQ_FMIN * Math.pow(EQ_FMAX / EQ_FMIN, x / w);
+      const bin = Math.min(bins.length - 1, Math.round((f / nyquist) * bins.length));
+      const v = bins[bin] / 255;
+      ctx.lineTo(x, h - v * (h * 0.9));
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = 0.12;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Grid: dB lines at -12/-6/0/+6/+12, frequency ticks at decades.
+  ctx.strokeStyle = border;
+  ctx.fillStyle = muted;
+  ctx.font = '9px Inter, sans-serif';
+  ctx.lineWidth = 1;
+  [-12, -6, 0, 6, 12].forEach((db) => {
+    const y = eqYForDb(db, h);
+    ctx.globalAlpha = db === 0 ? 0.9 : 0.45;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    ctx.globalAlpha = 0.9;
+    ctx.fillText(`${db > 0 ? '+' : ''}${db}`, 3, y - 3);
+  });
+  [100, 1000, 10000].forEach((f) => {
+    const x = eqXForFreq(f, w);
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    ctx.globalAlpha = 0.9;
+    ctx.fillText(f >= 1000 ? `${f / 1000}к` : String(f), x + 3, h - 4);
+  });
+  ctx.globalAlpha = 1;
+
+  // The combined response curve.
+  ctx.beginPath();
+  for (let x = 0; x <= w; x += 2) {
+    const f = EQ_FMIN * Math.pow(EQ_FMAX / EQ_FMIN, x / w);
+    const y = eqYForDb(Math.max(EQ_MIN_DB - 2, Math.min(EQ_MAX_DB + 2, eqTotalDbAt(f))), h);
+    if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = enabled ? 1 : 0.35;
+  ctx.stroke();
+
+  // Soft fill under the curve down to the 0 dB line.
+  ctx.lineTo(w, eqYForDb(0, h));
+  ctx.lineTo(0, eqYForDb(0, h));
+  ctx.closePath();
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = enabled ? 0.08 : 0.03;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Band handles.
+  const labelFor = (f) => (f >= 1000 ? `${f / 1000}к` : `${f}`);
+  eqUi.freqs.forEach((f, i) => {
+    const x = eqXForFreq(f, w);
+    const y = eqYForDb(eqUi.gains[i], h);
+    const active = eqUi.drag === i;
+    ctx.beginPath();
+    ctx.arc(x, y, active ? 8 : 6, 0, Math.PI * 2);
+    ctx.fillStyle = eqCssVar('--surface', '#0f1117');
+    ctx.fill();
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = accentText;
+    ctx.font = '700 10px Inter, sans-serif';
+    const g = eqUi.gains[i];
+    ctx.fillText(`${g > 0 ? '+' : ''}${g}`, x - 8, y - 12);
+    ctx.fillStyle = muted;
+    ctx.font = '9px Inter, sans-serif';
+    ctx.fillText(`${labelFor(f)}Гц`, x - 10, h - 4 - (eqXForFreq(100, w) - 20 < x && x < eqXForFreq(100, w) + 20 ? 10 : 0));
+  });
+
+  eqUi.dirty = false;
+}
+
+function eqLoop() {
+  if (!eqUi || !eqUi.canvas.isConnected) { eqUi = null; return; }
+  if (eqUi.dirty || soundTestState || eqUi.drag !== null) drawEq();
+  eqUi.raf = requestAnimationFrame(eqLoop);
+}
+
+function eqPointAt(ev) {
+  const rect = eqUi.canvas.getBoundingClientRect();
+  const x = ev.clientX - rect.left; const y = ev.clientY - rect.top;
+  let best = -1; let bestDist = 24;
+  eqUi.freqs.forEach((f, i) => {
+    const px = eqXForFreq(f, rect.width);
+    const py = eqYForDb(eqUi.gains[i], rect.height);
+    const d = Math.hypot(px - x, py - y);
+    if (d < bestDist) { best = i; bestDist = d; }
+  });
+  return best;
+}
+
+function eqSetGain(i, db) {
+  const v = Math.max(EQ_MIN_DB, Math.min(EQ_MAX_DB, Math.round(db)));
+  if (eqUi.gains[i] === v) return;
+  eqUi.gains[i] = v;
+  eqUi.dirty = true;
+  if (window.setEqBandGain) window.setEqBandGain(i, v);
+}
+
 function renderEqBands(prefs) {
   const wrap = document.getElementById('eqBands');
   if (!wrap) return;
   const freqs = (window.getEqBands && window.getEqBands()) || [80, 240, 1000, 4000, 12000];
-  const labelFor = (f) => (f >= 1000 ? `${f / 1000}к` : `${f}`);
-  wrap.innerHTML = freqs.map((f, i) => {
-    const val = (prefs.eqGains && prefs.eqGains[i]) || 0;
-    return `<div class="eq-band">
-      <span class="eq-band-val" id="eqVal${i}">${val > 0 ? '+' : ''}${val}</span>
-      <input type="range" class="eq-slider" orient="vertical" min="-12" max="12" step="1" value="${val}" oninput="onEqBand(${i}, this.value)">
-      <span class="eq-band-freq">${labelFor(f)}<br>Гц</span>
-    </div>`;
-  }).join('');
+  const gains = freqs.map((_, i) => (prefs.eqGains && prefs.eqGains[i]) || 0);
+  wrap.innerHTML = `<canvas class="eq-canvas" id="eqCanvas"></canvas>
+    <div class="eq-canvas-hint"><span data-i18n="settings_eq_canvas_hint">Тяни точки мышкой • двойной клик — сброс полосы</span></div>`;
+  const canvas = document.getElementById('eqCanvas');
+  if (eqUi && eqUi.raf) cancelAnimationFrame(eqUi.raf);
+  eqUi = { canvas, ctx: canvas.getContext('2d'), freqs, gains, drag: null, raf: 0, dirty: true };
+
+  canvas.addEventListener('pointerdown', (ev) => {
+    const i = eqPointAt(ev);
+    if (i < 0) return;
+    eqUi.drag = i;
+    canvas.setPointerCapture(ev.pointerId);
+    eqUi.dirty = true;
+  });
+  canvas.addEventListener('pointermove', (ev) => {
+    if (eqUi.drag === null) {
+      canvas.style.cursor = eqPointAt(ev) >= 0 ? 'grab' : 'default';
+      return;
+    }
+    ev.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    eqSetGain(eqUi.drag, eqDbForY(ev.clientY - rect.top, rect.height));
+  });
+  const endDrag = () => { if (eqUi) { eqUi.drag = null; eqUi.dirty = true; } };
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('dblclick', (ev) => {
+    const i = eqPointAt(ev);
+    if (i >= 0) eqSetGain(i, 0);
+  });
+
+  eqLoop();
 }
 
 function onOutVolInput(v) {
@@ -91,23 +329,17 @@ window.onVoiceModeChange = onVoiceModeChange;
 
 function onEqToggle(el) {
   if (window.setEqEnabled) window.setEqEnabled(el.checked);
+  if (eqUi) eqUi.dirty = true; // the curve dims when the EQ is off
 }
 window.onEqToggle = onEqToggle;
-
-function onEqBand(i, v) {
-  document.getElementById(`eqVal${i}`).textContent = `${v > 0 ? '+' : ''}${v}`;
-  if (window.setEqBandGain) window.setEqBandGain(i, Number(v));
-}
-window.onEqBand = onEqBand;
 
 function resetEqualizer() {
   const bands = (window.getEqBands && window.getEqBands()) || [0, 0, 0, 0, 0];
   bands.forEach((_, i) => {
     if (window.setEqBandGain) window.setEqBandGain(i, 0);
-    const el = document.getElementById(`eqVal${i}`);
-    if (el) el.textContent = '0';
+    if (eqUi) eqUi.gains[i] = 0;
   });
-  document.querySelectorAll('#eqBands .eq-slider').forEach((s) => { s.value = 0; });
+  if (eqUi) eqUi.dirty = true;
 }
 window.resetEqualizer = resetEqualizer;
 
