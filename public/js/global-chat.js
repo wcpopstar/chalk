@@ -152,10 +152,13 @@ function searchGifs(scope, query) {
       if (!results.length) { grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_nothing_found">Ничего не найдено</span></div>'; return; }
       grid.innerHTML = results.map((g) => `<img src="${  escHtml(giphyProxyUrl(g.thumb))  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`).join('');
     } catch (e) {
-      // 429 = the shared Giphy key hit its hourly cap; the server sends a
-      // human-readable reason we can show verbatim instead of the generic text.
-      const msg = (e && e.status === 429 && e.data && e.data.error)
-        ? escHtml(e.data.error)
+      // Surface the server's own reason verbatim when it sends one — 503 =
+      // GIPHY_API_KEY not configured on the server, 429 = beta-key hourly cap,
+      // 502 = Giphy unreachable. That's far more actionable than the generic
+      // "couldn't load" text, which we keep as the fallback (e.g. network drop).
+      const serverMsg = e && e.data && e.data.error;
+      const msg = serverMsg
+        ? escHtml(serverMsg)
         : `<span data-i18n="gif_couldnt_load">${T('gif_couldnt_load', 'Не удалось загрузить GIF')}</span>`;
       grid.innerHTML = `<div class="gif-picker-hint">${msg}</div>`;
     }

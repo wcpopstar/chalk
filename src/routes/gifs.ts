@@ -109,7 +109,12 @@ router.get(
   validate({ query: gifSearchQuerySchema }),
   async (req: Request, res: Response) => {
     if (!config.giphy.apiKey) {
-      return res.status(503).json({ error: 'GIF search is not configured' });
+      // Almost always an ops issue: the server serving this app has no
+      // GIPHY_API_KEY set in its environment (see validateEnv's startup
+      // warning). Say so plainly so it doesn't read as a generic failure.
+      return res.status(503).json({
+        error: 'GIF-поиск не настроен на сервере (не задан GIPHY_API_KEY).',
+      });
     }
 
     // Parsed by gifSearchQuerySchema in validate() — q is a bounded
