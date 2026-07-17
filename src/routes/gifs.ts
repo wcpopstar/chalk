@@ -35,6 +35,37 @@ const searchLimiter = userLimiter({
   message: 'Слишком много запросов GIF, подожди немного.',
 });
 
+// Tiny in-memory cache of search results, keyed by "q|limit". The Giphy beta
+// key is capped at 100 API calls/hour for the WHOLE account — the single most
+// common cause of "couldn't load GIFs" is that cap being hit. Popular queries
+// (and re-typing the same one) are served from here instead of re-hitting
+// Giphy, which drastically cuts how fast that quota drains. Small and bounded;
+// entries expire after SEARCH_TTL_MS and the map is capped at SEARCH_CACHE_MAX.
+const SEARCH_TTL_MS = 10 * 60 * 1000;
+const SEARCH_CACHE_MAX = 300;
+const searchCache = new Map<string, { at: number; results: unknown[] }>();
+
+function getCachedSearch(key: string): unknown[] | null {
+  const hit = searchCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > SEARCH_TTL_MS) {
+    searchCache.delete(key);
+    return null;
+  }
+  // Refresh LRU position so hot queries survive eviction.
+  searchCache.delete(key);
+  searchCache.set(key, hit);
+  return hit.results;
+}
+
+function setCachedSearch(key: string, results: unknown[]) {
+  searchCache.set(key, { at: Date.now(), results });
+  if (searchCache.size > SEARCH_CACHE_MAX) {
+    const oldest = searchCache.keys().next().value;
+    if (oldest !== undefined) searchCache.delete(oldest);
+  }
+}
+
 /**
  * @openapi
  * /api/gifs/search:
@@ -84,13 +115,20 @@ router.get(
     // Parsed by gifSearchQuerySchema in validate() — q is a bounded
     // string, limit a coerced number with a default.
     const { q, limit } = req.query as unknown as { q: string; limit: number };
+
+    const cacheKey = `${q.toLowerCase()}|${limit}`;
+    const cached = getCachedSearch(cacheKey);
+    if (cached) {
+      return res.json({ results: cached });
+    }
+
     const url =
       `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(config.giphy.apiKey)}` +
       `&q=${encodeURIComponent(q)}&limit=${limit}&rating=pg-13`;
 
     let giphyRes;
     try {
-      giphyRes = await fetch(url);
+      giphyRes = await fetch(url, { signal: AbortSignal.timeout(10_000) });
     } catch (err) {
       logger.warn({ err }, 'Giphy request failed');
       return res.status(502).json({ error: 'GIF search is temporarily unavailable' });
@@ -98,7 +136,14 @@ router.get(
 
     if (!giphyRes.ok) {
       logger.warn({ status: giphyRes.status }, 'Giphy returned a non-OK response');
-      return res.status(502).json({ error: 'GIF search is temporarily unavailable' });
+      // 429 = the shared beta key hit its hourly cap. Tell the client so it can
+      // show "try again in a moment" rather than a generic failure.
+      const status = giphyRes.status === 429 ? 429 : 502;
+      return res.status(status).json({
+        error: status === 429
+          ? 'Слишком много запросов к GIF-сервису, попробуй через минуту.'
+          : 'GIF search is temporarily unavailable',
+      });
     }
 
     const data: any = await giphyRes.json();
@@ -118,6 +163,7 @@ router.get(
       })
       .filter((r: { id: string; thumb: string; full: string }) => r.thumb);
 
+    setCachedSearch(cacheKey, results);
     return res.json({ results });
   },
 );

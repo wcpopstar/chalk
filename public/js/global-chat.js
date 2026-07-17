@@ -152,7 +152,12 @@ function searchGifs(scope, query) {
       if (!results.length) { grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_nothing_found">Ничего не найдено</span></div>'; return; }
       grid.innerHTML = results.map((g) => `<img src="${  escHtml(giphyProxyUrl(g.thumb))  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`).join('');
     } catch (e) {
-      grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_couldnt_load">Не удалось загрузить GIF</span></div>';
+      // 429 = the shared Giphy key hit its hourly cap; the server sends a
+      // human-readable reason we can show verbatim instead of the generic text.
+      const msg = (e && e.status === 429 && e.data && e.data.error)
+        ? escHtml(e.data.error)
+        : `<span data-i18n="gif_couldnt_load">${T('gif_couldnt_load', 'Не удалось загрузить GIF')}</span>`;
+      grid.innerHTML = `<div class="gif-picker-hint">${msg}</div>`;
     }
   }, 350);
 }

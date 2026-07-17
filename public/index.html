@@ -743,6 +743,7 @@
         <div class="settings-body">
           <!-- ══ PROFILE ══ -->
           <section class="settings-section active" id="settings-profile">
+            <h1 class="sr-only" data-i18n="settings_tab_profile">Профиль</h1>
             <div class="profile-header">
               <div class="profile-ava-big" id="profileAva">🎮</div>
               <div>
@@ -860,10 +861,10 @@
             <!-- Privacy -->
             <div class="settings-block">
               <div class="section-title">🕶️ <span data-i18n="settings_privacy">Расширенная приватность</span></div>
-              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_discoverable">Показывать меня в «Найти»</b><small data-i18n="settings_priv_discoverable_hint">Другие смогут находить твою анкету при поиске тиммейтов</small></span><label class="switch"><input type="checkbox" id="privDiscoverable" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
-              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_age">Показывать возраст</b></span><label class="switch"><input type="checkbox" id="privShowAge" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
-              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_country">Показывать страну</b></span><label class="switch"><input type="checkbox" id="privShowCountry" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
-              <label class="settings-toggle-row"><span><b data-i18n="settings_priv_online">Показывать статус онлайн</b><small data-i18n="settings_priv_online_hint">Не-друзья не увидят, что ты в сети, и когда был последний раз</small></span><label class="switch"><input type="checkbox" id="privShowOnline" onchange="savePrivacy()"><span class="switch-slider"></span></label></label>
+              <div class="settings-toggle-row"><span><b data-i18n="settings_priv_discoverable">Показывать меня в «Найти»</b><small data-i18n="settings_priv_discoverable_hint">Другие смогут находить твою анкету при поиске тиммейтов</small></span><label class="switch"><input type="checkbox" id="privDiscoverable" onchange="savePrivacy()"><span class="switch-slider"></span></label></div>
+              <div class="settings-toggle-row"><span><b data-i18n="settings_priv_age">Показывать возраст</b></span><label class="switch"><input type="checkbox" id="privShowAge" onchange="savePrivacy()"><span class="switch-slider"></span></label></div>
+              <div class="settings-toggle-row"><span><b data-i18n="settings_priv_country">Показывать страну</b></span><label class="switch"><input type="checkbox" id="privShowCountry" onchange="savePrivacy()"><span class="switch-slider"></span></label></div>
+              <div class="settings-toggle-row"><span><b data-i18n="settings_priv_online">Показывать статус онлайн</b><small data-i18n="settings_priv_online_hint">Не-друзья не увидят, что ты в сети, и когда был последний раз</small></span><label class="switch"><input type="checkbox" id="privShowOnline" onchange="savePrivacy()"><span class="switch-slider"></span></label></div>
             </div>
 
             <!-- Passkeys -->
@@ -1677,7 +1678,7 @@
     <button class="story-viewer-del" id="storyViewerDel" style="display:none" title="Удалить" onclick="deleteCurrentStory()">🗑️</button>
     <button class="story-viewer-close" onclick="closeStoryViewer()">✕</button>
   </div>
-  <img class="story-viewer-img" id="storyViewerImg" src="" alt="">
+  <img class="story-viewer-img" id="storyViewerImg" alt="">
   <div class="story-viewer-caption" id="storyViewerCaption"></div>
   <div class="story-viewer-nav story-viewer-nav-prev" onclick="storyNav(-1)"></div>
   <div class="story-viewer-nav story-viewer-nav-next" onclick="storyNav(1)"></div>
