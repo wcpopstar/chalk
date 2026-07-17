@@ -4,10 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Chalk</title>
-<script src="https://cdn.socket.io/4.6.2/socket.io.min.js"></script>
-<!-- tweetnacl 1.0.3 (vendored, no CDN — works offline / under strict CSP):
-     X25519-XSalsa20-Poly1305 for end-to-end encrypted direct chats (see /js/e2ee.js) -->
-<script src="/vendor/nacl-fast.min.js"></script>
+<!-- Both third-party origins the first paint depends on: warm the connections
+     while the CSS is still downloading. -->
+<link rel="preconnect" href="https://cdn.socket.io" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/css/style.css">
 <script src="/js/theme-init.js"></script>
 <!-- ES-module entry (frontend modules migration). Bridges escHtml/jsStr onto
@@ -735,6 +736,7 @@
           <button class="settings-nav-item" data-sect="security" onclick="showSettingsSection('security',this)"><span class="sn-ico">🔒</span><span data-i18n="settings_tab_security">Безопасность</span></button>
           <button class="settings-nav-item" data-sect="devices" onclick="showSettingsSection('devices',this);loadDevicesSection()"><span class="sn-ico">💻</span><span data-i18n="settings_tab_devices">Устройства</span></button>
           <button class="settings-nav-item" data-sect="sound" onclick="showSettingsSection('sound',this);loadSoundSection()"><span class="sn-ico">🎚️</span><span data-i18n="settings_tab_sound">Звук</span></button>
+          <button class="settings-nav-item" data-sect="design" onclick="showSettingsSection('design',this);loadDesignSection()"><span class="sn-ico">🎨</span><span data-i18n="settings_tab_design">Дизайн</span></button>
           <button class="settings-nav-item" data-sect="bots" onclick="showSettingsSection('bots',this);loadBotsSection()"><span class="sn-ico">🤖</span><span data-i18n="settings_tab_bots">Боты</span></button>
         </aside>
 
@@ -935,13 +937,59 @@
 
             <div class="settings-block">
               <div class="section-title">📊 <span data-i18n="settings_equalizer">Эквалайзер микрофона</span></div>
-              <div class="section-sub" data-i18n="settings_eq_hint">Двигай ползунки, чтобы усилить или убрать бас, средние и высокие частоты.</div>
+              <div class="section-sub" data-i18n="settings_eq_hint">Тяни точки на графике, чтобы усилить или убрать бас, средние и высокие частоты.</div>
               <div class="eq-toggle-row">
                 <label class="switch"><input type="checkbox" id="eqEnabled" onchange="onEqToggle(this)"><span class="switch-slider"></span></label>
                 <span class="settings-value" data-i18n="settings_eq_on">Включить эквалайзер</span>
               </div>
               <div class="eq-bands" id="eqBands"></div>
               <button class="edit-profile-btn" style="margin-top:8px" onclick="resetEqualizer()">↺ <span data-i18n="settings_eq_reset">Сбросить</span></button>
+            </div>
+          </section>
+
+          <!-- ══ ДИЗАЙН (кастомизация) ══ -->
+          <section class="settings-section" id="settings-design">
+            <div class="section-head">
+              <h2 data-i18n="settings_tab_design">Дизайн</h2>
+              <p class="section-sub" data-i18n="settings_design_sub">Настрой сайт под себя: перетаскивай элементы мышкой, меняй их размер, шрифты и цвета, ставь свой фон и сохраняй всё как темы. Всё хранится локально на этом устройстве.</p>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">🖱️ <span data-i18n="settings_design_edit_title">Режим редактирования</span></div>
+              <p class="section-sub" data-i18n="settings_design_edit_sub">Включи режим — и просто тяни любой элемент мышкой. Уголок рамки меняет размер, Esc или «Готово» — выход.</p>
+              <button class="edit-profile-btn" style="margin-top:8px" onclick="enterDesignEditMode()">🎨 <span data-i18n="settings_design_edit_btn">Включить режим редактирования</span></button>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">🔤 <span data-i18n="settings_design_font">Шрифт</span></div>
+              <select class="auth-input" id="designFontSelect" style="margin-bottom:0"></select>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">🎨 <span data-i18n="settings_design_colors">Цвета</span></div>
+              <div class="dz-var-grid" id="designVars"></div>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">🖼️ <span data-i18n="settings_design_bg">Фоновое изображение</span></div>
+              <p class="section-sub" data-i18n="settings_design_bg_sub">Выбери файл — или в режиме редактирования просто перетащи картинку в окно, и она станет фоном.</p>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <label class="edit-profile-btn" style="cursor:pointer">📁 <span data-i18n="settings_design_bg_pick">Выбрать изображение</span><input type="file" accept="image/*" style="display:none" onchange="onCustomBgInput(this)"></label>
+                <button class="edit-profile-btn" style="background:transparent;border-color:var(--border);color:var(--muted)" onclick="clearCustomBg()"><span data-i18n="settings_design_bg_clear">Убрать фон</span></button>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <div class="section-title">💾 <span data-i18n="settings_design_themes">Мои темы</span></div>
+              <div id="designThemes"></div>
+              <div class="dz-theme-save-row">
+                <input class="auth-input" id="designThemeName" maxlength="40" placeholder="Название темы" data-i18n-placeholder="settings_design_theme_name">
+                <button class="edit-profile-btn" onclick="saveDesignTheme()">💾 <span data-i18n="settings_design_theme_save">Сохранить</span></button>
+              </div>
+            </div>
+
+            <div class="settings-block">
+              <button class="edit-profile-btn" style="background:transparent;border-color:var(--border);color:var(--danger)" onclick="resetCustomDesign()">↺ <span data-i18n="settings_design_reset">Сбросить весь дизайн</span></button>
             </div>
           </section>
 
@@ -1644,6 +1692,13 @@
   </div>
 </div>
 
+<!-- Third-party runtime deps, moved out of <head> so they no longer block
+     first paint. They execute here — before every app script below — so the
+     load order (and the io/nacl globals) is exactly what it was. -->
+<script src="https://cdn.socket.io/4.6.2/socket.io.min.js"></script>
+<!-- tweetnacl 1.0.3 (vendored, no CDN — works offline / under strict CSP):
+     X25519-XSalsa20-Poly1305 for end-to-end encrypted direct chats (see /js/e2ee.js) -->
+<script src="/vendor/nacl-fast.min.js"></script>
 <script src="/js/i18n.js"></script>
 <script src="/js/i18n-extra.js"></script>
 <script src="/js/config-api.js"></script>
@@ -1652,6 +1707,7 @@
 <script src="/js/passkeys.js"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/settings.js"></script>
+<script src="/js/customizer.js"></script>
 <script src="/js/bots.js"></script>
 <script src="/js/sound-settings.js"></script>
 <script src="/js/socket.js"></script>

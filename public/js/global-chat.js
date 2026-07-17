@@ -17,7 +17,7 @@ async function loadGlobalChatHistory() {
 function globalMessageContentHtml(m) {
   if (m.deleted_at) return '<div class="gc-msg-text msg-deleted"><span data-i18n="msg_deleted_label">Сообщение удалено</span></div>';
   if (m.type === 'voice') return `<div class="msg-voice"><audio controls preload="none" src="${  escHtml(m.media_url)  }"></audio></div>`;
-  if (m.type === 'gif') return `<img class="msg-gif" src="${  escHtml(m.media_url)  }" alt="gif" loading="lazy">`;
+  if (m.type === 'gif') return `<img class="msg-gif" src="${  escHtml(giphyProxyUrl(m.media_url))  }" alt="gif" loading="lazy">`;
   if (m.type === 'video_note') return videoNoteHtml(m);
   if (m.type === 'youtube') return youtubePreviewHtml(m);
   const edited = m.edited_at ? `<span class="msg-edited-tag">(${  T('msg_edited_tag')  })</span>` : '';
@@ -119,7 +119,7 @@ function renderGifPickerIdle(scope, grid) {
   }
   const label = T('gif_recent', 'Недавние');
   grid.innerHTML = `<div class="gif-picker-recent-label">${  escHtml(label)  }</div>${
-    recent.map((u) => `<img src="${  escHtml(u)  }" onclick="pickGif('${  scope  }','${  u.replace(/'/g, "\\'")  }')" alt="gif" loading="lazy">`).join('')}`;
+    recent.map((u) => `<img src="${  escHtml(giphyProxyUrl(u))  }" onclick="pickGif('${  scope  }','${  u.replace(/'/g, "\\'")  }')" alt="gif" loading="lazy">`).join('')}`;
 }
 
 function toggleGifPicker(scope) {
@@ -150,7 +150,7 @@ function searchGifs(scope, query) {
       const data = await api(`/api/gifs/search?q=${  encodeURIComponent(query)  }&limit=12`);
       const results = data.results || [];
       if (!results.length) { grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_nothing_found">Ничего не найдено</span></div>'; return; }
-      grid.innerHTML = results.map((g) => `<img src="${  escHtml(g.thumb)  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`).join('');
+      grid.innerHTML = results.map((g) => `<img src="${  escHtml(giphyProxyUrl(g.thumb))  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`).join('');
     } catch (e) {
       grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_couldnt_load">Не удалось загрузить GIF</span></div>';
     }
@@ -164,7 +164,7 @@ function pickGif(scope, gifUrl) {
   if (scope === 'avatar-ob' || scope === 'avatar-ep') {
     const previewElId = scope === 'avatar-ob' ? 'obAvatarPreview' : 'epAvatarPreview';
     const preview = document.getElementById(previewElId);
-    if (preview) preview.innerHTML = `<img src="${  gifUrl  }" alt="">`;
+    if (preview) preview.innerHTML = `<img src="${  escHtml(giphyProxyUrl(gifUrl))  }" alt="">`;
     if (scope === 'avatar-ob') obData.avatar_url = gifUrl;
     else epData.avatar_url = gifUrl;
     return;

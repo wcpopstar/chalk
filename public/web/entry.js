@@ -8,7 +8,7 @@
 //   - prod : bundled by esbuild and PREPENDED to the legacy bundle so these
 //            globals exist synchronously before any legacy code runs.
 //            See scripts/build-client.mjs.
-import { escHtml, jsStr, avatarHtml } from './utils/dom.js';
+import { escHtml, jsStr, avatarHtml, giphyProxyUrl } from './utils/dom.js';
 import {
   formatChatTime, fmtDateTime, msgDayKey,
   formatCallDuration, formatLastSeen, formatDayLabel,
@@ -24,7 +24,7 @@ import {
 
 // Bridge: keep the legacy global API working until every caller is a module.
 Object.assign(window, {
-  escHtml, jsStr, avatarHtml,
+  escHtml, jsStr, avatarHtml, giphyProxyUrl,
   formatChatTime, fmtDateTime, msgDayKey,
   formatCallDuration, formatLastSeen, formatDayLabel,
   gamingLinkUrl,

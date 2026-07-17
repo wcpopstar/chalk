@@ -153,4 +153,87 @@ describe('Gifs routes (/api/gifs)', () => {
       assert.deepEqual(res.body.results, []);
     });
   });
+
+  describe('media proxy (/api/gifs/media)', () => {
+    let app: any;
+
+    before(() => {
+      delete require.cache[require.resolve('../../src/config/env')];
+      delete require.cache[require.resolve('../../src/routes/gifs')];
+      app = buildTestApp({ '/api/gifs': require('../../src/routes/gifs') });
+    });
+
+    // A tiny valid image response the proxy will accept and stream back.
+    function imageResponse(bytes: Buffer, contentType = 'image/gif', finalUrl = 'https://media0.giphy.com/media/x/giphy.gif') {
+      const { Readable } = require('stream');
+      return {
+        ok: true,
+        status: 200,
+        url: finalUrl,
+        headers: {
+          get: (h: string) => {
+            const k = h.toLowerCase();
+            if (k === 'content-type') return contentType;
+            if (k === 'content-length') return String(bytes.length);
+            return null;
+          },
+        },
+        body: Readable.toWeb(Readable.from(bytes)),
+      };
+    }
+
+    it('is reachable WITHOUT an access token (fetched via <img src>)', async () => {
+      const png = Buffer.from('GIF89a fake bytes');
+      fetchImpl = async () => imageResponse(png);
+
+      const res = await request(app)
+        .get(`/api/gifs/media?url=${encodeURIComponent('https://media2.giphy.com/media/abc/giphy.gif')}`);
+
+      assert.equal(res.status, 200);
+      assert.equal(res.headers['content-type'], 'image/gif');
+      assert.match(res.headers['cache-control'], /immutable/);
+    });
+
+    it('rejects a non-Giphy host (no SSRF / open proxy)', async () => {
+      fetchImpl = async () => { throw new Error('fetch should not be called'); };
+
+      const res = await request(app)
+        .get(`/api/gifs/media?url=${encodeURIComponent('https://evil.example.com/x.gif')}`);
+
+      assert.equal(res.status, 400);
+    });
+
+    it('rejects a non-https Giphy URL', async () => {
+      const res = await request(app)
+        .get(`/api/gifs/media?url=${encodeURIComponent('http://media2.giphy.com/media/abc/giphy.gif')}`);
+
+      // validate() requires https:// -> 400 before the handler even runs.
+      assert.equal(res.status, 400);
+    });
+
+    it('returns 502 when the upstream is not an image', async () => {
+      fetchImpl = async () => ({
+        ok: true,
+        status: 200,
+        url: 'https://media2.giphy.com/media/abc/giphy.gif',
+        headers: { get: (h: string) => (h.toLowerCase() === 'content-type' ? 'text/html' : null) },
+        body: null,
+      });
+
+      const res = await request(app)
+        .get(`/api/gifs/media?url=${encodeURIComponent('https://media2.giphy.com/media/abc/giphy.gif')}`);
+
+      assert.equal(res.status, 502);
+    });
+
+    it('returns 502 when a followed redirect leaves the Giphy hosts', async () => {
+      const png = Buffer.from('GIF89a');
+      fetchImpl = async () => imageResponse(png, 'image/gif', 'https://evil.example.com/x.gif');
+
+      const res = await request(app)
+        .get(`/api/gifs/media?url=${encodeURIComponent('https://media2.giphy.com/media/abc/giphy.gif')}`);
+
+      assert.equal(res.status, 502);
+    });
+  });
 });

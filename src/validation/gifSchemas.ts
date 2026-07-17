@@ -9,4 +9,10 @@ const gifSearchQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(24).default(12),
 });
 
-export { gifSearchQuerySchema };
+// The media-proxy URL — shape-checked here, the strict host allowlist lives
+// in the route handler (it needs URL parsing, not just a regex).
+const gifProxyQuerySchema = z.object({
+  url: z.string().trim().url().startsWith('https://').max(2000),
+});
+
+export { gifSearchQuerySchema, gifProxyQuerySchema };

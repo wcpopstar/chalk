@@ -14,7 +14,7 @@ function messageContentHtml(m, meClass) {
     return `<div class="msg-voice"><audio controls preload="none" src="${  escHtml(m.media_url)  }"></audio>${  btn  }<div class="msg-transcript" style="display:none"></div></div>`;
   }
   if (m.type === 'gif') {
-    return `<img class="msg-gif" src="${  escHtml(m.media_url)  }" alt="gif" loading="lazy">`;
+    return `<img class="msg-gif" src="${  escHtml(giphyProxyUrl(m.media_url))  }" alt="gif" loading="lazy">`;
   }
   if (m.type === 'video_note') {
     return videoNoteHtml(m);
