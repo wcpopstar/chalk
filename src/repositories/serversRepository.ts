@@ -104,6 +104,11 @@ function removeMember(serverId: string, userId: string) {
 function listMemberRoleIds(serverId: string, userId: string) {
   return supabaseAdmin.from('server_member_roles').select('role_id').eq('server_id', serverId).eq('user_id', userId);
 }
+// Every member↔role row for a server, so the members UI can show who has what
+// without an N+1 query per member.
+function listAllMemberRoles(serverId: string) {
+  return supabaseAdmin.from('server_member_roles').select('user_id, role_id').eq('server_id', serverId);
+}
 function assignRole(serverId: string, userId: string, roleId: string) {
   return supabaseAdmin
     .from('server_member_roles')
@@ -114,22 +119,45 @@ function unassignRole(serverId: string, userId: string, roleId: string) {
 }
 
 /**
- * Resolve the OR'd permission mask a member has from all their explicit roles
- * PLUS the server's @everyone role. Two round-trips (role ids, then the role
- * rows) to stay clear of typed nested-join inference. Returns a plain number.
+ * Resolve BOTH the OR'd permission mask a member has (from all their explicit
+ * roles PLUS the server's @everyone role) AND the set of role ids that produced
+ * it. The role ids are needed to look up per-channel permission overrides.
  */
-async function getMemberPermissionMask(serverId: string, userId: string): Promise<number> {
+async function getMemberRolesAndMask(serverId: string, userId: string): Promise<{ roleIds: string[]; mask: number }> {
   const [{ data: assigned }, { data: def }] = await Promise.all([
     listMemberRoleIds(serverId, userId),
     getDefaultRole(serverId),
   ]);
   const roleIds = new Set((assigned || []).map((r) => r.role_id));
   if (def) roleIds.add(def.id);
-  if (!roleIds.size) return 0;
-  const { data: roles } = await supabaseAdmin.from('server_roles').select('permissions').in('id', Array.from(roleIds));
+  if (!roleIds.size) return { roleIds: [], mask: 0 };
+  const ids = Array.from(roleIds);
+  const { data: roles } = await supabaseAdmin.from('server_roles').select('permissions').in('id', ids);
   let mask = 0;
   for (const r of roles || []) mask |= Number(r.permissions || 0);
-  return mask;
+  return { roleIds: ids, mask };
+}
+
+/** Back-compat convenience: just the OR'd permission mask. */
+async function getMemberPermissionMask(serverId: string, userId: string): Promise<number> {
+  return (await getMemberRolesAndMask(serverId, userId)).mask;
+}
+
+// ── Per-channel permission overrides ──────────────────────────────────────────
+function listChannelOverrides(channelId: string) {
+  return supabaseAdmin.from('server_channel_overrides').select('*').eq('channel_id', channelId);
+}
+// Overrides for a channel that apply to the given role ids (the roles a member
+// holds). Empty roleIds short-circuits to no rows.
+function listChannelOverridesForRoles(channelId: string, roleIds: string[]) {
+  if (!roleIds.length) return Promise.resolve({ data: [] as Tables['server_channel_overrides']['Row'][], error: null });
+  return supabaseAdmin.from('server_channel_overrides').select('*').eq('channel_id', channelId).in('role_id', roleIds);
+}
+function upsertChannelOverride(record: Tables['server_channel_overrides']['Insert']) {
+  return supabaseAdmin.from('server_channel_overrides').upsert(record, { onConflict: 'channel_id,role_id' }).select('*').single();
+}
+function deleteChannelOverride(channelId: string, roleId: string) {
+  return supabaseAdmin.from('server_channel_overrides').delete().eq('channel_id', channelId).eq('role_id', roleId);
 }
 
 // ── Messages ─────────────────────────────────────────────────────────────────
@@ -190,7 +218,8 @@ export {
   createRole, listRoles, getRoleById, updateRole, deleteRole, getDefaultRole,
   createChannel, listChannels, getChannelById, updateChannel, deleteChannel,
   addMember, getMember, listMembers, updateMember, removeMember,
-  listMemberRoleIds, assignRole, unassignRole, getMemberPermissionMask,
+  listMemberRoleIds, listAllMemberRoles, assignRole, unassignRole, getMemberPermissionMask, getMemberRolesAndMask,
+  listChannelOverrides, listChannelOverridesForRoles, upsertChannelOverride, deleteChannelOverride,
   createMessage, listMessages, getMessageById, softDeleteMessage, getLastMessageAt,
   createInvite, getInvite, incrementInviteUses, listInvites, deleteInvite,
 };

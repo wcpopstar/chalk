@@ -22,12 +22,7 @@ window.__codeMode = null;
 window.__codeIdentifier = null;
 window.__pendingPassword = null;
 
-function maskEmail(email) {
-  if (!email || email.indexOf('@') < 0) return email || '';
-  const [name, domain] = email.split('@');
-  const shown = name.length <= 2 ? name[0] : `${name.slice(0, 2)}***`;
-  return `${shown}@${domain}`;
-}
+// maskEmail() moved to public/web/utils/text.js (bridged onto window).
 
 // Opens the code-entry screen for the given mode/identifier. `email` (may be
 // masked already) is shown in the hint so the user knows where to look.
@@ -291,7 +286,7 @@ function bootApp() {
 
   // Update sidebar avatar/name
   document.getElementById('sidebarName').textContent = currentUser.username;
-  document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + onlineDotHtml();
+  document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
   updatePresenceUI();
 
   // Connect socket

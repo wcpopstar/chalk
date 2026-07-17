@@ -109,6 +109,12 @@ export interface ServerToClientEvents {
   'server:message': (message: Record<string, any>) => void;
   'server:message:deleted': (data: { channelId: string; messageId: string }) => void;
   'server:typing': (data: { channelId: string; userId: string; username: string }) => void;
+  // Voice channel roster: the live list of who's connected to a voice channel.
+  'server:voice:roster': (data: {
+    serverId: string;
+    channelId: string;
+    members: Array<{ userId: string; username: string; avatar_emoji: string; avatar_url: string | null }>;
+  }) => void;
 
   // ── global (platform-wide) chat ──
   'global:message': (message: Record<string, any>) => void;

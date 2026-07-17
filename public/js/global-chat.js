@@ -85,6 +85,43 @@ function sendGlobalMsg() {
 // called directly from here anymore.
 var gifSearchTimers = {};
 
+// ── RECENTLY USED GIFS ─────────────────────────────────────────────────────
+// Every GIF the user actually sends is remembered locally so the picker can
+// offer it again without re-searching. Stored newest-first, de-duplicated and
+// capped, in localStorage so it survives reloads.
+var RECENT_GIFS_KEY = 'chalk_recent_gifs';
+var RECENT_GIFS_MAX = 24;
+
+function getRecentGifs() {
+  try {
+    const raw = localStorage.getItem(RECENT_GIFS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter((u) => typeof u === 'string') : [];
+  } catch (_) { return []; }
+}
+
+function pushRecentGif(url) {
+  if (!url) return;
+  try {
+    const list = getRecentGifs().filter((u) => u !== url);
+    list.unshift(url);
+    localStorage.setItem(RECENT_GIFS_KEY, JSON.stringify(list.slice(0, RECENT_GIFS_MAX)));
+  } catch (_) {}
+}
+
+// Fills the picker grid with either the recent-GIF strip or the "start typing"
+// hint when there's no history yet. Used whenever the search box is empty.
+function renderGifPickerIdle(scope, grid) {
+  const recent = getRecentGifs();
+  if (!recent.length) {
+    grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_start_typing_hint">Начни печатать, чтобы найти GIF</span></div>';
+    return;
+  }
+  const label = T('gif_recent', 'Недавние');
+  grid.innerHTML = `<div class="gif-picker-recent-label">${  escHtml(label)  }</div>${
+    recent.map((u) => `<img src="${  escHtml(u)  }" onclick="pickGif('${  scope  }','${  u.replace(/'/g, "\\'")  }')" alt="gif" loading="lazy">`).join('')}`;
+}
+
 function toggleGifPicker(scope) {
   const picker = document.getElementById(`gifPicker-${  scope}`);
   if (!picker) return;
@@ -95,7 +132,7 @@ function toggleGifPicker(scope) {
     const input = picker.querySelector('.gif-picker-input');
     if (input) { input.value = ''; input.focus(); }
     const grid = document.getElementById(`gifGrid-${  scope}`);
-    if (grid) grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_start_typing_hint">Начни печатать, чтобы найти GIF</span></div>';
+    if (grid) renderGifPickerIdle(scope, grid);
   }
 }
 
@@ -104,7 +141,7 @@ function searchGifs(scope, query) {
   const grid = document.getElementById(`gifGrid-${  scope}`);
   if (!grid) return;
   if (!query || !query.trim()) {
-    grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_start_typing_hint">Начни печатать, чтобы найти GIF</span></div>';
+    renderGifPickerIdle(scope, grid);
     return;
   }
   gifSearchTimers[scope] = setTimeout(async () => {
@@ -143,6 +180,8 @@ function pickGif(scope, gifUrl) {
     if (!currentConvId) return;
     socket.emit('chat:gif', { conversationId: currentConvId, gifUrl }, onAck);
   }
+  // Remember it so the picker can offer it again next time (history).
+  pushRecentGif(gifUrl);
 }
 
 document.addEventListener('click', (e) => {

@@ -1,20 +1,6 @@
 // ── CHAT LIST ─────────────────────────────────────────────────────────────────
 // ── Short preview text for the chat list (handles voice/gif/deleted) ────────
-function lastMessagePreview(m) {
-  if (!m) return '';
-  if (m.deleted_at) return T('msg_deleted_label');
-  // The chats-list endpoint returns only is_encrypted (not the nonce/keys
-  // needed to decrypt), and we don't have the per-conversation partner key
-  // handy here anyway — show a neutral lock placeholder for encrypted DMs.
-  if (m.is_encrypted) return '🔒 Сообщение';
-  if (m.type === 'voice') return `🎤 ${  T('voice_msg_title')}`;
-  if (m.type === 'gif') return '🎞️ GIF';
-  if (m.type === 'video_note') return `⭕ ${  T('video_note_title', 'Видеосообщение')}`;
-  if (m.type === 'image') return `📷 ${  T('attach_photo', 'Фото')}`;
-  if (m.type === 'video') return `🎥 ${  T('attach_video', 'Видео')}`;
-  if (m.type === 'file') return `📎 ${  m.text || T('attach_file', 'Файл')}`;
-  return (m.text || '').slice(0, 34);
-}
+// lastMessagePreview() moved to public/web/chat/summary.js (bridged onto window).
 
 var lastConversations = null; // cached for re-render on language change (avoids a refetch)
 
@@ -48,12 +34,13 @@ function renderChatsList() {
     const dmName = c.other_user ? (c.other_user.username || T('status_user')) : (c.name || T('status_user'));
     const dmAva = c.other_user ? avatarHtml(c.other_user.avatar_emoji, c.other_user.avatar_url) : '👤';
     const mutedIco = c.muted ? `<span class="chat-muted-ico" title="${  T('chat_muted_toast')  }">🔕</span>` : '';
-    return `<div class="chat-item${  online  }" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  dmName.replace(/'/g,"\\'")  }')"><div class="chat-ava">${  dmAva  }</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  escHtml(dmName)  }${  mutedIco  }</div>${  time ? `<div class="chat-item-time">${  time  }</div>` : ''  }</div><div class="chat-sub">${  sub  }</div></div><button class="chat-item-menu-btn" title="${  T('chat_options_title')  }" onclick="event.stopPropagation();openChatItemMenu(event,'${  c.id  }')">⋯</button></div>`;
+    return `<div class="chat-item${  online  }" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  jsStr(dmName)  }')"><div class="chat-ava">${  dmAva  }</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  escHtml(dmName)  }${  mutedIco  }</div>${  time ? `<div class="chat-item-time">${  time  }</div>` : ''  }</div><div class="chat-sub">${  sub  }</div></div><button class="chat-item-menu-btn" title="${  T('chat_options_title')  }" onclick="event.stopPropagation();openChatItemMenu(event,'${  c.id  }')">⋯</button></div>`;
   }).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px"><span data-i18n="chat_no_dialogs">Нет диалогов</span></div>';
 
   document.getElementById('groupList').innerHTML = groups.length ? groups.map((c) =>{
     const mutedIco = c.muted ? `<span class="chat-muted-ico" title="${  T('chat_muted_toast')  }">🔕</span>` : '';
-    return `<div class="chat-item" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  (c.name || T('match_group')).replace(/'/g,"\\'")  }')"><div class="chat-ava-group">👥</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  c.name || T('match_group')  }${  mutedIco  }</div></div><div class="chat-sub"><span data-i18n="match_group_chat">Групповой чат</span></div></div><button class="chat-item-menu-btn" title="${  T('chat_options_title')  }" onclick="event.stopPropagation();openChatItemMenu(event,'${  c.id  }')">⋯</button></div>`;
+    const gName = c.name || T('match_group');
+    return `<div class="chat-item" data-convid="${  c.id  }" onclick="openConv('${  c.id  }','${  jsStr(gName)  }')"><div class="chat-ava-group">👥</div><div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">${  escHtml(gName)  }${  mutedIco  }</div></div><div class="chat-sub"><span data-i18n="match_group_chat">Групповой чат</span></div></div><button class="chat-item-menu-btn" title="${  T('chat_options_title')  }" onclick="event.stopPropagation();openChatItemMenu(event,'${  c.id  }')">⋯</button></div>`;
   }).join('') : '<div style="font-size:11px;color:var(--muted);padding:4px"><span data-i18n="chat_no_groups">Нет групп</span></div>';
 }
 
@@ -125,16 +112,7 @@ function onConversationDeleted(convId) {
   if (typeof currentConvId !== 'undefined' && currentConvId === convId && typeof closeConv === 'function') closeConv();
 }
 
-function formatChatTime(iso) {
-  try {
-    const d = new Date(iso);
-    const now = new Date();
-    if (d.toDateString() === now.toDateString()) {
-      return `${d.getHours().toString().padStart(2,'0')  }:${  d.getMinutes().toString().padStart(2,'0')}`;
-    }
-    return `${(`${d.getDate()}`).padStart(2,'0')  }.${  (`${d.getMonth()+1}`).padStart(2,'0')}`;
-  } catch(_) { return ''; }
-}
+// formatChatTime() moved to public/web/utils/format.js (bridged onto window).
 
 function filterChatList(q) {
   const raw = q.trim();

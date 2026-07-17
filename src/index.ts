@@ -25,6 +25,7 @@ import './utils/asyncErrors';
 import express from 'express';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
 import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { setIO } from './socket/registry';
@@ -70,7 +71,7 @@ validateEnv();
 // silently vanishing — this does NOT paper over real bugs, every actual
 // Redis-touching code path in this app already has its own try/catch (see
 // match.js's startMatchLoop); this only catches things that slip through.
-process.on('unhandledRejection', (reason: string) => {
+process.on('unhandledRejection', (reason: unknown) => {
   logger.error({ err: reason }, 'Unhandled promise rejection');
   Sentry.captureException(reason);
   metrics.appErrorsTotal.inc({ source: 'unhandled_rejection' });
@@ -309,11 +310,31 @@ app.use('/api/transcribe', transcribeRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/admin', adminRoutes);
 
-app.use(express.static(path.join(__dirname, '../public')));
+// Which index.html the SPA is served from. In production, prefer the bundled
+// build (public/build/index.html — one hashed, minified JS bundle instead of
+// ~54 individual <script> tags) produced by `npm run build:client`. Resolved
+// once at startup; falls back to the raw multi-script index.html when no build
+// is present (and always in development, so `npm run dev` iterates instantly on
+// the original source with no build step). See scripts/build-client.mjs.
+const publicDir = path.join(__dirname, '../public');
+const clientIndexHtml = (() => {
+  const built = path.join(publicDir, 'build', 'index.html');
+  if (config.server.isProduction && fs.existsSync(built)) {
+    logger.info('Serving bundled client (public/build/index.html)');
+    return built;
+  }
+  return path.join(publicDir, 'index.html');
+})();
+
+// index: false — let the SPA fallback below own "/" so it serves the resolved
+// (possibly bundled) index.html, instead of express.static auto-serving the raw
+// public/index.html for directory requests. Real files (admin.html, /build/*,
+// /css/*, /vendor/*) are still served directly.
+app.use(express.static(publicDir, { index: false }));
 
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith('/api/')) return next();
-  return res.sendFile(path.join(__dirname, '../public/index.html'));
+  return res.sendFile(clientIndexHtml);
 });
 
 app.use((_req: Request, res: Response) => res.status(404).json({ error: 'Not found' }));

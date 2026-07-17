@@ -10,6 +10,10 @@
 <script src="/vendor/nacl-fast.min.js"></script>
 <link rel="stylesheet" href="/css/style.css">
 <script src="/js/theme-init.js"></script>
+<!-- ES-module entry (frontend modules migration). Bridges escHtml/jsStr onto
+     window for the legacy global scripts. In production this is bundled into the
+     app bundle instead (see scripts/build-client.mjs). -->
+<script type="module" src="/web/entry.js"></script>
 </head>
 <body>
 
@@ -403,15 +407,15 @@
   <div class="sidebar">
     <div class="sidebar-section">
       <div class="my-profile">
-        <div class="my-avatar" id="sidebarAvatar">🎮<div class="online-dot presence-online" id="sidebarOnlineDot"></div></div>
+        <div class="my-avatar" id="sidebarAvatar">🎮</div>
         <div>
           <div class="my-name" id="sidebarName">...</div>
           <div class="status-selector" id="statusSelector">
             <button class="status-btn" onclick="toggleStatusMenu(event)">
-              <span id="statusLabel">🟢 Онлайн</span><span class="status-caret">▾</span>
+              <span id="statusLabel">Онлайн</span><span class="status-caret">▾</span>
             </button>
             <div class="status-menu" id="statusMenu">
-              <div class="status-option" onclick="setMyPresence('online')">🟢 Онлайн</div>
+              <div class="status-option" onclick="setMyPresence('online')">Онлайн</div>
               <div class="status-option" onclick="setMyPresence('away')">🌙 Отошёл</div>
               <div class="status-option" onclick="setMyPresence('busy')">⛔ Занят</div>
             </div>
@@ -426,7 +430,7 @@
     </div>
     <div class="sidebar-section" style="flex:1">
       <div class="sidebar-label" style="justify-content:space-between;width:100%">
-        <span style="display:flex;align-items:center;gap:7px"><span class="tab-icon">🟢</span><span data-i18n="nav_friends_online">Друзья онлайн</span></span>
+        <span style="display:flex;align-items:center;gap:7px"><span class="tab-icon">👥</span><span data-i18n="nav_friends_online">Друзья</span></span>
         <span class="add-friend-wrap">
           <button class="add-friend-btn" onclick="openAddFriend()" title="Добавить друга" data-i18n-title="friends_add_btn">＋</button>
           <span class="friend-req-badge" id="friendReqBadge" style="display:none">+1</span>
@@ -649,7 +653,10 @@
         <div class="channel-sidebar" id="channelSidebar" style="display:none">
           <div class="channel-sidebar-head">
             <span class="channel-server-name" id="channelServerName">—</span>
-            <button class="channel-add-btn" id="channelAddBtn" title="Новый канал" onclick="promptCreateChannel()" style="display:none">＋</button>
+            <span class="channel-head-actions">
+              <button class="channel-add-btn" id="channelSettingsBtn" title="Настройки сервера" onclick="openServerSettings()" style="display:none">⚙️</button>
+              <button class="channel-add-btn" id="channelAddBtn" title="Новый канал" onclick="promptCreateChannel()" style="display:none">＋</button>
+            </span>
           </div>
           <div class="channel-list" id="channelList"></div>
           <div class="channel-sidebar-foot">
@@ -676,6 +683,43 @@
               <button class="channel-send" onclick="sendChannelMsg()">➤</button>
             </div>
           </div>
+          <!-- Voice channel view -->
+          <div class="channel-voice" id="channelVoice" style="display:none">
+            <div class="channel-view-head">
+              <span class="channel-hash">🔊</span><span id="voiceChannelName">voice</span>
+              <span class="channel-topic" id="voiceChannelCount"></span>
+            </div>
+            <div class="voice-stage" id="voiceStage"></div>
+            <div class="voice-controls" id="voiceControls">
+              <button class="voice-join-btn" id="voiceJoinBtn" onclick="joinCurrentVoiceChannel()" data-i18n="server_voice_join">Подключиться</button>
+              <div class="voice-live-controls" id="voiceLiveControls" style="display:none">
+                <button class="voice-ctl" id="voiceMuteBtn" onclick="toggleVoiceChannelMute()" title="Микрофон">🎙️</button>
+                <button class="voice-ctl voice-leave" onclick="leaveCurrentVoiceChannel()" title="Отключиться">📴</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SERVER SETTINGS MODAL -->
+    <div class="modal-overlay" id="serverSettingsOverlay">
+      <div class="modal-card svs-card">
+        <div class="svs-head">
+          <div class="modal-title" id="svsTitle" style="margin:0">Настройки сервера</div>
+          <button class="svs-close" onclick="closeServerSettings()" title="Закрыть">✕</button>
+        </div>
+        <div class="svs-tabs" id="svsTabs">
+          <button class="svs-tab active" data-svs="overview" onclick="svsShowTab('overview',this)">Обзор</button>
+          <button class="svs-tab" data-svs="roles" onclick="svsShowTab('roles',this)">Роли</button>
+          <button class="svs-tab" data-svs="members" onclick="svsShowTab('members',this)">Участники</button>
+          <button class="svs-tab" data-svs="channels" onclick="svsShowTab('channels',this)">Каналы</button>
+        </div>
+        <div class="svs-body">
+          <div class="svs-pane" id="svsPane-overview"></div>
+          <div class="svs-pane" id="svsPane-roles" style="display:none"></div>
+          <div class="svs-pane" id="svsPane-members" style="display:none"></div>
+          <div class="svs-pane" id="svsPane-channels" style="display:none"></div>
         </div>
       </div>
     </div>
@@ -1591,6 +1635,7 @@
 <script src="/js/message-render.js"></script>
 <script src="/js/transcribe.js"></script>
 <script src="/js/servers.js"></script>
+<script src="/js/server-settings.js"></script>
 <script src="/js/chat-reactions.js"></script>
 <script src="/js/emoji-picker.js"></script>
 <script src="/js/message-edit.js"></script>

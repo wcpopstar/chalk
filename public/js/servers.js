@@ -7,7 +7,7 @@
 var SPERM = {
   VIEW: 1 << 0, SEND: 1 << 1, MANAGE_MESSAGES: 1 << 2, MANAGE_CHANNELS: 1 << 3,
   MANAGE_ROLES: 1 << 4, KICK: 1 << 5, BAN: 1 << 6, MANAGE_SERVER: 1 << 7,
-  CREATE_INVITE: 1 << 8, ADMIN: 1 << 9,
+  CREATE_INVITE: 1 << 8, ADMIN: 1 << 9, CONNECT_VOICE: 1 << 10,
 };
 function sHasPerm(bit) {
   if (!currentServer) return false;
@@ -21,6 +21,8 @@ var myServers = [];
 var currentServer = null;      // { server, channels, roles, myPermissions, isOwner }
 var currentChannel = null;     // channel object currently open
 var serverTypingTimers = {};   // userId -> timeout
+var voiceRosters = {};         // channelId -> [{userId, username, avatar_emoji, avatar_url}]
+var activeVoiceChannelId = null; // the voice channel we're currently connected to (audio)
 
 function _svToast(msg) { if (window.showToast) window.showToast(msg); }
 
@@ -66,6 +68,15 @@ async function openServer(serverId) {
   document.getElementById('channelAddBtn').style.display = sHasPerm(SPERM.MANAGE_CHANNELS) ? '' : 'none';
   document.getElementById('serverInviteBtn').style.display = sHasPerm(SPERM.CREATE_INVITE) ? '' : 'none';
   document.getElementById('serverLeaveBtn').style.display = data.isOwner ? 'none' : '';
+  const settingsBtn = document.getElementById('channelSettingsBtn');
+  if (settingsBtn) settingsBtn.style.display = (typeof svsCanAny === 'function' && svsCanAny()) ? '' : 'none';
+
+  // Subscribe to this server's room for live voice-channel rosters.
+  if (socket) {
+    socket.emit('server:sub', { serverId: data.server.id }, (ack) => {
+      if (ack && ack.rosters) { voiceRosters = ack.rosters; renderChannelList(currentServer.channels || []); }
+    });
+  }
 
   renderChannelList(data.channels || []);
 
@@ -86,7 +97,16 @@ function renderChannelList(channels) {
     const icon = c.type === 'voice' ? '🔊' : '#';
     const canManage = sHasPerm(SPERM.MANAGE_CHANNELS);
     const del = canManage ? `<span class="channel-del" title="Удалить" onclick="event.stopPropagation();deleteChannel('${c.id}')">✕</span>` : '';
-    return `<div class="channel-item${active}" onclick="openChannel('${c.id}')"><span class="channel-item-icon">${icon}</span><span class="channel-item-name">${escHtml(c.name)}</span>${del}</div>`;
+    const row = `<div class="channel-item${active}" onclick="openChannel('${c.id}')"><span class="channel-item-icon">${icon}</span><span class="channel-item-name">${escHtml(c.name)}</span>${del}</div>`;
+    // Under a voice channel, list whoever is currently connected to it.
+    if (c.type === 'voice') {
+      const roster = voiceRosters[c.id] || [];
+      const people = roster.map((m) =>
+        `<div class="voice-roster-item"><span class="voice-roster-ava">${avatarHtml(m.avatar_emoji, m.avatar_url)}</span><span class="voice-roster-name">${escHtml(m.username || '?')}</span></div>`
+      ).join('');
+      return row + (people ? `<div class="voice-roster">${people}</div>` : '');
+    }
+    return row;
   }).join('');
 }
 
@@ -97,18 +117,18 @@ async function openChannel(channelId) {
   const channel = (currentServer.channels || []).find((c) => c.id === channelId);
   if (!channel) return;
 
-  // Voice channels reuse the Agora call layer (next pass) — placeholder for now.
-  if (channel.type === 'voice') {
-    _svToast(_svT('server_voice_soon', 'Голосовые каналы скоро'));
-    return;
-  }
+  // Voice channels get their own view (join/leave + live roster), separate from
+  // the text message layer.
+  if (channel.type === 'voice') { openVoiceChannel(channel); return; }
 
-  // Leave the previous channel's realtime room, join the new one.
-  if (currentChannel && socket) socket.emit('server:leave', { channelId: currentChannel.id });
+  // Leave the previous *text* channel's realtime room, join the new one.
+  if (currentChannel && currentChannel.type !== 'voice' && socket) socket.emit('server:leave', { channelId: currentChannel.id });
   currentChannel = channel;
   renderChannelList(currentServer.channels);
 
   document.getElementById('serversEmpty').style.display = 'none';
+  const voiceView = document.getElementById('channelVoice');
+  if (voiceView) voiceView.style.display = 'none';
   document.getElementById('channelView').style.display = 'flex';
   document.getElementById('channelViewName').textContent = channel.name;
   document.getElementById('channelTopic').textContent = channel.topic || '';
@@ -232,6 +252,103 @@ function onServerTyping(data) {
   serverTypingTimers[data.userId] = setTimeout(() => { if (el) el.textContent = ''; }, 3500);
 }
 
+/* ---------------- VOICE CHANNELS ---------------- */
+// Voice audio flows through the shared Agora layer (voice.js). The socket only
+// tracks presence (who's connected) so the UI can show a live roster. Joining a
+// voice channel: register presence via socket, then join the Agora channel it
+// hands back (`sc-<channelId>`) with the mic enabled.
+
+function openVoiceChannel(channel) {
+  currentChannel = channel;
+  renderChannelList(currentServer.channels);
+  document.getElementById('serversEmpty').style.display = 'none';
+  document.getElementById('channelView').style.display = 'none';
+  const view = document.getElementById('channelVoice');
+  if (view) view.style.display = 'flex';
+  document.getElementById('voiceChannelName').textContent = channel.name;
+  renderVoiceStage(channel.id);
+  updateVoiceControls();
+}
+
+function renderVoiceStage(channelId) {
+  const stage = document.getElementById('voiceStage');
+  if (!stage) return;
+  const roster = voiceRosters[channelId] || [];
+  const countEl = document.getElementById('voiceChannelCount');
+  if (countEl) countEl.textContent = roster.length ? `${roster.length} ${_svT('unit_online_word', 'в сети')}` : '';
+  if (!roster.length) {
+    stage.innerHTML = `<div class="voice-empty">${_svT('server_voice_empty', 'Тут пока никого нет — подключись первым!')}</div>`;
+    return;
+  }
+  stage.innerHTML = roster.map((m) => {
+    const speaking = String(m.userId) === String(currentUser.id) && activeVoiceChannelId === channelId ? ' voice-tile-self' : '';
+    return `<div class="voice-tile${speaking}"><div class="voice-tile-ava">${avatarHtml(m.avatar_emoji, m.avatar_url)}</div><div class="voice-tile-name">${escHtml(m.username || '?')}</div></div>`;
+  }).join('');
+}
+
+function updateVoiceControls() {
+  const joinBtn = document.getElementById('voiceJoinBtn');
+  const liveCtl = document.getElementById('voiceLiveControls');
+  const here = currentChannel && activeVoiceChannelId === currentChannel.id;
+  if (joinBtn) joinBtn.style.display = here ? 'none' : '';
+  if (liveCtl) liveCtl.style.display = here ? 'flex' : 'none';
+}
+
+async function joinCurrentVoiceChannel() {
+  if (!currentChannel || currentChannel.type !== 'voice' || !socket) return;
+  const channelId = currentChannel.id;
+  // If already connected to another voice channel, leave it first.
+  if (activeVoiceChannelId && activeVoiceChannelId !== channelId) await leaveCurrentVoiceChannel();
+  const joinBtn = document.getElementById('voiceJoinBtn');
+  if (joinBtn) { joinBtn.disabled = true; joinBtn.textContent = _svT('status_loading', 'Подключение…'); }
+  socket.emit('server:voice:join', { channelId }, async (ack) => {
+    if (joinBtn) { joinBtn.disabled = false; joinBtn.textContent = _svT('server_voice_join', 'Подключиться'); }
+    if (!ack || ack.error) { _svToast((ack && ack.error) || 'Не удалось подключиться'); return; }
+    try {
+      if (typeof window.joinVoiceAndEnableMic === 'function') {
+        await window.joinVoiceAndEnableMic(ack.agoraChannel, currentUser.id);
+      }
+      activeVoiceChannelId = channelId;
+      updateVoiceControls();
+      renderVoiceStage(channelId);
+    } catch (e) {
+      _svToast(_svT('server_voice_mic_failed', 'Микрофон недоступен'));
+      // Roll back presence if the audio layer failed to start.
+      socket.emit('server:voice:leave', { channelId });
+      activeVoiceChannelId = null;
+      updateVoiceControls();
+    }
+  });
+}
+
+async function leaveCurrentVoiceChannel() {
+  const channelId = activeVoiceChannelId;
+  activeVoiceChannelId = null;
+  if (typeof window.leaveVoice === 'function') { try { await window.leaveVoice(); } catch (_) {} }
+  if (socket && channelId) socket.emit('server:voice:leave', { channelId });
+  updateVoiceControls();
+  if (currentChannel && currentChannel.type === 'voice') renderVoiceStage(currentChannel.id);
+}
+
+function toggleVoiceChannelMute() {
+  if (typeof window.toggleVoiceMute !== 'function') return;
+  window.toggleVoiceMute();
+  // Reflect the new state on the button (voiceState lives in voice.js).
+  const btn = document.getElementById('voiceMuteBtn');
+  const muted = window.__voiceState && window.__voiceState.muted;
+  if (btn) { btn.textContent = muted ? '🔇' : '🎙️'; btn.classList.toggle('voice-ctl-muted', Boolean(muted)); }
+}
+
+// Live roster push from the server for any voice channel in the open server.
+function onServerVoiceRoster(data) {
+  if (!data || !data.channelId) return;
+  voiceRosters[data.channelId] = data.members || [];
+  if (currentServer) renderChannelList(currentServer.channels);
+  if (currentChannel && currentChannel.type === 'voice' && currentChannel.id === data.channelId) {
+    renderVoiceStage(data.channelId);
+  }
+}
+
 /* ---------------- CREATE / JOIN / MANAGE ---------------- */
 
 async function promptCreateServer() {
@@ -259,8 +376,10 @@ async function promptCreateChannel() {
   if (!currentServer) return;
   const name = (prompt('Название канала:') || '').trim();
   if (!name) return;
+  // Ask channel type: OK = text (default), Cancel = voice.
+  const type = confirm('Текстовый канал?\n\nОК — текстовый, Отмена — голосовой') ? 'text' : 'voice';
   try {
-    await api(`/api/servers/${  currentServer.server.id  }/channels`, { method: 'POST', body: JSON.stringify({ name }) });
+    await api(`/api/servers/${  currentServer.server.id  }/channels`, { method: 'POST', body: JSON.stringify({ name, type }) });
     await openServer(currentServer.server.id);
   } catch (e) { _svToast(e.message || 'Не удалось создать канал'); }
 }
@@ -290,9 +409,11 @@ async function leaveCurrentServer() {
   if (!confirm(`Покинуть сервер «${currentServer.server.name}»?`)) return;
   try {
     await api(`/api/servers/${  currentServer.server.id  }/leave`, { method: 'POST' });
+    if (activeVoiceChannelId) await leaveCurrentVoiceChannel();
     currentServer = null; currentChannel = null;
     document.getElementById('channelSidebar').style.display = 'none';
     document.getElementById('channelView').style.display = 'none';
+    const vv = document.getElementById('channelVoice'); if (vv) vv.style.display = 'none';
     document.getElementById('serversEmpty').style.display = 'flex';
     await loadServers();
   } catch (e) { _svToast(e.message || 'Не удалось покинуть'); }
@@ -307,3 +428,7 @@ window.loadServers = loadServers;
 window.onServerMessage = onServerMessage;
 window.onServerMessageDeleted = onServerMessageDeleted;
 window.onServerTyping = onServerTyping;
+window.onServerVoiceRoster = onServerVoiceRoster;
+window.joinCurrentVoiceChannel = joinCurrentVoiceChannel;
+window.leaveCurrentVoiceChannel = leaveCurrentVoiceChannel;
+window.toggleVoiceChannelMute = toggleVoiceChannelMute;

@@ -13,6 +13,7 @@ const {
   combineRoleMasks,
   can,
   effectiveMask,
+  applyChannelOverrides,
 } = require('../../src/services/serverPermissions');
 
 // This module is the authorization model for servers/guilds — every write path
@@ -137,6 +138,50 @@ describe('services/serverPermissions', () => {
       for (const perm of Object.values(PERMISSIONS) as number[]) {
         assert.ok(can(ALL_PERMISSIONS, perm));
       }
+    });
+  });
+
+  describe('applyChannelOverrides', () => {
+    it('returns the base mask unchanged when there are no overrides', () => {
+      const base = DEFAULT_EVERYONE_PERMISSIONS;
+      assert.equal(applyChannelOverrides(base, []), base);
+    });
+
+    it('a deny clears a bit the base mask granted', () => {
+      const base = PERMISSIONS.VIEW_CHANNELS | PERMISSIONS.SEND_MESSAGES;
+      const result = applyChannelOverrides(base, [{ deny: PERMISSIONS.SEND_MESSAGES }]);
+      assert.ok(can(result, PERMISSIONS.VIEW_CHANNELS));
+      assert.ok(!can(result, PERMISSIONS.SEND_MESSAGES));
+    });
+
+    it('an allow grants a bit the base mask lacked', () => {
+      const base = PERMISSIONS.VIEW_CHANNELS;
+      const result = applyChannelOverrides(base, [{ allow: PERMISSIONS.SEND_MESSAGES }]);
+      assert.ok(can(result, PERMISSIONS.SEND_MESSAGES));
+    });
+
+    it('ALLOW wins when the same bit is both allowed and denied (Discord role semantics)', () => {
+      // Documented precedence in serverPermissions.ts: `(base & ~deny) | allow`
+      // applies allow last, so a bit denied by one role but allowed by another
+      // ends up GRANTED. This test pins that behavior so it can't silently flip.
+      const base = 0;
+      const result = applyChannelOverrides(base, [
+        { deny: PERMISSIONS.SEND_MESSAGES },
+        { allow: PERMISSIONS.SEND_MESSAGES },
+      ]);
+      assert.ok(can(result, PERMISSIONS.SEND_MESSAGES));
+    });
+
+    it('accumulates allow/deny across multiple override rows and coerces string masks', () => {
+      const base = PERMISSIONS.VIEW_CHANNELS;
+      const result = applyChannelOverrides(base, [
+        { allow: String(PERMISSIONS.SEND_MESSAGES) },
+        { allow: String(PERMISSIONS.CONNECT_VOICE) },
+        { deny: null, allow: undefined },
+      ]);
+      assert.ok(can(result, PERMISSIONS.SEND_MESSAGES));
+      assert.ok(can(result, PERMISSIONS.CONNECT_VOICE));
+      assert.ok(can(result, PERMISSIONS.VIEW_CHANNELS));
     });
   });
 });

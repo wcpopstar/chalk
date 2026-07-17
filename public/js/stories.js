@@ -75,7 +75,7 @@ function renderStoriesStrip() {
 
 // ── Own sidebar avatar: ＋ badge + "has story" ring ─────────────────────────
 function iHaveStory() {
-  return !!(storiesFeed.me && storiesFeed.me.stories && storiesFeed.me.stories.length);
+  return Boolean(storiesFeed.me && storiesFeed.me.stories && storiesFeed.me.stories.length);
 }
 
 function updateSidebarStoryUI() {
@@ -112,7 +112,7 @@ function friendStoryState(userId) {
   if (idx === undefined) return null;
   const g = storiesFeed.friends[idx];
   if (!g || !g.stories || !g.stories.length) return null;
-  return { viewed: !!g.all_viewed };
+  return { viewed: Boolean(g.all_viewed) };
 }
 
 // Extra class for a friend avatar based on story state ('' if none).
