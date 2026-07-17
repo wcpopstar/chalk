@@ -66,14 +66,19 @@ ENTRYPOINT ["tini", "--"]
 CMD ["npm", "run", "dev"]
 
 # -----------------------------------------------------------------------
-# build — compiles TypeScript (src/**/*.ts) to plain JS (dist/**/*.js).
-# Needs the *full* node_modules (dev-dependencies stage) because `tsc`
-# itself is a devDependency — this stage's output (dist/) is copied into
-# the production image below, but its node_modules never is.
+# build — compiles TypeScript (src/**/*.ts) to plain JS (dist/**/*.js) AND
+# bundles the frontend (public/build/ via scripts/build-client.mjs). Needs
+# the *full* node_modules (dev-dependencies stage) because both `tsc` and
+# `esbuild` are devDependencies. `npm run build` = `tsc && build:client`, so
+# scripts/ and public/ must be present here too. This stage's outputs (dist/
+# and the bundled public/) are copied into the production image below; its
+# node_modules never is.
 # -----------------------------------------------------------------------
 FROM dev-dependencies AS build
 COPY tsconfig.json ./
 COPY src ./src
+COPY scripts ./scripts
+COPY public ./public
 RUN npm run build
 
 # -----------------------------------------------------------------------
@@ -103,7 +108,11 @@ RUN addgroup -S chalk && adduser -S chalk -G chalk
 COPY --from=dependencies /app/node_modules ./node_modules
 COPY package.json ./
 COPY --from=build /app/dist ./dist
-COPY public ./public
+# public/ comes FROM the build stage so it includes the generated bundle
+# (public/build/), which src/index.ts serves in production instead of the raw
+# ~54 <script> tags. Copying public/ from the build context would ship the
+# unbundled source instead.
+COPY --from=build /app/public ./public
 # Deliberately NOT copied: src/ (TypeScript source — dist/ is what runs),
 # test/, supabase/migrations/, .env*, README.md, .git — none of them are
 # needed to run the server (see .dockerignore).
