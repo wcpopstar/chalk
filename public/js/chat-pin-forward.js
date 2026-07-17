@@ -123,31 +123,9 @@ function doForward(toConvId) {
 }
 
 // ── "Last seen" formatting for the direct-chat header ───────────────────────
-function formatLastSeen(iso) {
-  if (!iso) return T('status_offline_lc');
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return T('status_offline_lc');
-  const now = new Date();
-  const diff = (now.getTime() - d.getTime()) / 1000;
-  if (diff < 60) return T('last_seen_just_now');
-  if (diff < 3600) return T('last_seen_min').replace('{n}', String(Math.floor(diff / 60)));
-  const hhmm = `${d.getHours().toString().padStart(2, '0')  }:${  d.getMinutes().toString().padStart(2, '0')}`;
-  if (d.toDateString() === now.toDateString()) {
-    if (diff < 6 * 3600) return T('last_seen_hours').replace('{n}', String(Math.floor(diff / 3600)));
-    return T('last_seen_at').replace('{t}', hhmm);
-  }
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  if (d.toDateString() === yesterday.toDateString()) return T('last_seen_yesterday').replace('{t}', hhmm);
-  const dd = `${d.getDate().toString().padStart(2, '0')  }.${  (d.getMonth() + 1).toString().padStart(2, '0')  }.${  d.getFullYear()}`;
-  return T('last_seen_date').replace('{d}', dd);
-}
+// formatLastSeen() moved to public/web/utils/format.js (bridged onto window).
 
-function presenceStatusLabel(user) {
-  if (!user) return '';
-  if (user.status === 'online') return T('status_online_lc');
-  return formatLastSeen(user.last_seen);
-}
+// presenceStatusLabel() moved to public/web/chat/summary.js (bridged onto window).
 
 // Refresh the header line under the partner's name from currentConvPartner —
 // unless a transient "typing…/recording…" label is currently showing (that

@@ -39,7 +39,7 @@ var FW = (() => {
       }
     }
     // Bases in opposite corners; the surrounding cell is cheap to take first.
-    const b1 = idx(N - 1, 0), b2 = idx(0, N - 1);
+    const b1 = idx(N - 1, 0); const b2 = idx(0, N - 1);
     cells[b1] = { owner: 1, def: 1, bld: 'base' };
     cells[b2] = { owner: 2, def: 1, bld: 'base' };
     return {
@@ -59,7 +59,7 @@ var FW = (() => {
   function captureCost(st, p, i) {
     const cell = st.cells[i];
     if (cell.owner === p) return Infinity;
-    const r = Math.floor(i / N), c = i % N;
+    const r = Math.floor(i / N); const c = i % N;
     const adj = [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]
       .some(([ar, ac]) => inB(ar, ac) && st.cells[idx(ar, ac)].owner === p);
     if (!adj) return Infinity;
@@ -113,7 +113,7 @@ var FW = (() => {
       st.gold[next] += income(st, next);
       if (st.round > MAX_ROUNDS && !st.over) {
         st.over = true;
-        const c1 = ownedCount(st, 1), c2 = ownedCount(st, 2);
+        const c1 = ownedCount(st, 1); const c2 = ownedCount(st, 2);
         st.winner = c1 === c2 ? 0 : c1 > c2 ? 1 : 2;
       }
       return true;

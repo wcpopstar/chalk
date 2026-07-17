@@ -33,7 +33,7 @@ function renderFriendsList() {
   el.innerHTML = online.map((f) =>{
     const isOnline = f.friend.status === 'online';
     const cs = isOnline ? (friendCallStatus[f.friend.id] || { inCall: false, roomSize: 0 }) : { inCall: false, roomSize: 0 };
-    const statusLine = !isOnline ? `○ ${  T('status_offline')}` : (cs.inCall ? (`🔊 ${  T('match_call_in_progress')  } · ${  cs.roomSize  } ${  T('unit_people_dot')}`) : `● ${  T('status_online')}`);
+    const statusLine = !isOnline ? T('status_offline') : (cs.inCall ? (`🔊 ${  T('match_call_in_progress')  } · ${  cs.roomSize  } ${  T('unit_people_dot')}`) : T('status_online'));
     const rowClass = !isOnline ? 'friend-item friend-offline' : (cs.inCall ? 'friend-item friend-incall' : 'friend-item friend-online');
     const uname = escHtml(f.friend.username).replace(/'/g,"\\'");
     const emoji = (f.friend.avatar_emoji || '🎮');

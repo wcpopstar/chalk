@@ -18,13 +18,14 @@ export const PERMISSIONS = Object.freeze({
   MANAGE_SERVER:   1 << 7, // edit server name/icon
   CREATE_INVITE:   1 << 8,
   ADMINISTRATOR:   1 << 9, // implicitly grants every permission above
+  CONNECT_VOICE:   1 << 10, // join voice channels
 });
 
 export type PermissionName = keyof typeof PERMISSIONS;
 
-// What the auto-created @everyone role grants: view + chat + make invites.
+// What the auto-created @everyone role grants: view + chat + voice + invites.
 export const DEFAULT_EVERYONE_PERMISSIONS =
-  PERMISSIONS.VIEW_CHANNELS | PERMISSIONS.SEND_MESSAGES | PERMISSIONS.CREATE_INVITE;
+  PERMISSIONS.VIEW_CHANNELS | PERMISSIONS.SEND_MESSAGES | PERMISSIONS.CONNECT_VOICE | PERMISSIONS.CREATE_INVITE;
 
 // Every bit — used for the owner and any ADMINISTRATOR role.
 export const ALL_PERMISSIONS = Object.values(PERMISSIONS).reduce((acc, b) => acc | b, 0);
@@ -44,6 +45,35 @@ export function can(mask: number, perm: number, isOwner = false): boolean {
   if (isOwner) return true;
   if ((mask & PERMISSIONS.ADMINISTRATOR) !== 0) return true;
   return (mask & perm) === perm;
+}
+
+/** May this member connect to (join) voice channels? */
+export function canConnectVoice(mask: number, isOwner = false): boolean {
+  return can(mask, PERMISSIONS.VIEW_CHANNELS, isOwner) && can(mask, PERMISSIONS.CONNECT_VOICE, isOwner);
+}
+
+/**
+ * Apply per-channel overrides to a member's server-wide mask, Discord-style:
+ * the allow/deny bitmasks of every override row that applies to the member
+ * (one per role they hold) are OR'd together, then `effective = (base & ~deny)
+ * | allow`.
+ *
+ * Precedence when the SAME bit is both denied (by one role's override) and
+ * allowed (by another's): ALLOW wins — the `| allow` is applied last, so it
+ * re-grants a bit that `& ~deny` just cleared. This matches Discord's role-
+ * level override resolution (accumulated role denies, then accumulated role
+ * allows on top). Practical consequence for admins: a channel deny does NOT
+ * lock a bit down if any of the member's other roles has an explicit allow for
+ * it — to hard-deny, don't grant it via an override elsewhere.
+ */
+export function applyChannelOverrides(
+  baseMask: number,
+  overrides: Array<{ allow?: number | string | null; deny?: number | string | null }>,
+): number {
+  let allow = 0;
+  let deny = 0;
+  for (const o of overrides) { allow |= Number(o.allow || 0); deny |= Number(o.deny || 0); }
+  return (baseMask & ~deny) | allow;
 }
 
 /** Resolve a member's effective mask from their roles + ownership. */

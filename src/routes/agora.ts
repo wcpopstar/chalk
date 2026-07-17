@@ -6,9 +6,34 @@ import { validate } from '../middleware/validate';
 import { userLimiter } from '../middleware/rateLimit';
 import { tokenQuerySchema } from '../validation/agoraSchemas';
 import { getUserCurrentRoom } from '../socket/state';
+import { resolveContextByChannel } from '../services/serverMessaging';
+import { canConnectVoice } from '../services/serverPermissions';
 import loggerBase from '../utils/logger';
 const logger = loggerBase.child({ module: 'agora' });
 import { config } from '../config/env';
+
+// Server voice channels reuse this Agora layer with a channel name of
+// `sc-<channelId>` (short enough to stay under Agora's 64-char limit). The
+// prefix lets us tell them apart from 1:1/group call rooms (`voice-<roomId>`).
+const SERVER_VOICE_PREFIX = 'sc-';
+
+/**
+ * Decide whether `userId` may be issued a token for `channel`. Returns true if
+ * authorized. Handles both 1:1/group call rooms and server voice channels.
+ */
+async function isAuthorizedForChannel(userId: string, channel: string): Promise<boolean> {
+  if (channel.startsWith(SERVER_VOICE_PREFIX)) {
+    const channelId = channel.slice(SERVER_VOICE_PREFIX.length);
+    const resolved = await resolveContextByChannel(userId, channelId);
+    if (!resolved.ok) return false;
+    if (resolved.ctx.channel.type !== 'voice') return false;
+    return canConnectVoice(resolved.ctx.mask, resolved.ctx.isOwner);
+  }
+  // 1:1/group call: the caller may only get a token for the room they're in
+  // right now (tracked server-side in Redis, not trusted from the client).
+  const myRoomId = await getUserCurrentRoom(userId);
+  return channel === `voice-${myRoomId}`;
+}
 
 // A client legitimately re-requests a token on reconnect/token-expiry, but
 // there's no reason for dozens of requests per minute from one account.
@@ -96,13 +121,10 @@ function toNumericUid(rawUid: string | number | null | undefined): number {
  *             schema: { $ref: '#/components/schemas/Error' }
  */
 router.get('/token', requireAuth, tokenLimiter, validate({ query: tokenQuerySchema }), async (req: Request, res: Response) => {
-  const channel = req.query.channel;
+  const channel = req.query.channel as string;
 
-  // The caller may only request a token for the voice channel of the call
-  // room they are actually in right now (tracked server-side, not by the
-  // client-supplied channel string).
-  const myRoomId = await getUserCurrentRoom(req.user.id);
-  if (channel !== `voice-${myRoomId}`) {
+  // Authorize the caller for this channel (call room OR server voice channel).
+  if (!(await isAuthorizedForChannel(req.user.id, channel))) {
     return res.status(403).json({ error: 'Not a participant of this call' });
   }
 

@@ -41,12 +41,12 @@ async function openUserProfilePopup(userId) {
     body.innerHTML =
       `<button class="gc-close-btn" style="float:right" onclick="closeUserProfilePopup()">✕</button>` +
       `<div class="up-avatar">${  avatarHtml(u.avatar_emoji, u.avatar_url)  }</div>` +
-      `<div class="up-name">${  escHtml(u.username)  }</div>` +
-      (u.status_text ? `<div class="up-status-text">💬 ${  escHtml(u.status_text)  }</div>` : '') +
-      `<div class="up-meta">${  escHtml(meta.join(' · ') || T('default_player_name'))  }</div>` +
-      `<div class="up-bio">${  escHtml(u.bio || T('looking_for_teammates_status'))  }</div>` +
-      (linkBtns ? `<div class="up-gaming-links">${  linkBtns  }</div>` : '') +
-      `<div class="up-actions">` +
+      `<div class="up-name">${  escHtml(u.username)  }</div>${ 
+      u.status_text ? `<div class="up-status-text">💬 ${  escHtml(u.status_text)  }</div>` : '' 
+      }<div class="up-meta">${  escHtml(meta.join(' · ') || T('default_player_name'))  }</div>` +
+      `<div class="up-bio">${  escHtml(u.bio || T('looking_for_teammates_status'))  }</div>${ 
+      linkBtns ? `<div class="up-gaming-links">${  linkBtns  }</div>` : '' 
+      }<div class="up-actions">` +
         `<button class="auth-btn" id="upAddFriendBtn" ${  alreadyFriend ? 'disabled style="opacity:.6"' : ''  } onclick="sendFriendRequestFromPopup('${  u.id  }','${  uname  }')">${  alreadyFriend ? `✓ ${  T('friends_already')}` : `+ ${  T('friends_add')}`  }</button>` +
         `<button class="auth-btn" style="background:var(--surface2);color:var(--text)" onclick="callFriend('${  u.id  }','${  uname  }','${  u.avatar_emoji || '🎮'  }',${  Boolean(friendCallStatus[u.id] && friendCallStatus[u.id].inCall)  },${  (friendCallStatus[u.id] && friendCallStatus[u.id].roomSize) || 0  })">📞 ${  T('btn_call')  }</button>` +
         `<button class="auth-btn" style="background:var(--surface2);color:var(--text)" onclick="closeUserProfilePopup();openDM('${  u.id  }','${  uname  }','${  u.avatar_emoji || '🎮'  }')">💬 ${  T('btn_write')  }</button>` +
@@ -70,14 +70,7 @@ function closeUserProfilePopup() {
 }
 
 // ── Most-active-users leaderboard (time in calls + rating) ──────────────────
-function formatCallDuration(totalSeconds) {
-  const s = Math.max(0, parseInt(totalSeconds, 10) || 0);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  if (h > 0) return `${h  }${  T('unit_hour', 'ч')  } ${  m  }${  T('unit_min', 'мин')}`;
-  if (m > 0) return `${m  }${  T('unit_min', 'мин')}`;
-  return `${s  } ${  T('unit_seconds_short', 'с')}`;
-}
+// formatCallDuration() moved to public/web/utils/format.js (bridged onto window).
 
 async function openLeaderboard() {
   const overlay = document.getElementById('leaderboardOverlay');
@@ -155,9 +148,9 @@ async function sendFriendRequestFromPopup(userId, username) {
 }
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
-function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+// escHtml() and jsStr() moved to the first real ES module, public/web/utils/dom.js
+// (bridged onto window by web/entry.js), as the opening step of the modules
+// migration. They remain callable globally here exactly as before.
 
 var toastTimeout = null;
 function showToast(msg) {

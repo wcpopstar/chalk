@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chalk</title>
+<style>
+  :root{--bg:#0d0b14;--text:#ececf1;--muted:#9a92ad;--accent:#8b5cf6}
+  html,body{height:100%;margin:0}
+  body{background:radial-gradient(900px 500px at 50% -10%,rgba(139,92,246,.18),transparent 60%),var(--bg);
+    color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    display:flex;align-items:center;justify-content:center;text-align:center}
+  .logo{font-size:34px;font-weight:800;letter-spacing:-1px}
+  .line{height:3px;width:52px;margin:12px auto 18px;background:var(--accent);border-radius:3px}
+  .sub{color:var(--muted);font-size:13px;max-width:280px;line-height:1.5}
+</style>
+</head>
+<body>
+  <!--
+    This page is the bundled fallback (frontendDist). In normal operation it is
+    NOT shown: the native window loads the Chalk server directly via
+    WebviewUrl::External (see src/lib.rs). It only appears if that entry point
+    is ever changed to load local assets.
+  -->
+  <div>
+    <div class="logo">chalk</div>
+    <div class="line"></div>
+    <div class="sub">Настольное приложение Chalk.</div>
+  </div>
+</body>
+</html>
