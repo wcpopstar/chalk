@@ -30,6 +30,7 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { setIO } from './socket/registry';
 import helmet from 'helmet';
+import compression from 'compression';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { createRateLimitStore } from './middleware/rateLimit';
@@ -154,6 +155,11 @@ app.use(helmet({
   hsts: config.server.isProduction,
 }));
 app.use(cors({ origin: clientOrigin, credentials: true }));
+// gzip every compressible response (HTML/JS/CSS/JSON). Before this, the
+// ~700 KB JS bundle and ~300 KB of CSS went over the wire uncompressed —
+// the single biggest first-load cost on slow connections. Images/media are
+// already-compressed formats and are skipped by the default filter.
+app.use(compression());
 app.use(express.json({ limit: '2mb' }));
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -170,8 +176,13 @@ app.use(rateLimit({
   // from the same 127.0.0.1, and a debugging session with page reloads
   // (each one fires a dozen API calls) burns through the 15-minute budget
   // in minutes, after which the app looks broken with 429s for no reason.
+  // /api/gifs/media is exempt too: it's an <img>-fetched media proxy (a chat
+  // full of GIFs is dozens of requests) with its own, tighter per-IP limiter
+  // in routes/gifs.ts — counting it here would let scrolling a GIF-heavy chat
+  // eat the whole API budget.
   skip: (req: Request) =>
-    !config.server.isProduction || req.path === '/health' || req.path === '/metrics',
+    !config.server.isProduction || req.path === '/health' || req.path === '/metrics' ||
+    req.path === '/api/gifs/media',
 }));
 
 // Prometheus metrics: request duration + counters. Must be registered
@@ -332,7 +343,19 @@ const clientIndexHtml = (() => {
 // (possibly bundled) index.html, instead of express.static auto-serving the raw
 // public/index.html for directory requests. Real files (admin.html, /build/*,
 // /css/*, /vendor/*) are still served directly.
-app.use(express.static(publicDir, { index: false }));
+//
+// Caching: /build/* filenames are content-hashed (app.<hash>.js), so they can
+// be cached forever — a new deploy produces a new name. Everything else gets a
+// short browser TTL in production (revalidate hourly) and none in development.
+app.use('/build', express.static(path.join(publicDir, 'build'), {
+  index: false,
+  maxAge: '365d',
+  immutable: true,
+}));
+app.use(express.static(publicDir, {
+  index: false,
+  maxAge: config.server.isProduction ? '1h' : 0,
+}));
 
 app.get('*', (req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith('/api/')) return next();

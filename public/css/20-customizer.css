@@ -1,0 +1,140 @@
+/* ============================================================================
+   Кастомизация дизайна: режим редактирования (drag/resize), панель «Дизайн»
+   ============================================================================ */
+
+/* Пока активен режим редактирования — курсор «перемещение» и подсветка */
+html.dz-editing, html.dz-editing * {
+  cursor: move !important;
+  user-select: none !important;
+}
+
+.dz-hover {
+  outline: 1.5px dashed var(--accent) !important;
+  outline-offset: 1px;
+}
+
+/* Верхняя панель режима редактирования */
+.dz-toolbar {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  padding: 8px 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .45);
+  max-width: calc(100vw - 20px);
+  flex-wrap: wrap;
+}
+
+html.dz-editing .dz-toolbar, html.dz-editing .dz-toolbar * {
+  cursor: pointer !important;
+}
+
+.dz-toolbar-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dz-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dz-btn:hover { border-color: var(--accent-border); }
+
+.dz-btn-primary {
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+
+.dz-btn-danger { color: var(--danger); }
+
+/* Рамка выбранного элемента + уголок изменения размера */
+.dz-box {
+  position: fixed;
+  z-index: 99998;
+  display: none;
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.dz-box-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: 4px;
+  pointer-events: auto;
+  cursor: nwse-resize !important;
+}
+
+/* ── Раздел настроек «Дизайн» ─────────────────────────────────────────────── */
+.dz-var-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+
+.dz-var-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.dz-var-row input[type="color"] {
+  width: 42px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface2);
+  padding: 2px;
+  cursor: pointer;
+}
+
+.dz-theme-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.dz-theme-row:last-child { border-bottom: none; }
+
+.dz-theme-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dz-theme-save-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.dz-theme-save-row input {
+  flex: 1;
+  margin-bottom: 0;
+}

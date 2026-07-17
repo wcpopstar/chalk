@@ -25,7 +25,7 @@ function renderBotsList(bots) {
   }
   list.innerHTML = bots.map((b) => `
     <div class="bot-row" data-botid="${escHtml(b.id)}">
-      <div class="bot-row-ava">${b.avatar_url ? `<img src="${escHtml(b.avatar_url)}" alt="">` : escHtml(b.avatar_emoji || '🤖')}</div>
+      <div class="bot-row-ava">${b.avatar_url ? `<img src="${escHtml(giphyProxyUrl(b.avatar_url))}" alt="">` : escHtml(b.avatar_emoji || '🤖')}</div>
       <div class="bot-row-info">
         <div class="bot-row-name">${escHtml(b.username)} <span class="bot-badge">БОТ</span></div>
         <div class="bot-row-meta">создан ${new Date(b.created_at).toLocaleDateString()}</div>
