@@ -1,0 +1,141 @@
+/* ============================================================================
+   Верхняя навигация (логотип, вкладки, онлайн-счётчик, профиль)
+   ============================================================================ */
+
+/* NAV */
+nav {
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  height: 72px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.nav-left {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.logo {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--accent-text);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.logo::after {
+  content: '';
+  display: block;
+  height: 2px;
+  background: var(--accent);
+  opacity: .35;
+  border-radius: 1px;
+  margin-top: 2px;
+}
+
+.nav-tabs {
+  position: absolute;
+  left: calc(50% + 124px);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 24px;
+  border-radius: 12px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.nav-tab .tab-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.nav-tab:hover {
+  color: var(--text);
+  background: var(--surface2);
+}
+
+.nav-tab.active {
+  color: var(--accent-text);
+  background: var(--accent-dim);
+}
+
+.nav-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.online-counter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 9px 16px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.profile-btn .tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.profile-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  background: var(--accent-dim);
+}
+
+.logout-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all .12s;
+}
+
+.logout-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}

@@ -1,0 +1,355 @@
+/* ============================================================================
+   Адаптивность: мобильные и планшетные переопределения, dvh-вьюпорт
+   ============================================================================ */
+
+@media (max-width: 700px) {
+  .sidebar {
+    display: none !important;
+  }
+  .game-select-dropdown {
+    max-width: calc(100vw - 44px);
+  }
+  .chat-sidebar {
+    width: 100%;
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    transition: transform .22s ease;
+  }
+  .chat-main {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    transform: translateX(100%);
+    transition: transform .22s ease;
+    background: var(--bg);
+  }
+  .chat-layout.show-chat .chat-sidebar {
+    transform: translateX(-100%);
+  }
+  .chat-layout.show-chat .chat-main {
+    transform: translateX(0);
+  }
+  .chat-back-btn {
+    display: block;
+  }
+  .match-logo-text {
+    font-size: 44px;
+    letter-spacing: 6px;
+  }
+  .match-page-inner {
+    padding: 14px;
+  }
+  nav {
+    padding: 0 10px;
+    height: 60px;
+  }
+  .app {
+    height: calc(100vh - 60px);
+  }
+  .nav-left {
+    display: none;
+  }
+  #navThemeToggle {
+    display: none;
+  }
+  .nav-tabs {
+    position: static;
+    transform: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav-tabs {
+    gap: 2px;
+  }
+  .nav-tab {
+    padding: 7px 8px;
+    font-size: 11px;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .nav-tab .tab-icon {
+    font-size: 16px;
+  }
+  .nav-right {
+    flex: 0 0 auto;
+    gap: 6px;
+  }
+  .online-counter {
+    font-size: 10px;
+    gap: 4px;
+  }
+  .theme-toggle-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  .lang-toggle-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
+  #authLangSwitcher {
+    right: 58px;
+    top: 16px;
+  }
+  #authThemeToggle {
+    top: 16px;
+  }
+  .profile-btn .btn-label {
+    display: none;
+  }
+  .profile-btn {
+    padding: 7px;
+  }
+  .logo {
+    font-size: 20px;
+    letter-spacing: 2px;
+  }
+  .logout-btn {
+    display: none;
+  }
+  .tinder-stack {
+    width: calc(100vw - 44px);
+    height: 360px;
+  }
+  .fullcall-card {
+    padding: 20px 16px;
+    min-width: unset;
+    width: calc(100vw - 32px);
+  }
+  .trial-card {
+    width: calc(100vw - 32px);
+    padding: 20px 16px;
+  }
+  .found-card {
+    width: calc(100vw - 32px);
+  }
+  .post-call-card {
+    width: calc(100vw - 32px);
+  }
+  .auth-card {
+    width: calc(100vw - 32px);
+    padding: 24px 20px;
+  }
+  .ob-card {
+    padding: 22px;
+  }
+  .modal-card {
+    width: 100%;
+  }
+}
+
+/* ── Page-scroll containment: only inner containers scroll, never the whole
+   document. Fixes the chat thread dragging the page down on mobile instead of
+   scrolling inside its own window. ───────────────────────────────────────── */
+/* The app shell is sized to the *visual* viewport (dvh) so the sticky nav +
+   app exactly fill the screen on mobile, where the browser toolbar makes 100vh
+   taller than what's actually visible — the old cause of the whole page (and
+   the chat's input row) scrolling out of view when scrolling the thread. The
+   chat thread itself already scrolls internally (.chat-messages) with
+   overscroll-behavior: contain. */
+@supports (height: 100dvh) {
+  /* Pin body to the *visual* (dynamic) viewport too, not the large 100vh one.
+     Otherwise on mobile the toolbar gap (100vh − 100dvh) makes body taller
+     than the visible area and the whole document scrolls behind the chat —
+     instead the thread (.chat-messages) should scroll inside its own window. */
+  body {
+    height: 100dvh;
+  }
+  .app {
+    height: calc(100dvh - 72px);
+  }
+  @media (max-width: 700px) {
+    .app {
+      height: calc(100dvh - 60px);
+    }
+  }
+}
+
+@media (max-width: 700px) {
+  .channel-sidebar {
+    width: 150px;
+  }
+  .server-rail {
+    width: 60px;
+  }
+  .server-icon,
+  .server-rail-add {
+    width: 42px;
+    height: 42px;
+  }
+  .svs-perm-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .settings-shell {
+    flex-direction: column;
+  }
+  .settings-nav {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 10px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .settings-nav-title {
+    display: none;
+  }
+  .settings-nav-item {
+    white-space: nowrap;
+  }
+  .settings-body {
+    padding: 16px;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Средние десктопы и ноутбуки (≤1520px).
+   Вкладки навигации по умолчанию позиционируются абсолютно (по центру области
+   справа от сайдбара) и на этой ширине наезжают на правый блок (тема/язык/
+   профиль). Возвращаем их в поток: обычный flex, ничего не пересекается.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1520px) {
+  .nav-tabs {
+    position: static;
+    transform: none;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  /* Центрирование через авто-отступы (а не justify-content: center):
+     при переполнении контейнер остаётся прокручиваемым с самого начала,
+     первый таб не обрезается. */
+  .nav-tab:first-child {
+    margin-left: auto;
+  }
+  .nav-tab:last-child {
+    margin-right: auto;
+  }
+  .nav-left,
+  .nav-right {
+    flex: 0 0 auto;
+  }
+  .nav-tab {
+    padding: 10px 16px;
+    font-size: 15px;
+    white-space: nowrap;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Планшеты и узкие ноутбуки (≤1100px): поджимаем боковые панели и крупные
+   элементы, чтобы контент не сплющивался.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .nav-tab {
+    padding: 9px 10px;
+    font-size: 13px;
+    gap: 6px;
+  }
+  .nav-tab .tab-icon {
+    font-size: 18px;
+  }
+  .profile-btn {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .sidebar {
+    width: 208px;
+  }
+  .chat-sidebar {
+    width: 252px;
+  }
+  .channel-sidebar {
+    width: 180px;
+  }
+  .settings-nav {
+    width: 190px;
+  }
+  .match-logo-text {
+    font-size: clamp(44px, 7vw, 64px);
+    letter-spacing: 10px;
+  }
+  .msg-text,
+  .msg-body {
+    max-width: min(300px, 62vw);
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Узкие планшеты (≤900px): сжимаем правый блок навигации, чтобы вкладкам
+   хватало места — счётчик онлайна и подпись кнопки профиля прячем.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .online-counter {
+    display: none;
+  }
+  .profile-btn .btn-label {
+    display: none;
+  }
+  .profile-btn {
+    padding: 8px;
+  }
+  .logout-btn {
+    display: none;
+  }
+  nav {
+    padding: 0 14px;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Очень узкие экраны (≤380px): ничего не должно вылезать за край.
+   ──────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 380px) {
+  .auth-card {
+    padding: 20px 14px;
+  }
+  .nav-tab {
+    padding: 6px 6px;
+    font-size: 10px;
+  }
+  .mode-btn {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+  .match-filters {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tinder-stack {
+    height: 330px;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+   iOS-вырезы (notch / home-indicator): контент не должен прятаться под ними.
+   Работает вместе с viewport-fit=cover в <meta name="viewport">.
+   ──────────────────────────────────────────────────────────────────────────── */
+@supports (padding: env(safe-area-inset-bottom)) {
+  nav {
+    padding-left: calc(24px + env(safe-area-inset-left));
+    padding-right: calc(24px + env(safe-area-inset-right));
+  }
+  .chat-input-row,
+  .channel-input-row,
+  .voice-controls {
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+  .global-chat-bubble {
+    bottom: calc(22px + env(safe-area-inset-bottom));
+  }
+  .cookie-banner {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}

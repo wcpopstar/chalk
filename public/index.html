@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Chalk</title>
 <script src="https://cdn.socket.io/4.6.2/socket.io.min.js"></script>
 <!-- tweetnacl 1.0.3 (vendored, no CDN — works offline / under strict CSP):
@@ -735,6 +735,7 @@
           <button class="settings-nav-item" data-sect="security" onclick="showSettingsSection('security',this)"><span class="sn-ico">🔒</span><span data-i18n="settings_tab_security">Безопасность</span></button>
           <button class="settings-nav-item" data-sect="devices" onclick="showSettingsSection('devices',this);loadDevicesSection()"><span class="sn-ico">💻</span><span data-i18n="settings_tab_devices">Устройства</span></button>
           <button class="settings-nav-item" data-sect="sound" onclick="showSettingsSection('sound',this);loadSoundSection()"><span class="sn-ico">🎚️</span><span data-i18n="settings_tab_sound">Звук</span></button>
+          <button class="settings-nav-item" data-sect="bots" onclick="showSettingsSection('bots',this);loadBotsSection()"><span class="sn-ico">🤖</span><span data-i18n="settings_tab_bots">Боты</span></button>
         </aside>
 
         <div class="settings-body">
@@ -941,6 +942,39 @@
               </div>
               <div class="eq-bands" id="eqBands"></div>
               <button class="edit-profile-btn" style="margin-top:8px" onclick="resetEqualizer()">↺ <span data-i18n="settings_eq_reset">Сбросить</span></button>
+            </div>
+          </section>
+
+          <!-- ══ БОТЫ ══ -->
+          <section class="settings-section" id="settings-bots">
+            <div class="section-head">
+              <h2 data-i18n="settings_tab_bots">Боты</h2>
+              <p class="section-sub" data-i18n="settings_bots_sub">Создавай ботов, которые пишут в твои чаты через HTTP API. Токен показывается один раз — сохрани его.</p>
+            </div>
+            <div class="settings-block">
+              <div class="section-title">🤖 <span data-i18n="settings_bots_create">Новый бот</span></div>
+              <div class="bot-create-row">
+                <input class="auth-input" id="botNameInput" maxlength="24" placeholder="Имя бота (3–24 символа)" style="margin-bottom:0">
+                <button class="edit-profile-btn" id="botCreateBtn" onclick="createBot()">＋ <span data-i18n="settings_bots_create_btn">Создать</span></button>
+              </div>
+              <div class="bot-token-reveal" id="botTokenReveal" style="display:none"></div>
+            </div>
+            <div class="settings-block">
+              <div class="section-title">📋 <span data-i18n="settings_bots_list">Мои боты</span></div>
+              <div id="botsList"><div class="section-sub"><span data-i18n="status_loading">Загрузка...</span></div></div>
+            </div>
+            <div class="settings-block">
+              <div class="section-title">📖 <span data-i18n="settings_bots_api">Как пользоваться API</span></div>
+              <div class="bot-api-docs">
+                <p>1. Создай бота и сохрани токен.</p>
+                <p>2. Добавь бота в свой чат кнопкой «В чат».</p>
+                <p>3. Отправляй сообщения от его имени:</p>
+                <pre class="bot-api-code" id="botApiExample">curl -X POST {origin}/api/bots/messages \
+  -H "Authorization: Bot &lt;твой токен&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{"conversation_id":"&lt;id чата&gt;","text":"Привет!"}'</pre>
+                <p>Список чатов бота: <code>GET /api/bots/self</code> с тем же заголовком.</p>
+              </div>
             </div>
           </section>
         </div>
@@ -1618,6 +1652,7 @@
 <script src="/js/passkeys.js"></script>
 <script src="/js/profile.js"></script>
 <script src="/js/settings.js"></script>
+<script src="/js/bots.js"></script>
 <script src="/js/sound-settings.js"></script>
 <script src="/js/socket.js"></script>
 <script src="/js/nav-match-call.js"></script>

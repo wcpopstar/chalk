@@ -1,0 +1,898 @@
+/* ============================================================================
+   Серверы (гильдии): рейл, каналы, сообщения, голосовые, настройки сервера
+   ============================================================================ */
+
+/* ── Servers (Discord-style guilds) ─────────────────────────────────────────── */
+#page-servers.active {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.servers-layout {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Server rail */
+.server-rail {
+  width: 74px;
+  flex-shrink: 0;
+  background: var(--surface2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  overflow-y: auto;
+}
+
+.server-rail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+.server-rail-hint {
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+  padding: 0 6px;
+}
+
+.server-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  border: none;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+  overflow: hidden;
+}
+
+.server-icon:hover {
+  border-radius: 12px;
+  background: var(--accent-dim);
+}
+
+.server-icon.active {
+  border-radius: 12px;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.server-rail-add {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--accent-text);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+
+.server-rail-add:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: 14px;
+}
+
+.server-rail-join {
+  font-size: 16px;
+}
+
+/* Channel sidebar */
+.channel-sidebar {
+  width: 210px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.channel-sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px;
+  border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+
+.channel-server-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-add-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--accent-text);
+  flex-shrink: 0;
+}
+
+.channel-add-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+
+.channel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.channel-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.channel-item:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.channel-item.active {
+  background: var(--accent-dim);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.channel-item-icon {
+  opacity: .6;
+  font-weight: 700;
+}
+
+.channel-item-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-del {
+  opacity: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.channel-item:hover .channel-del {
+  opacity: .7;
+}
+
+.channel-del:hover {
+  color: var(--danger);
+}
+
+.channel-sidebar-foot {
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+}
+
+.server-invite-btn {
+  flex: 1;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+.server-invite-btn:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+.server-leave-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.server-leave-btn:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Channel main + messages */
+.channel-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.channel-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.channel-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.channel-view-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.channel-hash {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.channel-topic {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+  border-left: 1px solid var(--border);
+  padding-left: 8px;
+  margin-left: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overscroll-behavior: contain;
+}
+
+.channel-loading {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  margin: auto;
+}
+
+.ch-msg {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.ch-msg-ava {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  background: linear-gradient(135deg, #7c3aed, #059669);
+  overflow: hidden;
+}
+
+.ch-msg-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ch-msg-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ch-msg-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.ch-msg-time {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.ch-msg-del {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.ch-msg:hover .ch-msg-del {
+  opacity: .7;
+}
+
+.ch-msg-del:hover {
+  color: var(--danger);
+}
+
+.ch-msg-text {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text);
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.ch-msg-deleted {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.channel-typing {
+  height: 16px;
+  padding: 0 18px;
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.channel-input-row {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.channel-input {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+
+.channel-input:focus {
+  border-color: var(--accent-border);
+}
+
+.channel-send {
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  height: 38px;
+  font-size: 16px;
+  cursor: pointer;
+  color: #000;
+  flex-shrink: 0;
+}
+
+.channel-head-actions {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* ─── Voice channels ─── */
+.voice-roster {
+  padding: 2px 0 6px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.voice-roster-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.voice-roster-ava {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #7c3aed, #059669);
+  flex-shrink: 0;
+}
+
+.voice-roster-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.voice-roster-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.channel-voice {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.voice-stage {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-content: flex-start;
+  justify-content: center;
+  padding: 28px;
+  overflow-y: auto;
+}
+
+.voice-empty {
+  color: var(--muted);
+  font-size: 14px;
+  align-self: center;
+  margin: auto;
+}
+
+.voice-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 120px;
+  padding: 16px 8px;
+  background: var(--surface2);
+  border: 2px solid transparent;
+  border-radius: 14px;
+}
+
+.voice-tile-self {
+  border-color: var(--accent);
+}
+
+.voice-tile-ava {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #7c3aed, #059669);
+}
+
+.voice-tile-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.voice-tile-name {
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.voice-controls {
+  padding: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.voice-join-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 28px;
+  color: #000;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.voice-join-btn:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+.voice-live-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.voice-ctl {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.voice-ctl-muted {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.voice-ctl.voice-leave {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+/* ─── Server settings modal ─── */
+.svs-card {
+  width: 640px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+  padding: 0;
+  overflow: hidden;
+}
+
+.svs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 14px;
+}
+
+.svs-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.svs-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.svs-tab {
+  background: none;
+  border: none;
+  padding: 10px 14px;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.svs-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.svs-body {
+  padding: 20px 22px;
+  overflow-y: auto;
+}
+
+.svs-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+
+.svs-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+
+.svs-input:focus {
+  border-color: var(--accent-border);
+}
+
+.svs-input:disabled {
+  opacity: .6;
+}
+
+.svs-row-actions {
+  display: flex;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.svs-danger {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.svs-danger-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--danger);
+  margin-bottom: 8px;
+}
+
+.svs-danger-btn {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.svs-role-list,
+.svs-channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.svs-role-card,
+.svs-channel-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.svs-role-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.svs-role-name {
+  flex: 1;
+}
+
+.svs-role-badge {
+  font-size: 10px;
+  color: var(--muted);
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.svs-perm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+}
+
+.svs-perm {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.svs-role-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.svs-btn-sm {
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  padding: 8px 14px;
+  color: #000;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.svs-btn-danger {
+  background: transparent;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+}
+
+.svs-loading {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 14px 0;
+}
+
+.svs-member {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.svs-member-ava {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  flex-shrink: 0;
+}
+
+.svs-member-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.svs-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.svs-member-name {
+  font-weight: 600;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.svs-owner-badge {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.svs-member-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+.svs-chip {
+  font-size: 10.5px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.svs-muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.svs-member-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.svs-role-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.svs-channel-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.svs-channel-icon {
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.svs-channel-name {
+  flex: 1;
+}
+
+.svs-channel-topic {
+  margin-top: 8px;
+}
+
+.svs-chan-perms {
+  margin-top: 6px;
+}
+
+.svs-perm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+}
+
+.svs-perm-role {
+  font-size: 12.5px;
+  color: var(--text);
+}

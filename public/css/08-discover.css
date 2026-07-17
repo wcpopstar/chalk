@@ -1,0 +1,395 @@
+/* ============================================================================
+   Раздел «Найти»: свайп-карточки, лайки, письма
+   ============================================================================ */
+
+/* TINDER */
+.tinder-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 22px;
+}
+
+.tinder-stack {
+  position: relative;
+  width: 310px;
+  height: 400px;
+  margin: 14px auto 24px;
+}
+
+.tinder-card {
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: grab;
+  transition: transform .3s ease, opacity .3s;
+  user-select: none;
+}
+
+.tinder-card:nth-child(2) {
+  transform: rotate(-2deg) scale(.97) translateY(8px);
+  z-index: 1;
+}
+
+.tinder-card:nth-child(3) {
+  transform: rotate(1.5deg) scale(.94) translateY(16px);
+  z-index: 0;
+}
+
+.tinder-card:first-child {
+  z-index: 2;
+}
+
+.tinder-card.swiped-right {
+  transform: translateX(200%) rotate(20deg) !important;
+  opacity: 0;
+  transition: transform .4s ease, opacity .4s;
+}
+
+.tinder-card.swiped-left {
+  transform: translateX(-200%) rotate(-20deg) !important;
+  opacity: 0;
+  transition: transform .4s ease, opacity .4s;
+}
+
+.tc-banner {
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 56px;
+  position: relative;
+}
+
+.tc-badges {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  display: flex;
+  gap: 5px;
+}
+
+.tc-badge {
+  background: rgba(0, 0, 0, .6);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tc-body {
+  padding: 14px 16px;
+}
+
+.tc-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.tc-game {
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.tc-details {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tc-detail {
+  background: var(--surface2);
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.tc-bio {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.swipe-btns {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.swipe-btn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  background: var(--surface);
+  transition: all .15s;
+}
+
+.swipe-btn:hover {
+  transform: scale(1.1);
+}
+
+.swipe-no {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.swipe-yes {
+  border-color: var(--accent3);
+  color: var(--accent3);
+}
+
+.swipe-super {
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-size: 18px;
+}
+
+/* ═══════════ DISCOVER «Найти» rework ═══════════ */
+.discover-head {
+  display: flex;
+  align-items: center;
+  width: 310px;
+  margin-bottom: 6px;
+}
+
+.discover-likes-btn {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+
+.discover-likes-btn:hover {
+  border-color: var(--accent);
+  transform: scale(1.05);
+}
+
+.discover-likes-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  background: var(--danger);
+  color: #fff;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swipe-letter {
+  border-color: var(--accent2);
+  color: var(--accent2);
+  font-size: 22px;
+}
+
+.tc-games-holder {
+  margin-bottom: 8px;
+}
+
+.tc-games-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.tc-game-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .12s;
+}
+
+.tc-game-ico:hover {
+  border-color: var(--accent-border);
+}
+
+.tc-game-ico.active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: scale(1.06);
+}
+
+.tc-game-stats {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 8px 10px;
+}
+
+.tc-game-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-text);
+  margin-bottom: 5px;
+}
+
+.tc-stat-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tc-stat {
+  font-size: 11px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+/* Letter compose */
+.letter-target {
+  font-size: 12px;
+  color: var(--accent-text);
+  font-weight: 600;
+  margin: 6px 0 10px;
+}
+
+/* Likes inbox */
+.like-row {
+  display: flex;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.like-row:last-child {
+  border-bottom: none;
+}
+
+.like-ava {
+  width: 52px;
+  height: 52px;
+  border-radius: 11px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.like-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.like-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.like-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.like-name {
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.like-name:hover {
+  color: var(--accent-text);
+}
+
+.like-kind {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--accent-dim);
+  color: var(--accent-text);
+  border-radius: 5px;
+  padding: 2px 7px;
+}
+
+.like-kind-letter {
+  background: rgba(124, 58, 237, .15);
+  color: var(--accent2);
+}
+
+.like-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.like-msg {
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface2);
+  border-radius: 7px;
+  padding: 7px 10px;
+  margin-top: 6px;
+}
+
+.like-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.like-back {
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #000;
+  cursor: pointer;
+}
+
+.like-pass {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.like-pass:hover {
+  border-color: var(--danger);
+}
