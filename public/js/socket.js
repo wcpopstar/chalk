@@ -192,6 +192,7 @@ function connectSocket() {
   socket.on('server:message', (msg) => { if (typeof onServerMessage === 'function') onServerMessage(msg); });
   socket.on('server:message:deleted', (data) => { if (typeof onServerMessageDeleted === 'function') onServerMessageDeleted(data); });
   socket.on('server:typing', (data) => { if (typeof onServerTyping === 'function') onServerTyping(data); });
+  socket.on('server:voice:roster', (data) => { if (typeof onServerVoiceRoster === 'function') onServerVoiceRoster(data); });
 
   socket.on('chat:message', (msg) => {
     // A muted conversation stays silent — no chime and no OS notification.

@@ -6,7 +6,7 @@
  * socket) that each caller translates to its own transport.
  */
 import * as repo from '../repositories/serversRepository';
-import { PERMISSIONS, ALL_PERMISSIONS, can } from './serverPermissions';
+import { PERMISSIONS, ALL_PERMISSIONS, can, applyChannelOverrides } from './serverPermissions';
 import { checkMessage } from './autoModeration';
 
 export interface MemberContext {
@@ -33,7 +33,15 @@ export async function resolveContextByChannel(userId: string, channelId: string)
   if (!member) return { ok: false, status: 404, error: 'Channel not found' };
   if (member.is_banned) return { ok: false, status: 403, error: 'You are banned from this server' };
   const isOwner = server.owner_id === userId;
-  const mask = isOwner ? ALL_PERMISSIONS : await repo.getMemberPermissionMask(server.id, userId);
+  if (isOwner) return { ok: true, ctx: { channel, server, isOwner, mask: ALL_PERMISSIONS } };
+
+  // Server-wide mask from the member's roles, then narrowed/widened by any
+  // per-channel overrides that target one of those roles (see migration 033).
+  const { roleIds, mask: baseMask } = await repo.getMemberRolesAndMask(server.id, userId);
+  // ADMINISTRATOR bypasses channel overrides entirely, like the owner.
+  if ((baseMask & PERMISSIONS.ADMINISTRATOR) !== 0) return { ok: true, ctx: { channel, server, isOwner, mask: ALL_PERMISSIONS } };
+  const { data: overrides } = await repo.listChannelOverridesForRoles(channel.id, roleIds);
+  const mask = applyChannelOverrides(baseMask, overrides || []);
   return { ok: true, ctx: { channel, server, isOwner, mask } };
 }
 

@@ -63,6 +63,7 @@ stubModule(require.resolve('../../src/repositories/serversRepository'), {
   removeMember: async (serverId: string, userId: string) => { record('removeMember', { serverId, userId }); return { error: writeError }; },
   updateMember: async (serverId: string, userId: string, patch: any) => { record('updateMember', { serverId, userId, patch }); return { error: writeError }; },
   listMembers: async () => ({ data: [{ user_id: CALLER }], error: writeError }),
+  listAllMemberRoles: async () => ({ data: [], error: null }),
   assignRole: async (serverId: string, userId: string, roleId: string) => { record('assignRole', { serverId, userId, roleId }); return { error: writeError }; },
   unassignRole: async (serverId: string, userId: string, roleId: string) => { record('unassignRole', { serverId, userId, roleId }); return { error: writeError }; },
   createChannel: async (row: any) => { record('createChannel', { row }); return { data: { id: 'chan-new', ...row }, error: writeError }; },

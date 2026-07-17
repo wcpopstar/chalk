@@ -1,46 +1,19 @@
 // ── PROFILE PERSONALIZATION HELPERS ─────────────────────────────────────────
-// NOTE: these used to be plain objects built once at page load, e.g.
-//   var GENDER_LABELS = { male: T('chip_male'), ... };
-// which baked in whatever language was active *at that instant* and never
-// updated again — that's why gender / game labels used to keep showing the
-// old language after switching. They're now built fresh on every call so
-// they always reflect the current language.
-function GENDER_LABELS() {
-  return { male: T('chip_male'), female: T('chip_female'), other: T('chip_other'), prefer_not_to_say: T('profile_not_specified') };
-}
-var LANG_LABELS = { ru: '🇷🇺 Русский', en: '🇬🇧 English', uk: '🇺🇦 Українська', de: '🇩🇪 Deutsch', fr: '🇫🇷 Français', es: '🇪🇸 Español', it: '🇮🇹 Italiano', pt: '🇵🇹 Português', pl: '🇵🇱 Polski', nl: '🇳🇱 Nederlands', sv: '🇸🇪 Svenska', no: '🇳🇴 Norsk', da: '🇩🇰 Dansk', fi: '🇫🇮 Suomi', cs: '🇨🇿 Čeština', sk: '🇸🇰 Slovenčina', hu: '🇭🇺 Magyar', ro: '🇷🇴 Română', bg: '🇧🇬 Български', el: '🇬🇷 Ελληνικά', hr: '🇭🇷 Hrvatski', sr: '🇷🇸 Српски', lt: '🇱🇹 Lietuvių', lv: '🇱🇻 Latviešu', et: '🇪🇪 Eesti', tr: '🇹🇷 Türkçe', kz: '🇰🇿 Қазақша' };
-function langLabel(l) { return LANG_LABELS[l] || l.toUpperCase(); }
-function GAME_LABELS() {
-  return { valorant: 'Valorant', cs2: 'CS2', apex: 'Apex Legends', lol: 'League of Legends', fortnite: 'Fortnite', dota2: 'Dota 2', overwatch: 'Overwatch 2', pubg: 'PUBG', minecraft: 'Minecraft', genshin: 'Genshin Impact', roblox: 'Roblox', gta5: 'GTA V', amongus: 'Among Us', r6siege: 'Rainbow Six Siege', wow: 'World of Warcraft', mlbb: 'Mobile Legends', chat: T('match_simple_chat') };
-}
+// GENDER_LABELS + genderLabel + LANG_LABELS + langLabel moved to
+// public/web/utils/labels.js (bridged onto window).
+// (GAME_LABELS removed here — it was dead code, referenced nowhere.)
 
-function avatarHtml(emoji, url) {
-  // escHtml on the url too: the backend restricts avatar_url to data:image /
-  // https shapes, but escaping here means a stray quote can never break out of
-  // the src="" attribute even if something slips past validation (defense in
-  // depth against stored XSS — this helper renders other users' avatars).
-  if (url) return `<img src="${  escHtml(url)  }" alt="">`;
-  return escHtml(emoji || '🎮');
-}
+// avatarHtml() moved to public/web/utils/dom.js (bridged onto window).
 
-function participantDisplayName(p) {
-  return (p && (p.username || p.userName || p.nickname || T('games_player'))) || T('games_player');
-}
-
-function participantAvatarHtml(p) {
-  return avatarHtml(p && (p.avatar_emoji || p.avatarEmoji || null), p && (p.avatar_url || p.avatarUrl || null));
-}
-
-function getParticipantId(p) {
-  return (p && (p.id || p.userId || p.user_id || p.participantId || null)) || null;
-}
+// participantDisplayName() + participantAvatarHtml() + getParticipantId() moved
+// to public/web/utils/participant.js (bridged onto window).
 
 function participantIsAlreadyFriend(p) {
   const pid = getParticipantId(p);
   return Boolean(pid && currentFriendIds.has(String(pid)));
 }
 
-function genderLabel(g) { return GENDER_LABELS()[g] || T('profile_not_specified'); }
+// genderLabel() moved to public/web/utils/labels.js (bridged onto window).
 
 // ── THEME (light / dark) ────────────────────────────────────────────────────
 function applyTheme(theme) {
@@ -65,19 +38,12 @@ function toggleTheme() {
 applyTheme(document.documentElement.classList.contains('light-theme') ? 'light' : 'dark');
 
 // ── PRESENCE STATUS (online / away / busy) ─────────────────────────────────
-function PRESENCE_LABELS() { return { online: `🟢 ${  T('status_online')}`, away: `🌙 ${  T('call_away')}`, busy: `⛔ ${  T('call_busy')}` }; }
-
-function onlineDotHtml() {
-  const p = (currentUser && currentUser.presence) || 'online';
-  return `<div class="online-dot presence-${  p  }" id="sidebarOnlineDot"></div>`;
-}
+function PRESENCE_LABELS() { return { online: T('status_online'), away: T('call_away'), busy: T('call_busy') }; }
 
 function updatePresenceUI() {
   const p = (currentUser && currentUser.presence) || 'online';
   const label = document.getElementById('statusLabel');
   if (label) { const __pl = PRESENCE_LABELS(); label.textContent = __pl[p] || __pl.online; }
-  const dot = document.getElementById('sidebarOnlineDot');
-  if (dot) dot.className = `online-dot presence-${  p}`;
 }
 
 function toggleStatusMenu(event) {
@@ -338,18 +304,7 @@ var GAMING_LINK_PLATFORMS = [
   { key: 'twitch',   inputId: 'epLinkTwitch',   label: 'Twitch',   ico: '📺' },
 ];
 
-function gamingLinkUrl(platform, handle) {
-  const v = encodeURIComponent(handle);
-  switch (platform) {
-    case 'steam':    return /^\d{17}$/.test(handle) ? `https://steamcommunity.com/profiles/${v}` : `https://steamcommunity.com/id/${v}`;
-    case 'psn':      return `https://psnprofiles.com/${v}`;
-    case 'xbox':     return `https://www.xboxgamertag.com/search/${v}`;
-    case 'valorant': return `https://tracker.gg/valorant/profile/riot/${v}/overview`;
-    case 'faceit':   return `https://www.faceit.com/en/players/${v}`;
-    case 'twitch':   return `https://www.twitch.tv/${v}`;
-    default:         return null;
-  }
-}
+// gamingLinkUrl() moved to public/web/utils/links.js (bridged onto window).
 
 async function openEditProfile() {
   epData = { avatar_url: currentUser.avatar_url || null };
@@ -413,7 +368,7 @@ async function saveEditProfile() {
 
     currentUser = Object.assign({}, currentUser, data.user);
     closeEditProfile();
-    document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + onlineDotHtml();
+    document.getElementById('sidebarAvatar').innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url);
     // Re-attach the story ＋ badge / ring the innerHTML reset just dropped.
     if (typeof updateSidebarStoryUI === 'function') updateSidebarStoryUI();
     document.getElementById('sidebarName').textContent = currentUser.username;

@@ -63,7 +63,27 @@ const airbnbStyleRules = {
 
 module.exports = [
   {
-    ignores: ['node_modules/**', 'supabase/migrations/**', 'public/css/**', 'public/vendor/**', 'coverage/**', 'dist/**'],
+    ignores: [
+      'node_modules/**',
+      'supabase/migrations/**',
+      'public/css/**',
+      'public/vendor/**',
+      'coverage/**',
+      'dist/**',
+      // Generated / copied artifacts — NOT hand-written source. Linting these
+      // buried the ~13 real findings under thousands of false positives:
+      //   - ios/**      Capacitor native shell + a full synced copy of public/
+      //                 (ios/App/App/public) + Xcode build output.
+      //   - mobile/**   scratch space for the mobile build.
+      //   - .claude/**  agent worktrees (throwaway copies of the repo).
+      //   - src-tauri/** Rust desktop shell (target/ + generated bindings).
+      'ios/**',
+      'mobile/**',
+      '.claude/**',
+      'src-tauri/**',
+      // Generated frontend bundle (npm run build:client) — minified, not source.
+      'public/build/**',
+    ],
   },
 
   // Baseline recommended rules everywhere.
@@ -188,6 +208,37 @@ module.exports = [
         // Loaded via <script src="https://download.agora.io/sdk/release/...">
         // in public/index.html, before voice.js runs.
         AgoraRTC: 'readonly',
+      },
+    },
+    rules: {
+      ...airbnbStyleRules,
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
+      'no-empty': ['error', { allowEmptyCatch: true }],
+    },
+  },
+
+  // Node build scripts (ESM). Run under Node, not the browser or the app.
+  {
+    files: ['scripts/**/*.{js,mjs}'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
+  // Frontend ES modules (the modules migration — public/web/**). Real ES
+  // modules with import/export, browser globals, module scope. New/refactored
+  // frontend code lands here; the legacy global scripts stay under public/js.
+  {
+    files: ['public/web/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: {
+        ...globals.browser,
       },
     },
     rules: {

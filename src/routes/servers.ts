@@ -169,6 +169,41 @@ router.delete('/:id/channels/:channelId', async (req: Request, res: Response) =>
   return res.json({ ok: true });
 });
 
+// ── Per-channel permission overrides (who can write / join *this* channel) ────
+router.get('/:id/channels/:channelId/overrides', async (req: Request, res: Response) => {
+  const ctx = await loadContext(req, res, req.params.id!);
+  if (!ctx) return;
+  if (!requirePerm(res, ctx, PERMISSIONS.MANAGE_CHANNELS)) return;
+  const { data: channel } = await repo.getChannelById(req.params.channelId!);
+  if (!channel || channel.server_id !== ctx.server.id) return bad(res, 404, 'Channel not found');
+  const { data, error } = await repo.listChannelOverrides(channel.id);
+  if (error) return bad(res, 500, 'Could not load overrides');
+  return res.json({ overrides: data || [] });
+});
+
+// Upsert one role's override for a channel. allow/deny are clamped to real
+// permission bits; a row that would allow and deny nothing is deleted instead.
+router.put('/:id/channels/:channelId/overrides/:roleId', async (req: Request, res: Response) => {
+  const ctx = await loadContext(req, res, req.params.id!);
+  if (!ctx) return;
+  if (!requirePerm(res, ctx, PERMISSIONS.MANAGE_CHANNELS)) return;
+  const { data: channel } = await repo.getChannelById(req.params.channelId!);
+  if (!channel || channel.server_id !== ctx.server.id) return bad(res, 404, 'Channel not found');
+  const { data: role } = await repo.getRoleById(req.params.roleId!);
+  if (!role || role.server_id !== ctx.server.id) return bad(res, 404, 'Role not found');
+
+  const allow = (Number(req.body?.allow) || 0) & ALL_PERMISSIONS;
+  let deny = (Number(req.body?.deny) || 0) & ALL_PERMISSIONS;
+  deny &= ~allow; // a bit can't be both allowed and denied — allow wins
+  if (allow === 0 && deny === 0) {
+    await repo.deleteChannelOverride(channel.id, role.id);
+    return res.json({ ok: true, override: null });
+  }
+  const { data, error } = await repo.upsertChannelOverride({ channel_id: channel.id, role_id: role.id, allow, deny });
+  if (error) return bad(res, 500, 'Could not save override');
+  return res.json({ ok: true, override: data });
+});
+
 // ═══════════════════════════ MESSAGES ══════════════════════════════════════════
 
 router.get('/:id/channels/:channelId/messages', async (req: Request, res: Response) => {
@@ -266,9 +301,25 @@ router.delete('/:id/roles/:roleId', async (req: Request, res: Response) => {
 router.get('/:id/members', async (req: Request, res: Response) => {
   const ctx = await loadContext(req, res, req.params.id!);
   if (!ctx) return;
-  const { data, error } = await repo.listMembers(ctx.server.id);
+  const [{ data: members, error }, { data: memberRoles }] = await Promise.all([
+    repo.listMembers(ctx.server.id),
+    repo.listAllMemberRoles(ctx.server.id),
+  ]);
   if (error) return bad(res, 500, 'Could not load members');
-  return res.json({ members: data || [] });
+  // Fold each member's explicit role ids onto their row so the UI can render
+  // role chips + an assign/remove control without a query per member.
+  const rolesByUser = new Map<string, string[]>();
+  for (const r of memberRoles || []) {
+    const list = rolesByUser.get(r.user_id) || [];
+    list.push(r.role_id);
+    rolesByUser.set(r.user_id, list);
+  }
+  const enriched = (members || []).map((m: Record<string, unknown>) => ({
+    ...m,
+    roleIds: rolesByUser.get(m.user_id as string) || [],
+    isOwner: m.user_id === ctx.server.owner_id,
+  }));
+  return res.json({ members: enriched, ownerId: ctx.server.owner_id });
 });
 
 // Assign or remove a role from a member.

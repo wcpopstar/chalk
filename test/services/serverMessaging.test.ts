@@ -20,6 +20,8 @@ let lastMessage: any;
 let messageById: any;
 let createResult: any;
 let deleteResult: any;
+let memberRoleIds: string[];
+let channelOverrides: any[];
 const repoCalls: any[] = [];
 
 stubModule(require.resolve('../../src/repositories/serversRepository'), {
@@ -38,6 +40,14 @@ stubModule(require.resolve('../../src/repositories/serversRepository'), {
   getMemberPermissionMask: async (serverId: string, userId: string) => {
     repoCalls.push({ fn: 'getMemberPermissionMask', serverId, userId });
     return permissionMask;
+  },
+  getMemberRolesAndMask: async (serverId: string, userId: string) => {
+    repoCalls.push({ fn: 'getMemberRolesAndMask', serverId, userId });
+    return { roleIds: memberRoleIds, mask: permissionMask };
+  },
+  listChannelOverridesForRoles: async (channelId: string, roleIds: string[]) => {
+    repoCalls.push({ fn: 'listChannelOverridesForRoles', channelId, roleIds });
+    return { data: channelOverrides, error: null };
   },
   getLastMessageAt: async (channelId: string, userId: string) => {
     repoCalls.push({ fn: 'getLastMessageAt', channelId, userId });
@@ -77,6 +87,8 @@ describe('services/serverMessaging', () => {
     server = { id: SERVER_ID, owner_id: OWNER };
     member = { user_id: USER, is_banned: false };
     permissionMask = PERMISSIONS.VIEW_CHANNELS | PERMISSIONS.SEND_MESSAGES;
+    memberRoleIds = ['role-default'];
+    channelOverrides = [];
     lastMessage = null;
     messageById = null;
     createResult = { data: { id: 'msg-1', content: 'hello' }, error: null };
@@ -117,7 +129,17 @@ describe('services/serverMessaging', () => {
       assert.equal(r.ok, true);
       assert.equal(r.ctx.isOwner, true);
       assert.equal(r.ctx.mask, ALL_PERMISSIONS);
-      assert.ok(!repoCalls.some((c) => c.fn === 'getMemberPermissionMask'));
+      assert.ok(!repoCalls.some((c) => c.fn === 'getMemberPermissionMask' || c.fn === 'getMemberRolesAndMask'));
+    });
+
+    it('applies per-channel overrides on top of the base role mask', async () => {
+      // Base grants SEND; a channel override denies it for the member's role.
+      channelOverrides = [{ role_id: 'role-default', allow: 0, deny: PERMISSIONS.SEND_MESSAGES }];
+      const r = await resolveContextByChannel(USER, CHANNEL_ID);
+
+      assert.equal(r.ok, true);
+      assert.equal(r.ctx.mask & PERMISSIONS.SEND_MESSAGES, 0); // denied by override
+      assert.ok(r.ctx.mask & PERMISSIONS.VIEW_CHANNELS);       // still granted
     });
 
     it('resolves an ordinary member to their role mask', async () => {

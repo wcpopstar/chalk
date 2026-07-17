@@ -1238,6 +1238,28 @@ export interface Database {
         Relationships: [];
       };
 
+      server_channel_overrides: {
+        Row: {
+          channel_id: string;
+          role_id: string;
+          allow: number;
+          deny: number;
+        };
+        Insert: {
+          channel_id: string;
+          role_id: string;
+          allow?: number;
+          deny?: number;
+        };
+        Update: {
+          channel_id?: string;
+          role_id?: string;
+          allow?: number;
+          deny?: number;
+        };
+        Relationships: [];
+      };
+
       server_messages: {
         Row: {
           id: string;

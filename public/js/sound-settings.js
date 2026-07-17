@@ -24,13 +24,13 @@ async function loadSoundSection() {
   const spkSel = document.getElementById('soundSpeakerSelect');
   if (micSel) {
     micSel.innerHTML = devices.microphones.length
-      ? devices.microphones.map((d, i) => `<option value="${escHtml(d.deviceId)}"${d.deviceId === devices.currentMicId ? ' selected' : ''}>${escHtml(d.label || (T('call_mic', 'Микрофон') + ' ' + (i + 1)))}</option>`).join('')
+      ? devices.microphones.map((d, i) => `<option value="${escHtml(d.deviceId)}"${d.deviceId === devices.currentMicId ? ' selected' : ''}>${escHtml(d.label || (`${T('call_mic', 'Микрофон')  } ${  i + 1}`))}</option>`).join('')
       : `<option>${T('call_no_devices', 'Устройства не найдены — разреши доступ к микрофону')}</option>`;
     micSel.onchange = () => { if (window.setMicrophoneDevice) window.setMicrophoneDevice(micSel.value); };
   }
   if (spkSel) {
     spkSel.innerHTML = devices.speakers.length
-      ? devices.speakers.map((d, i) => `<option value="${escHtml(d.deviceId)}"${d.deviceId === devices.currentSpeakerId ? ' selected' : ''}>${escHtml(d.label || (T('call_speaker', 'Динамик') + ' ' + (i + 1)))}</option>`).join('')
+      ? devices.speakers.map((d, i) => `<option value="${escHtml(d.deviceId)}"${d.deviceId === devices.currentSpeakerId ? ' selected' : ''}>${escHtml(d.label || (`${T('call_speaker', 'Динамик')  } ${  i + 1}`))}</option>`).join('')
       : `<option>${T('call_no_devices', 'Устройства не найдены')}</option>`;
     spkSel.onchange = () => { if (window.setSpeakerDevice) window.setSpeakerDevice(spkSel.value); };
   }

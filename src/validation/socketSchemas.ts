@@ -239,6 +239,10 @@ const serverLeave = z.object({ channelId: uuidField });
 const serverMessage = z.object({ channelId: uuidField, content: messageText(4000) });
 const serverTyping = z.object({ channelId: uuidField });
 const serverDelete = z.object({ channelId: uuidField, messageId: uuidField });
+// Voice channels: subscribe to a server's realtime feed + join/leave voice.
+const serverSub = z.object({ serverId: uuidField });
+const serverVoiceJoin = z.object({ channelId: uuidField });
+const serverVoiceLeave = z.object({ channelId: uuidField });
 
 // ── Registry: event name -> zod schema ──────────────────────────────────────
 // Anything not listed here is rejected by default by validateSocketEvent()
@@ -291,6 +295,9 @@ const socketEventSchemas = {
   'server:message': serverMessage,
   'server:typing': serverTyping,
   'server:delete': serverDelete,
+  'server:sub': serverSub,
+  'server:voice:join': serverVoiceJoin,
+  'server:voice:leave': serverVoiceLeave,
 };
 
 export { socketEventSchemas, GAME_IDS };
@@ -349,6 +356,9 @@ export type ServerLeavePayload = z.infer<typeof serverLeave>;
 export type ServerMessagePayload = z.infer<typeof serverMessage>;
 export type ServerTypingPayload = z.infer<typeof serverTyping>;
 export type ServerDeletePayload = z.infer<typeof serverDelete>;
+export type ServerSubPayload = z.infer<typeof serverSub>;
+export type ServerVoiceJoinPayload = z.infer<typeof serverVoiceJoin>;
+export type ServerVoiceLeavePayload = z.infer<typeof serverVoiceLeave>;
 
 // Event name -> inferred payload type, keyed identically to
 // `socketEventSchemas` above. `keyof ClientToServerPayloadMap` is the
@@ -401,4 +411,7 @@ export type ClientToServerPayloadMap = {
   'server:message': ServerMessagePayload;
   'server:typing': ServerTypingPayload;
   'server:delete': ServerDeletePayload;
+  'server:sub': ServerSubPayload;
+  'server:voice:join': ServerVoiceJoinPayload;
+  'server:voice:leave': ServerVoiceLeavePayload;
 };

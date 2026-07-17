@@ -143,7 +143,7 @@ async function saveCard() {
     currentUser = Object.assign({}, currentUser, data.user);
     // Reflect avatar changes in the sidebar.
     const sb = document.getElementById('sidebarAvatar');
-    if (sb) { sb.innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url) + onlineDotHtml(); if (typeof updateSidebarStoryUI === 'function') updateSidebarStoryUI(); }
+    if (sb) { sb.innerHTML = avatarHtml(currentUser.avatar_emoji, currentUser.avatar_url); if (typeof updateSidebarStoryUI === 'function') updateSidebarStoryUI(); }
     showToast(`${T('profile_updated', 'Анкета обновлена')} ✓`);
     if (typeof loadProfile === 'function') loadProfile();
   } catch (e) {
@@ -269,7 +269,7 @@ window.savePrivacy = savePrivacy;
 // ── УСТРОЙСТВА ────────────────────────────────────────────────────────────────
 function deviceInfoFromUA(ua) {
   ua = ua || '';
-  let os = '💻 ' + T('device_unknown', 'Неизвестное устройство');
+  let os = `💻 ${  T('device_unknown', 'Неизвестное устройство')}`;
   if (/Windows/i.test(ua)) os = '🪟 Windows';
   else if (/Android/i.test(ua)) os = '🤖 Android';
   else if (/iPhone|iPad|iOS/i.test(ua)) os = '📱 iOS';
@@ -283,10 +283,7 @@ function deviceInfoFromUA(ua) {
   return browser ? `${os} · ${browser}` : os;
 }
 
-function fmtDateTime(iso) {
-  if (!iso) return '';
-  try { return new Date(iso).toLocaleString(); } catch (_) { return iso; }
-}
+// fmtDateTime() moved to public/web/utils/format.js (bridged onto window).
 
 async function loadDevicesSection() {
   const list = document.getElementById('devicesList');
@@ -306,7 +303,7 @@ async function loadDevicesSection() {
         return `<div class="device-row">
           <div class="device-info">
             <div class="device-name">${escHtml(deviceInfoFromUA(s.user_agent))} ${cur}</div>
-            <div class="device-meta">${s.ip ? escHtml(s.ip) + ' · ' : ''}${T('settings_last_active', 'активно')}: ${fmtDateTime(s.last_active)}</div>
+            <div class="device-meta">${s.ip ? `${escHtml(s.ip)  } · ` : ''}${T('settings_last_active', 'активно')}: ${fmtDateTime(s.last_active)}</div>
           </div>${revoke}
         </div>`;
       }).join('');
@@ -321,12 +318,12 @@ async function loadDevicesSection() {
     if (!events.length) {
       hist.innerHTML = `<div class="section-sub">${T('settings_no_history', 'Пока нет записей')}</div>`;
     } else {
-      const methodLabel = (m) => ({ password: '🔑 ' + T('settings_method_password', 'Пароль'), code: '📧 ' + T('settings_method_code', 'Код'), passkey: '🔐 Passkey', '2fa': '📧 2FA' }[m] || m);
+      const methodLabel = (m) => ({ password: `🔑 ${  T('settings_method_password', 'Пароль')}`, code: `📧 ${  T('settings_method_code', 'Код')}`, passkey: '🔐 Passkey', '2fa': '📧 2FA' }[m] || m);
       hist.innerHTML = events.map((ev) => {
         const ok = ev.success ? '<span class="login-ok">✓</span>' : '<span class="login-fail">✕</span>';
         return `<div class="login-row">
           <div class="login-main">${ok} <span class="login-method">${methodLabel(ev.method)}</span></div>
-          <div class="device-meta">${escHtml(deviceInfoFromUA(ev.user_agent))}${ev.ip ? ' · ' + escHtml(ev.ip) : ''} · ${fmtDateTime(ev.created_at)}</div>
+          <div class="device-meta">${escHtml(deviceInfoFromUA(ev.user_agent))}${ev.ip ? ` · ${  escHtml(ev.ip)}` : ''} · ${fmtDateTime(ev.created_at)}</div>
         </div>`;
       }).join('');
     }

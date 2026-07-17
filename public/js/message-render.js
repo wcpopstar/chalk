@@ -45,28 +45,8 @@ function messageContentHtml(m, meClass) {
   return `<div class="msg-text" data-rawtext="${  escHtml(text)  }">${  escHtml(text)  }${edited  }</div>`;
 }
 
-function youtubePreviewHtml(m) {
-  const videoId = (m.preview_video_id || '');
-  const link = (m.preview_url || m.text || '#');
-  const thumb = (m.preview_thumbnail || (videoId ? `https://img.youtube.com/vi/${  videoId  }/hqdefault.jpg` : ''));
-  const title = (m.preview_title || 'YouTube video');
-  return `<div class="msg-youtube-card">` +
-    `<a href="${  escHtml(link)  }" target="_blank" rel="noopener noreferrer" class="msg-youtube-link">${ 
-    thumb ? `<img class="msg-youtube-thumb" src="${  escHtml(thumb)  }" alt="youtube preview" loading="lazy">` : '' 
-    }<div class="msg-youtube-meta"><div class="msg-youtube-title">${  escHtml(title)  }</div><div class="msg-youtube-sub">Open on YouTube</div></div>` +
-    `</a>` +
-    `</div>`;
-}
-
-// ── Circular video note (records like a Telegram "video kruzhok") ──────────
-function videoNoteHtml(m) {
-  const dur = m.duration_seconds ? (`${Math.floor(m.duration_seconds / 60)  }:${  m.duration_seconds % 60 < 10 ? '0' : ''  }${m.duration_seconds % 60}`) : '';
-  return `<div class="msg-video-note-wrap">` +
-    `<video class="msg-video-note" src="${  escHtml(m.media_url)  }" playsinline muted loop preload="metadata" onclick="toggleVideoNotePlayback(this)"></video>` +
-    `<div class="msg-video-note-play" onclick="toggleVideoNotePlayback(this.previousElementSibling)">▶</div>${ 
-    dur ? `<div class="msg-video-note-dur">${  dur  }</div>` : '' 
-  }</div>`;
-}
+// youtubePreviewHtml() + videoNoteHtml() moved to
+// public/web/chat/message-html.js (bridged onto window).
 
 function toggleVideoNotePlayback(videoEl) {
   if (!videoEl) return;
@@ -127,58 +107,19 @@ function msgStatusHtml(m) {
 }
 
 // "↪ Forwarded from X" label above the bubble content, for forwarded copies.
-function forwardedLabelHtml(m) {
-  if (!m.forwarded_from) return '';
-  return `<div class="msg-forwarded-label">↪ ${  T('forwarded_from_label')  } <b>${  escHtml(m.forwarded_from)  }</b></div>`;
-}
-
-function replyQuoteHtml(m) {
-  if (!m.reply_to_id && !m.reply_to) return '';
-  const q = m.reply_to;
-  if (!q) return `<div class="msg-reply-quote"><span class="msg-reply-quote-text">${  T('msg_deleted_label')  }</span></div>`;
-  const name = q.sender && q.sender.username ? q.sender.username : T('status_user');
-  const snippet = q.deleted_at ? T('msg_deleted_label')
-    : q.type === 'voice' ? `🎤 ${  T('voice_msg_title')}`
-    : q.type === 'gif' ? '🎞️ GIF'
-    : q.type === 'video_note' ? `⭕ ${  T('video_note_title', 'Видеосообщение')}`
-    : q.type === 'image' ? `📷 ${  T('attach_photo', 'Фото')}`
-    : q.type === 'video' ? `🎥 ${  T('attach_video', 'Видео')}`
-    : q.type === 'file' ? `📎 ${  q.text || T('attach_file', 'Файл')}`
-    : (q.text || '').slice(0, 60);
-  return `<div class="msg-reply-quote" onclick="scrollToMsg('${  escHtml(q.id || '')  }')"><span class="msg-reply-quote-name">${  escHtml(name)  }</span><span class="msg-reply-quote-text">${  escHtml(snippet)  }</span></div>`;
-}
+// forwardedLabelHtml() + replyQuoteHtml() moved to
+// public/web/chat/message-html.js (bridged onto window).
 
 // ── Date dividers ("Сегодня" / "Вчера" / a date) between day groups ─────────
 // A local-time YYYY-MM-DD key used to decide when the day changed between two
 // consecutive messages.
-function msgDayKey(iso) {
-  const d = iso ? new Date(iso) : new Date();
-  if (isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+// msgDayKey() moved to public/web/utils/format.js (bridged onto window).
 
 // Human label for a day: "Сегодня", "Вчера", or a localized date. Used both
 // for the inline dividers and the floating sticky header.
-function formatDayLabel(iso) {
-  const d = iso ? new Date(iso) : new Date();
-  if (isNaN(d.getTime())) return '';
-  const today = msgDayKey(new Date().toISOString());
-  const key = msgDayKey(iso);
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
-  if (key === today) return T('date_today');
-  if (key === msgDayKey(yesterday.toISOString())) return T('date_yesterday');
-  const lang = (typeof currentLang !== 'undefined' && currentLang) ? currentLang : 'ru';
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  try {
-    return d.toLocaleDateString(lang, sameYear ? { day: 'numeric', month: 'long' } : { day: 'numeric', month: 'long', year: 'numeric' });
-  } catch (_) {
-    return key;
-  }
-}
+// formatDayLabel() moved to public/web/utils/format.js (bridged onto window).
 
-function dateDividerHtml(iso) {
-  return `<div class="msg-date-divider" data-day="${  escHtml(msgDayKey(iso))  }"><span>${  escHtml(formatDayLabel(iso))  }</span></div>`;
-}
+// dateDividerHtml() moved to public/web/chat/message-html.js (bridged onto window).
 
 // Builds a conversation's message list with a date divider inserted whenever
 // the day changes. Used for the initial bulk render.
@@ -302,7 +243,7 @@ function updateChatDateFloat() {
   const el = document.getElementById('chatMessages');
   const float = document.getElementById('chatDateFloat');
   if (!el || !float) return;
-  const top = el.getBoundingClientRect().top;
+  const {top} = el.getBoundingClientRect();
   let label = '';
   const nodes = el.querySelectorAll('.msg[data-created]');
   for (let i = 0; i < nodes.length; i++) {
