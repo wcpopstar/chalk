@@ -342,7 +342,7 @@
 
 .match-filters {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 22px;
 }
 
@@ -350,11 +350,11 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
 }
 
 .match-filter-label {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: .5px;
@@ -365,10 +365,10 @@
   box-sizing: border-box;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 11px 12px;
+  border-radius: 12px;
+  padding: 16px 16px;
   color: var(--text);
-  font-size: 14px;
+  font-size: 16px;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
   outline: none;
