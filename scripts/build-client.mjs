@@ -86,9 +86,25 @@ async function main() {
   const hash = createHash('sha256').update(code).digest('hex').slice(0, 10);
   const bundleName = `app.${hash}.js`;
 
+  // CSS: /css/style.css is an @import aggregator over the thematic modules in
+  // /css/ — bundle (inlines the imports in order), minify, and hash it. The
+  // Google-Fonts @import is external and survives at the top of the output.
+  const cssBuild = await esbuild.build({
+    entryPoints: [path.join(publicDir, 'css', 'style.css')],
+    bundle: true,
+    minify: true,
+    external: ['https://*'],
+    legalComments: 'none',
+    write: false,
+  });
+  const cssCode = cssBuild.outputFiles[0].text;
+  const cssHash = createHash('sha256').update(cssCode).digest('hex').slice(0, 10);
+  const cssName = `style.${cssHash}.css`;
+
   await rm(buildDir, { recursive: true, force: true });
   await mkdir(buildDir, { recursive: true });
   await writeFile(path.join(buildDir, bundleName), code, 'utf8');
+  await writeFile(path.join(buildDir, cssName), cssCode, 'utf8');
 
   // Rewrite index.html: swap the whole run of bundled tags for the one bundle.
   const bundleTag = `<script src="/build/${bundleName}"></script>`;
@@ -102,6 +118,11 @@ async function main() {
   // dev-only <script type="module"> tag from the built HTML.
   outHtml = outHtml
     .replace(/<script type="module" src="\/web\/entry\.js"><\/script>\n?/, '');
+  // Point the stylesheet at the hashed CSS bundle.
+  outHtml = outHtml.replace(
+    '<link rel="stylesheet" href="/css/style.css">',
+    `<link rel="stylesheet" href="/build/${cssName}">`
+  );
   await writeFile(path.join(buildDir, 'index.html'), outHtml, 'utf8');
 
   const kb = (Buffer.byteLength(code) / 1024).toFixed(0);
