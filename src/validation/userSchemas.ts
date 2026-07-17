@@ -121,7 +121,8 @@ const updateProfileSchema = z
 // ── POST /api/users/me/onboarding ────────────────────────────────────────
 const onboardingSchema = z.object({
   username: usernameField.optional(),
-  avatar_url: avatarUrlField.optional(),
+  // The client sends null when no photo was picked during onboarding.
+  avatar_url: avatarUrlField.nullish().transform((v) => v ?? undefined),
   age: z.coerce.number().int().min(13).max(100),
   gender: z.enum(GENDERS as any),
   languages: z.array(z.string().trim().min(1)).min(1, 'Pick at least one language'),

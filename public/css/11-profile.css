@@ -1,0 +1,225 @@
+/* ============================================================================
+   Профиль: попап пользователя, страница профиля, аватары
+   ============================================================================ */
+
+/* USER PROFILE POPUP */
+.up-avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  margin: 6px auto 12px;
+  background: linear-gradient(135deg, #7c3aed, #c8ff00);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  overflow: hidden;
+}
+
+.up-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.up-name {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.up-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.up-bio {
+  font-size: 12.5px;
+  color: var(--text);
+  margin-top: 14px;
+  line-height: 1.5;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.up-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.up-actions button {
+  flex: 1;
+}
+
+/* PROFILE */
+.profile-inner {
+  padding: 24px;
+}
+
+.profile-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.profile-ava-big {
+  width: 74px;
+  height: 74px;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #7c3aed, #c8ff00);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  flex-shrink: 0;
+  border: 2px solid var(--accent);
+}
+
+.profile-username {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.profile-tagline {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 9px;
+}
+
+.profile-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.ptag {
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ptag-game {
+  background: var(--accent-dim);
+  color: var(--accent-text);
+  border: 1px solid var(--accent-border);
+}
+
+.ptag-rank {
+  background: rgba(124, 58, 237, .1);
+  color: #a78bfa;
+  border: 1px solid rgba(124, 58, 237, .2);
+}
+
+.ptag-lang {
+  background: rgba(16, 185, 129, .1);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, .2);
+}
+
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 14px;
+  text-align: center;
+}
+
+.stat-num {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.stat-label {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.profile-games {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 14px;
+}
+
+.section-title {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-label {
+  font-size: 12px;
+}
+
+.settings-value {
+  font-size: 11px;
+  color: var(--accent-text);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.edit-profile-btn {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: 7px;
+  padding: 7px 14px;
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.edit-profile-btn:hover {
+  background: rgba(200, 255, 0, .18);
+}
+
+/* AVATAR IMAGE (photo overrides emoji avatar) */
+.profile-ava-big img,
+.my-avatar img,
+.friend-ava img,
+.chat-ava img,
+.chat-header-ava img,
+.found-ava img,
+.tp-ava img,
+.fp-ava img,
+.pc-ava img,
+.tc-banner img,
+.ob-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}

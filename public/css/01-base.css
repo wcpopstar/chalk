@@ -1,0 +1,87 @@
+/* ============================================================================
+   Базовые стили: шрифты, палитра (CSS-переменные), темы, reset, скроллбар
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+:root {
+  --bg: #080a0e;
+  --surface: #0f1117;
+  --surface2: #161a23;
+  --border: #1c2030;
+  --accent: #c8ff00;
+  --accent-text: #c8ff00;
+  --accent-dim: rgba(200, 255, 0, 0.1);
+  --accent-border: rgba(200, 255, 0, 0.22);
+  --accent2: #7c3aed;
+  --accent3: #10b981;
+  --danger: #ef4444;
+  --text: #e2e8f0;
+  --muted: #4a5568;
+  --online: #22c55e;
+}
+
+html.light-theme {
+  --bg: #f4f5f8;
+  --surface: #ffffff;
+  --surface2: #eef0f4;
+  --border: #dfe2ea;
+  --accent: #c8ff00;
+  --accent-text: #5d8a00;
+  --accent-dim: rgba(93, 138, 0, 0.1);
+  --accent-border: rgba(93, 138, 0, 0.3);
+  --accent2: #7c3aed;
+  --accent3: #059669;
+  --danger: #dc2626;
+  --text: #1a202c;
+  --muted: #6b7280;
+  --online: #16a34a;
+}
+
+html.light-theme .auth-logo,
+html.light-theme .logo,
+html.light-theme .match-logo-text {
+  background: linear-gradient(135deg, #7c3aed, #16a34a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #16a34a;
+}
+
+html.light-theme body,
+html.light-theme nav,
+html.light-theme .sidebar,
+html.light-theme .auth-card {
+  transition: background-color .15s, color .15s, border-color .15s;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Fixed viewport height (not min-height): body is a flex column and .app{flex:1}
+   sizes off the container, so an auto-height body lets .app grow with the chat
+   thread instead of constraining it — then nothing scrolls (overflow:hidden). */
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}

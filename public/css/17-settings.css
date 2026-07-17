@@ -1,0 +1,582 @@
+/* ============================================================================
+   Хаб настроек: навигация, тумблеры, анкета, устройства, звук
+   ============================================================================ */
+
+/* ═══════════ SETTINGS HUB (was «Профиль») ═══════════ */
+.settings-shell {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+.settings-nav {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 18px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.settings-nav-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  padding: 0 8px 10px;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all .15s;
+}
+
+.settings-nav-item:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+.settings-nav-item.active {
+  background: var(--accent-dim);
+  color: var(--accent-text);
+}
+
+.settings-nav-item .sn-ico {
+  font-size: 17px;
+}
+
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+}
+
+.settings-section {
+  display: none;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.settings-section.active {
+  display: block;
+}
+
+.section-head {
+  margin-bottom: 18px;
+}
+
+.section-head h2 {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.section-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.settings-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.settings-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.settings-toggle-row span b {
+  display: block;
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.settings-toggle-row span small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* toggle switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  transition: .2s;
+  border-radius: 24px;
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background: var(--muted);
+  transition: .2s;
+  border-radius: 50%;
+}
+
+.switch input:checked+.switch-slider {
+  background: var(--accent-dim);
+  border-color: var(--accent-border);
+}
+
+.switch input:checked+.switch-slider:before {
+  transform: translateX(18px);
+  background: var(--accent);
+}
+
+/* Анкета — per-game editor */
+.card-games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-game-row {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+}
+
+.card-game-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.card-game-emoji {
+  font-size: 18px;
+}
+
+.card-game-name {
+  font-weight: 600;
+  font-size: 13px;
+  flex: 1;
+}
+
+.card-game-del {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.card-game-del:hover {
+  color: var(--danger);
+}
+
+.card-game-fields {
+  display: flex;
+  gap: 10px;
+}
+
+.card-game-fields label {
+  flex: 1;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.card-game-fields input {
+  margin-bottom: 0;
+}
+
+.card-add-game-wrap {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+/* Устройства */
+.device-row,
+.login-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.device-row:last-child,
+.login-row:last-child {
+  border-bottom: none;
+}
+
+.device-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.device-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.device-current {
+  background: var(--accent-dim);
+  color: var(--accent-text);
+  border-radius: 5px;
+  padding: 1px 7px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.device-revoke {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--danger);
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.device-revoke:hover {
+  border-color: var(--danger);
+}
+
+.login-main {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.login-ok {
+  color: var(--online);
+}
+
+.login-fail {
+  color: var(--danger);
+}
+
+/* Звук */
+.sound-range {
+  width: 100%;
+  accent-color: var(--accent);
+  margin: 4px 0 12px;
+}
+
+.mic-meter {
+  height: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.mic-meter-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--accent3), var(--accent));
+  transition: width .06s linear;
+}
+
+.ptt-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ptt-mode {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.ptt-mode input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.ptt-mode b {
+  display: block;
+  font-size: 13px;
+}
+
+.ptt-mode small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.eq-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.eq-bands {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px 6px 6px;
+}
+
+.eq-band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+}
+
+.eq-band-val {
+  font-size: 11px;
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+.eq-band-freq {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.eq-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 8px;
+  height: 110px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── Боты ─────────────────────────────────────────────────────────────────── */
+
+/* Бейдж «БОТ» рядом с именем отправителя (используется и в чате) */
+.bot-badge {
+  display: inline-block;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-text);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  border-radius: 5px;
+  padding: 1px 5px;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+.bot-create-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bot-create-row .auth-input {
+  flex: 1;
+}
+
+.bot-create-row .edit-profile-btn {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.bot-token-reveal {
+  margin-top: 12px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.bot-token-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-text);
+  margin-bottom: 8px;
+}
+
+.bot-token-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.bot-token-value {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 11.5px;
+  word-break: break-all;
+  color: var(--text);
+  user-select: all;
+}
+
+.bot-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.bot-row:last-child {
+  border-bottom: none;
+}
+
+.bot-row-ava {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #7c3aed, #10b981);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.bot-row-ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bot-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bot-row-name {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.bot-row-meta {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.bot-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.bot-act-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: all .12s;
+}
+
+.bot-act-btn:hover {
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+
+.bot-act-btn.bot-act-danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.bot-api-docs {
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.bot-api-docs code {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 6px;
+  font-size: 11.5px;
+}
+
+.bot-api-code {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 6px 0;
+  color: var(--accent-text);
+}

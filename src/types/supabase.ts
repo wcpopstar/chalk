@@ -76,6 +76,9 @@ export interface Database {
           gaming_links: Record<string, string>;
           twofa_email_enabled: boolean;
           privacy: Record<string, boolean>;
+          is_bot: boolean;
+          bot_owner_id: string | null;
+          bot_token_hash: string | null;
         };
         Insert: {
           id?: string;
@@ -109,6 +112,9 @@ export interface Database {
           e2ee_backup_iters?: number | null;
           banned_until?: string | null;
           ban_reason?: string | null;
+          is_bot?: boolean;
+          bot_owner_id?: string | null;
+          bot_token_hash?: string | null;
         };
         Update: {
           id?: string;
@@ -142,6 +148,9 @@ export interface Database {
           gaming_links?: Record<string, string>;
           twofa_email_enabled?: boolean;
           privacy?: Record<string, boolean>;
+          is_bot?: boolean;
+          bot_owner_id?: string | null;
+          bot_token_hash?: string | null;
         };
         Relationships: [];
       };

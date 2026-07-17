@@ -9,7 +9,7 @@ const MESSAGE_SELECT = `
   id, conversation_id, sender_id, text, type, media_url, duration_seconds, edited_at, deleted_at, created_at,
   preview_title, preview_url, preview_thumbnail, preview_video_id, reply_to_id, forwarded_from,
   is_encrypted, nonce, sender_public_key,
-  sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url ),
+  sender:users!messages_sender_id_fkey ( id, username, avatar_emoji, avatar_url, is_bot ),
   reply_to:reply_to_id ( id, text, type, deleted_at, sender_id, sender:users!messages_sender_id_fkey ( username ) ),
   reactions:message_reactions ( emoji, user_id )
 `;

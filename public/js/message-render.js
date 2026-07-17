@@ -140,7 +140,7 @@ function chatMsgHtml(m) {
   const senderId = m.sender_id || sender.id || '';
   // Clicking any avatar in the conversation opens that user's profile.
   const avaClick = senderId && !isMe ? ` onclick="openUserProfilePopup('${  escHtml(senderId)  }')" style="cursor:pointer;` : ' style="';
-  return `<div class="msg${  isMe ? ' me' : ''  }" data-msgid="${  m.id  }" data-created="${  escHtml(m.created_at || '')  }"><div class="msg-ava"${  avaClick  }background:linear-gradient(135deg,#7c3aed,${  isMe ? '#c8ff00' : '#ec4899'  })">${  avatarHtml(sender.avatar_emoji, sender.avatar_url)  }</div><div class="msg-body">${  messageActionsHtml(m, 'conv')  }<div class="msg-name">${  isMe ? T('status_you') : escHtml(sender.username || '?')  }</div>${  replyQuoteHtml(m)  }${  forwardedLabelHtml(m)  }${  messageContentHtml(m)  }${  msgStatusHtml(m)  }${  typeof reactionsBarHtml === 'function' ? reactionsBarHtml(m) : ''  }</div></div>`;
+  return `<div class="msg${  isMe ? ' me' : ''  }" data-msgid="${  m.id  }" data-created="${  escHtml(m.created_at || '')  }"><div class="msg-ava"${  avaClick  }background:linear-gradient(135deg,#7c3aed,${  isMe ? '#c8ff00' : '#ec4899'  })">${  avatarHtml(sender.avatar_emoji, sender.avatar_url)  }</div><div class="msg-body">${  messageActionsHtml(m, 'conv')  }<div class="msg-name">${  isMe ? T('status_you') : escHtml(sender.username || '?')  }${  !isMe && sender.is_bot ? ' <span class="bot-badge">БОТ</span>' : ''  }</div>${  replyQuoteHtml(m)  }${  forwardedLabelHtml(m)  }${  messageContentHtml(m)  }${  msgStatusHtml(m)  }${  typeof reactionsBarHtml === 'function' ? reactionsBarHtml(m) : ''  }</div></div>`;
 }
 
 function scrollToMsg(id) {

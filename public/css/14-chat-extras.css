@@ -1,0 +1,510 @@
+/* ============================================================================
+   Доп. функции чата: статусы, ответы, закрепы, пересылка, обои, фронтвары, cookie
+   ============================================================================ */
+
+/* ── Chat scroll containment: scrolling inside the message list must never
+   scroll the page behind it (overscroll chaining). ─────────────────────── */
+.chat-messages,
+.gc-messages {
+  overscroll-behavior: contain;
+}
+
+/* ── Message delivery status (🕓 sending / ✓ delivered / ✓✓ read) ────────── */
+.msg-status {
+  display: block;
+  text-align: right;
+  font-size: 10px;
+  line-height: 1;
+  margin-top: 3px;
+  color: var(--muted);
+  user-select: none;
+}
+
+.msg-status[data-status="read"] {
+  color: #4da3ff;
+}
+
+.msg-status[data-status="failed"] {
+  color: #ff5b5b;
+}
+
+/* ── Quoted message inside a reply bubble ────────────────────────────────── */
+.msg-reply-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-left: 3px solid #7c3aed;
+  background: rgba(124, 58, 237, .08);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-bottom: 5px;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.msg-reply-quote-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #a78bfa;
+}
+
+.msg-reply-quote-text {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── "Replying to…" bar above the input ──────────────────────────────────── */
+.chat-reply-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, .08));
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chat-reply-bar-body {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-reply-bar-cancel {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+}
+
+.chat-reply-bar-cancel:hover {
+  color: #fff;
+}
+
+/* ── Flash highlight when jumping to a quoted message ────────────────────── */
+.msg-flash {
+  animation: msgFlash 1.2s ease;
+}
+
+@keyframes msgFlash {
+  0% {
+    background: rgba(124, 58, 237, .25);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* ── Activity label ("typing… / recording…") under the chat header ───────── */
+.chat-header-status.chat-activity {
+  color: #a78bfa;
+  font-style: italic;
+}
+
+/* ── Pinned message banner (above the message thread) ──────────────────────── */
+.chat-pinned-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+}
+
+.chat-pinned-bar:hover {
+  background: var(--accent-dim);
+}
+
+.chat-pinned-icon {
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.chat-pinned-body {
+  flex: 1;
+  min-width: 0;
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+}
+
+.chat-pinned-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--accent-text);
+}
+
+.chat-pinned-text {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.chat-pinned-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+  flex-shrink: 0;
+}
+
+.chat-pinned-close:hover {
+  color: var(--danger);
+}
+
+/* ── "Forwarded from X" label above a forwarded bubble ─────────────────────── */
+.msg-forwarded-label {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-style: italic;
+  margin-bottom: 3px;
+}
+
+.msg-forwarded-label b {
+  color: var(--accent-text);
+  font-style: normal;
+}
+
+/* ── Forward picker list ───────────────────────────────────────────────────── */
+.forward-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.forward-item:hover {
+  background: var(--surface2);
+}
+
+.forward-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Chat background picker popover + custom wallpaper ─────────────────────── */
+.chat-messages.has-custom-bg {
+  background-repeat: no-repeat;
+}
+
+.chat-bg-picker {
+  position: fixed;
+  display: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .4);
+  padding: 12px;
+  z-index: 999;
+  width: 232px;
+}
+
+.chat-bg-picker.show {
+  display: block;
+}
+
+.chat-bg-picker-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.chat-bg-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.chat-bg-swatch {
+  height: 44px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  background-color: var(--surface2);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.chat-bg-swatch:hover {
+  border-color: var(--accent-border);
+}
+
+.chat-bg-swatch.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.chat-bg-none-label {
+  font-size: 9px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.1;
+  padding: 2px;
+}
+
+/* ── Frontwars (in-call territory conquest duel) ───────────────────────────── */
+.fw-bar {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.fw-board {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  grid-template-rows: repeat(9, 1fr);
+  width: 100%;
+  aspect-ratio: 1;
+  gap: 2px;
+  user-select: none;
+}
+
+.fw-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: default;
+}
+
+.fw-neutral {
+  background: var(--surface2);
+  color: var(--muted);
+}
+
+.fw-mine {
+  background: rgba(200, 255, 0, .22);
+  border: 1px solid var(--accent-border);
+  color: var(--accent-text);
+}
+
+.fw-theirs {
+  background: rgba(239, 68, 68, .22);
+  border: 1px solid rgba(239, 68, 68, .4);
+  color: #f87171;
+}
+
+.fw-can {
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--accent-border);
+}
+
+.fw-can:hover {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.fw-can-build {
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px var(--accent2);
+}
+
+.fw-cost {
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  font-size: 9px;
+  color: var(--accent-text);
+}
+
+.fw-cost-no {
+  color: var(--danger);
+  opacity: .8;
+}
+
+.fw-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.fw-actions button {
+  flex: 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.fw-actions button:hover {
+  border-color: var(--accent-border);
+}
+
+.fw-actions button.active {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.fw-actions button:disabled {
+  opacity: .45;
+  cursor: default;
+}
+
+.fw-actions .fw-end-turn {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  font-weight: 700;
+}
+
+/* ── Gaming profile links (edit modal inputs + public profile buttons) ─────── */
+.ep-links-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.ep-link-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ep-link-row .ep-link-ico {
+  font-size: 15px;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+  margin-bottom: 10px;
+}
+
+.ep-link-row .auth-input {
+  flex: 1;
+}
+
+.up-gaming-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin: 10px 0 2px;
+}
+
+.up-gaming-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.up-gaming-link:hover {
+  border-color: var(--accent-border);
+  color: var(--accent-text);
+}
+
+/* ── Cookie consent banner ─────────────────────────────────────────────────── */
+.cookie-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  max-width: 520px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .45);
+  padding: 16px 18px;
+  z-index: 1500;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cookie-banner-text {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.cookie-banner-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cookie-btn {
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+.cookie-btn-decline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.cookie-btn-decline:hover {
+  color: var(--text);
+  border-color: var(--accent-border);
+}
+
+.cookie-btn-accept {
+  background: var(--accent);
+  border: none;
+  color: #000;
+}
+
+.cookie-btn-accept:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 700px) {
+  .cookie-banner {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+  }
+}
