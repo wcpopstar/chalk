@@ -9,7 +9,79 @@ async function loadChats() {
     const data = await api('/api/chats');
     lastConversations = data.conversations || [];
     renderChatsList();
+    revealChalkAiEntry();
   } catch(e) { console.error(e); }
+}
+
+// ── Chalk AI (the built-in assistant bot) ────────────────────────────────────
+// The sidebar entry stays hidden until the server confirms the assistant is
+// actually configured (GROQ_API_KEY set) — checked once per page load.
+var chalkAiStatusChecked = false;
+async function revealChalkAiEntry() {
+  if (chalkAiStatusChecked) return;
+  chalkAiStatusChecked = true;
+  try {
+    const data = await api('/api/ai/status');
+    if (data.enabled) {
+      const el = document.getElementById('chalkAiItem');
+      if (el) el.style.display = '';
+    }
+  } catch (_) { /* stays hidden */ }
+}
+
+// Get-or-create the conversation with the Chalk AI bot (type 'ai' — like
+// Saved Messages it's NOT in the DM list, only this fixed sidebar entry),
+// then open it in place. The bot posts a greeting on first creation and
+// replies to every message server-side.
+var chalkAiBotId = null;
+async function openChalkAI() {
+  try {
+    const data = await api('/api/ai/chat', { method: 'POST' });
+    switchToChatTab();
+    chalkAiBotId = data.bot ? data.bot.id : null;
+    // Seed the partner cache BEFORE openConv so the header (name/avatar) and
+    // the call button light up exactly like a normal DM — startFriendCall()
+    // sees is_bot and routes the call to the Web-Speech AI call.
+    dmPartnersByConv[data.conversation.id] = data.bot || null;
+    openConv(data.conversation.id, 'Chalk AI');
+    const stEl = document.getElementById('chatHeaderStatus');
+    if (stEl) { stEl.classList.remove('chat-activity'); stEl.textContent = T('ai_helper_sub', 'AI-помощник'); }
+  } catch (e) { showToast(`${T('err_generic')  } ${  e.message}`); }
+}
+
+// ── Chalk AI personal instructions (the ⚙️ in the AI chat header) ────────────
+async function openAiPrefs() {
+  let current = '';
+  try { current = (await api('/api/ai/prefs')).instructions || ''; } catch (_) {}
+  const old = document.getElementById('aiPrefsOverlay');
+  if (old) old.remove();
+  const wrap = document.createElement('div');
+  wrap.id = 'aiPrefsOverlay';
+  wrap.className = 'ai-call-overlay';
+  wrap.innerHTML =
+    `<div class="ai-call-card ai-prefs-card">` +
+      `<div class="ai-call-name">⚙️ ${T('ai_prefs_title', 'Настройка Chalk AI')}</div>` +
+      `<div class="ai-prefs-hint">${T('ai_prefs_hint', 'Расскажи боту, как с тобой общаться: как тебя звать, каким тоном отвечать, о чём напоминать. Действует и в чате, и в звонке.')}</div>` +
+      `<textarea id="aiPrefsText" maxlength="1000" rows="6" placeholder="${T('ai_prefs_ph', 'Например: зови меня Саша, общайся на ты, отвечай коротко и с юмором')}"></textarea>` +
+      `<div class="ai-call-controls">` +
+        `<button type="button" class="ai-prefs-save" onclick="saveAiPrefs()">${T('btn_save', 'Сохранить')}</button>` +
+        `<button type="button" class="ai-prefs-cancel" onclick="document.getElementById('aiPrefsOverlay').remove()">${T('btn_cancel', 'Отмена')}</button>` +
+      `</div>` +
+    `</div>`;
+  document.body.appendChild(wrap);
+  const ta = document.getElementById('aiPrefsText');
+  ta.value = current;
+  ta.focus();
+}
+
+async function saveAiPrefs() {
+  const ta = document.getElementById('aiPrefsText');
+  try {
+    await api('/api/ai/prefs', { method: 'PUT', body: JSON.stringify({ instructions: ta.value.trim() }) });
+    const el = document.getElementById('aiPrefsOverlay');
+    if (el) el.remove();
+    showToast(T('ai_prefs_saved', 'Chalk AI настроен ✓'));
+  } catch (e) { showToast(`${T('err_generic')  } ${  e.message}`); }
 }
 
 // Renders the DM + group lists from the cached conversations. Split out from
@@ -289,6 +361,9 @@ async function openConv(convId, name) {
   document.getElementById('chatInputRow').style.display = 'flex';
   const callBtn = document.querySelector('.call-btn-inline');
   if (callBtn) callBtn.style.display = currentConvPartner ? '' : 'none';
+  // The ⚙️ personalization button only makes sense in the Chalk AI chat.
+  const aiBtn = document.getElementById('aiPrefsBtn');
+  if (aiBtn) aiBtn.style.display = (currentConvPartner && chalkAiBotId && currentConvPartner.id === chalkAiBotId) ? '' : 'none';
 
   // Lock button + send path: snapshot from the chats list now, refreshed
   // from the /messages response below (the partner may have toggled the

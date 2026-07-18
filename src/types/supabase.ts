@@ -79,6 +79,7 @@ export interface Database {
           is_bot: boolean;
           bot_owner_id: string | null;
           bot_token_hash: string | null;
+          ai_instructions: string | null;
         };
         Insert: {
           id?: string;
@@ -115,6 +116,7 @@ export interface Database {
           is_bot?: boolean;
           bot_owner_id?: string | null;
           bot_token_hash?: string | null;
+          ai_instructions?: string | null;
         };
         Update: {
           id?: string;
@@ -151,6 +153,7 @@ export interface Database {
           is_bot?: boolean;
           bot_owner_id?: string | null;
           bot_token_hash?: string | null;
+          ai_instructions?: string | null;
         };
         Relationships: [];
       };

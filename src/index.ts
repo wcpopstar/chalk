@@ -55,6 +55,7 @@ import storyRoutes from './routes/stories';
 import transcribeRoutes from './routes/transcribe';
 import serverRoutes from './routes/servers';
 import botRoutes from './routes/bots';
+import aiRoutes from './routes/ai';
 import adminRoutes from './routes/admin';
 import { initSocket } from './socket';
 import { startWorkers, closeWorkers } from './workers';
@@ -321,6 +322,7 @@ app.use('/api/stories', storyRoutes);
 app.use('/api/transcribe', transcribeRoutes);
 app.use('/api/servers', serverRoutes);
 app.use('/api/bots', botRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
 
 // Which index.html the SPA is served from. In production, prefer the bundled

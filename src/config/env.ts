@@ -99,6 +99,18 @@ const config = Object.freeze({
     enabled: !!process.env.STT_API_KEY,
   }),
 
+  // "Chalk AI" — the built-in assistant bot users can chat with about the
+  // app's features. Any OpenAI-compatible /chat/completions endpoint works;
+  // defaults to Groq (free tier, llama-3.3-70b handles Russian well — same
+  // provider the STT default uses, so one console.groq.com key covers both).
+  // Feature is inert (entry hidden, /api/ai returns 503) until a key is set.
+  ai: Object.freeze({
+    apiUrl: process.env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions',
+    apiKey: process.env.GROQ_API_KEY || null,
+    model: process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
+    enabled: !!process.env.GROQ_API_KEY,
+  }),
+
   smtp: Object.freeze({
     // host === null is the documented signal (see services/mailer.ts) to
     // fall back to logging the email instead of sending it — useful for
@@ -220,6 +232,9 @@ function validateEnv() {
   }
   if (!config.admin.apiKey && config.server.isProduction) {
     logger.warn('ADMIN_API_KEY is not set in production — the feature-flag admin endpoints (/api/flags/admin/*) are disabled (fail closed).');
+  }
+  if (!config.ai.apiKey && config.server.isProduction) {
+    logger.warn('GROQ_API_KEY is not set in production — the Chalk AI assistant is disabled (entry hidden, /api/ai returns 503).');
   }
   if (!config.giphy.apiKey && config.server.isProduction) {
     logger.warn('GIPHY_API_KEY is not set in production — the GIF picker will return 503 instead of search results.');

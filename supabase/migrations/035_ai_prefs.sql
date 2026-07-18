@@ -1,0 +1,11 @@
+-- ── Chalk AI personalization ─────────────────────────────────────────────────
+-- Free-text instructions a user writes for the built-in Chalk AI assistant
+-- («зови меня Саша», «отвечай покороче», «общайся на ты»). Injected into the
+-- system prompt of both chat replies and voice-call replies for that user's
+-- turns (src/services/aiChalk.ts). NULL/empty = default behaviour.
+--
+-- Also documented here (no schema change needed): conversations.type gains a
+-- fourth value, 'ai' — the user's single conversation with the Chalk AI bot.
+-- Like 'saved' (migration 020) it reuses the whole message pipeline but is
+-- rendered as a fixed sidebar entry instead of a row in the DM list.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_instructions TEXT;

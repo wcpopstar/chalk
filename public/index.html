@@ -577,6 +577,12 @@
               <div class="chat-ava chat-ava-saved">🔖</div>
               <div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name" data-i18n="saved_messages_title">Избранное</div></div><div class="chat-sub" data-i18n="saved_messages_sub">Заметки и пересланное себе</div></div>
             </div>
+            <!-- Hidden until GET /api/ai/status confirms the assistant is
+                 configured on this deployment (see chats-list.js). -->
+            <div class="chat-item chat-item-saved" id="chalkAiItem" style="display:none" onclick="openChalkAI()">
+              <div class="chat-ava chat-ava-saved">✨</div>
+              <div class="chat-item-body"><div class="chat-item-toprow"><div class="chat-name">Chalk AI</div></div><div class="chat-sub">Спроси меня о Chalk</div></div>
+            </div>
           </div>
           <div class="chat-sidebar-section">
             <div class="sidebar-label"><span class="tab-icon">💬</span><span data-i18n="chat_personal">Личные</span></div>
@@ -596,6 +602,7 @@
               <div class="chat-header-name" id="chatHeaderName">...</div>
               <div class="chat-header-status" id="chatHeaderStatus">...</div>
             </div>
+            <button class="msg-search-btn" id="aiPrefsBtn" type="button" style="display:none" title="Настроить Chalk AI" onclick="openAiPrefs()">⚙️</button>
             <button class="msg-search-btn" id="e2eeToggleBtn" type="button" style="display:none" title="Шифрование" onclick="toggleConvE2ee()">🔓</button>
             <button class="msg-search-btn" id="chatBgBtn" type="button" title="Фон чата" data-i18n-title="chat_bg_title" onclick="toggleChatBgPicker(event)">🖼️</button>
             <button class="msg-search-btn" type="button" title="Поиск по сообщениям" onclick="toggleMsgSearch('conv')">🔍</button>
@@ -1733,6 +1740,7 @@
 <script src="/js/message-edit.js"></script>
 <script src="/js/chat-send.js"></script>
 <script src="/js/trial-call.js"></script>
+<script src="/js/ai-call.js"></script>
 <script src="/js/call.js"></script>
 <script src="/js/call-collab.js"></script>
 <script src="/js/call-watch.js"></script>

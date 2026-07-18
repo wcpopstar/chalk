@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../services/supabase';
 import { secureOn } from './validation';
 import { uploadVoiceNote, uploadVideoNote, uploadChatMedia } from './media';
 import { checkMessage } from '../services/autoModeration';
+import { maybeAiReply } from '../services/aiChalk';
 import {
   MESSAGE_SELECT,
   saveMessage,
@@ -114,6 +115,10 @@ function registerChatHandlers(io: TypedServer, socket: TypedSocket, userId: stri
     // optimistic "sending…" bubble for the real one (delivered) without
     // waiting for the room broadcast echo.
     ack({ ok: true, message: msg });
+    // Fire-and-forget: if the Chalk AI bot is in this conversation (its DM,
+    // or a group where it's mentioned) it generates a reply. Plaintext only —
+    // the E2EE branch above returns before reaching here by design.
+    maybeAiReply(conversationId, userId, text!);
   });
 
   // ── Send a GIF (client picks the URL from a GIF search, e.g. Giphy/Tenor) ─

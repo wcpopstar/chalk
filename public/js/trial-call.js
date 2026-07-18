@@ -3,6 +3,12 @@ function startFriendCall() {
     showToast(T('call_couldnt_determine_peer'));
     return;
   }
+  // A "call" with a bot isn't an Agora call — no one would pick up. The
+  // Chalk AI bot gets the Web-Speech-based call UI instead (ai-call.js).
+  if (currentConvPartner.is_bot) {
+    startAiCall(currentConvPartner);
+    return;
+  }
   if (!socket) {
     showToast(T('call_no_connection_server'));
     return;

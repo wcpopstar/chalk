@@ -76,7 +76,7 @@ router.get('/', requireAuth, readLimiter, async (req: Request, res: Response) =>
   if (directConvIds.length) {
     const { data: memberRows } = await supabaseAdmin
       .from('conversation_members')
-      .select('conversation_id, users ( id, username, avatar_emoji, avatar_url, status, last_seen, public_key )')
+      .select('conversation_id, users ( id, username, avatar_emoji, avatar_url, status, last_seen, public_key, is_bot )')
       .in('conversation_id', directConvIds)
       .neq('user_id', uid);
 
