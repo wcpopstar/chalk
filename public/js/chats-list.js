@@ -389,16 +389,18 @@ async function openConv(convId, name) {
 
   try {
     const data = await api(`/api/chats/${  convId  }/messages`);
-    // Fresher than the chats-list snapshot — adopt it (guard against the
-    // response landing after the user already switched conversations).
-    if (typeof data.e2ee_enabled === 'boolean' && currentConvId === convId) {
+    // The user may have switched to another conversation while this response
+    // was in flight (e.g. slow «Избранное» → quick click on a DM). Rendering
+    // it now would paint the wrong chat's history — drop the whole response.
+    if (currentConvId !== convId) return;
+    // Fresher than the chats-list snapshot — adopt it.
+    if (typeof data.e2ee_enabled === 'boolean') {
       convE2eeById[convId] = data.e2ee_enabled;
       currentConvE2ee = data.e2ee_enabled;
       updateE2eeToggleBtn();
     }
-    // Apply this member's saved wallpaper + the pinned message banner (guard
-    // against the response landing after the user switched conversations).
-    if (currentConvId === convId) applyConvExtras(data);
+    // Apply this member's saved wallpaper + the pinned message banner.
+    applyConvExtras(data);
     const msgs = data.messages || [];
     // The partner's read watermark — own messages older than it render ✓✓.
     (data.reads || []).forEach((r) => {
