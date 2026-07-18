@@ -38,22 +38,21 @@ function buildAiCallOverlay(partner) {
   const micHint = aiSpeechSupported()
     ? ''
     : `<div class="ai-call-nomic">${T('ai_call_no_stt', 'Браузер не поддерживает распознавание речи — пиши текстом, отвечу голосом')}</div>`;
-  wrap.innerHTML =
-    `<div class="ai-call-card">` +
-      `<div class="ai-call-ava" id="aiCallAva">✨</div>` +
-      `<div class="ai-call-name">${escHtml((partner && partner.username) || 'Chalk AI')}</div>` +
-      `<div class="ai-call-status" id="aiCallStatus"></div>` +
-      micHint +
-      `<div class="ai-call-transcript" id="aiCallTranscript"></div>` +
-      `<div class="ai-call-textrow">` +
-        `<input type="text" id="aiCallTextInput" placeholder="${T('ai_call_type_ph', 'Можно и текстом…')}" onkeydown="if(event.key==='Enter')aiCallSendTyped()">` +
-        `<button type="button" onclick="aiCallSendTyped()">➤</button>` +
-      `</div>` +
-      `<div class="ai-call-controls">` +
-        `<button type="button" class="ai-call-btn" id="aiCallMuteBtn" onclick="aiCallToggleMute()" title="${T('ai_call_mute', 'Микрофон')}">🎙️</button>` +
-        `<button type="button" class="ai-call-btn ai-call-end" onclick="endAiCall()" title="${T('ai_call_end', 'Завершить')}">📞</button>` +
-      `</div>` +
-    `</div>`;
+  wrap.innerHTML = `<div class="ai-call-card">
+      <div class="ai-call-ava" id="aiCallAva">✨</div>
+      <div class="ai-call-name">${escHtml((partner && partner.username) || 'Chalk AI')}</div>
+      <div class="ai-call-status" id="aiCallStatus"></div>
+      ${micHint}
+      <div class="ai-call-transcript" id="aiCallTranscript"></div>
+      <div class="ai-call-textrow">
+        <input type="text" id="aiCallTextInput" placeholder="${T('ai_call_type_ph', 'Можно и текстом…')}" onkeydown="if(event.key==='Enter')aiCallSendTyped()">
+        <button type="button" onclick="aiCallSendTyped()">➤</button>
+      </div>
+      <div class="ai-call-controls">
+        <button type="button" class="ai-call-btn" id="aiCallMuteBtn" onclick="aiCallToggleMute()" title="${T('ai_call_mute', 'Микрофон')}">🎙️</button>
+        <button type="button" class="ai-call-btn ai-call-end" onclick="endAiCall()" title="${T('ai_call_end', 'Завершить')}">📞</button>
+      </div>
+    </div>`;
   document.body.appendChild(wrap);
 }
 

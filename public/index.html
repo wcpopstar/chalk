@@ -1686,7 +1686,9 @@
     <button class="story-viewer-del" id="storyViewerDel" style="display:none" title="Удалить" onclick="deleteCurrentStory()">🗑️</button>
     <button class="story-viewer-close" onclick="closeStoryViewer()">✕</button>
   </div>
-  <img class="story-viewer-img" id="storyViewerImg" alt="">
+  <!-- src: прозрачный 1×1 gif — реальный URL подставляет stories.js при открытии
+       (img без src невалиден по спецификации HTML) -->
+  <img class="story-viewer-img" id="storyViewerImg" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" alt="">
   <div class="story-viewer-caption" id="storyViewerCaption"></div>
   <div class="story-viewer-nav story-viewer-nav-prev" onclick="storyNav(-1)"></div>
   <div class="story-viewer-nav story-viewer-nav-next" onclick="storyNav(1)"></div>
