@@ -103,28 +103,43 @@ function applyCustomLayout() {
     try { el = document.querySelector(sel); } catch (_) { return; }
     if (!el) return;
     el.style.translate = (c.dx || c.dy) ? `${c.dx || 0}px ${c.dy || 0}px` : '';
-    if (c.w) el.style.width = `${c.w}px`;
-    if (c.h) el.style.height = `${c.h}px`;
+    el.style.width = c.w ? `${c.w}px` : '';
+    el.style.height = c.h ? `${c.h}px` : '';
   });
 }
 
 var customLayoutObserver = null;
+
+// Dynamic parts of the UI (chats list, friends list, modals…) re-render after
+// load — re-apply the layout so customized dynamic elements pick their state
+// up. Scheduled via requestAnimationFrame: the styles land before the next
+// paint, so a re-rendered element never flashes in its default position.
+function ensureCustomLayoutObserver() {
+  if (customLayoutObserver) return;
+  let scheduled = false;
+  const run = () => {
+    if (!scheduled) return;
+    scheduled = false;
+    applyCustomLayout();
+    if (designEdit) designUpdateBox();
+  };
+  customLayoutObserver = new MutationObserver(() => {
+    if (scheduled) return;
+    scheduled = true;
+    // rAF lands before the next paint (no flash); the timeout is a fallback
+    // for hidden tabs, where rAF doesn't fire.
+    requestAnimationFrame(run);
+    setTimeout(run, 50);
+  });
+  customLayoutObserver.observe(document.body, { childList: true, subtree: true });
+}
 
 function applyCustomDesign() {
   applyCustomFont();
   applyCustomVars();
   applyCustomBg();
   applyCustomLayout();
-  // Dynamic parts of the UI (chats list, modals…) appear after load — re-apply
-  // the layout (debounced) so customized dynamic elements pick their state up.
-  if (!customLayoutObserver && Object.keys(customDesign.layout).length) {
-    let t = null;
-    customLayoutObserver = new MutationObserver(() => {
-      clearTimeout(t);
-      t = setTimeout(applyCustomLayout, 250);
-    });
-    customLayoutObserver.observe(document.body, { childList: true, subtree: true });
-  }
+  if (Object.keys(customDesign.layout).length) ensureCustomLayoutObserver();
 }
 
 // ── EDIT MODE ────────────────────────────────────────────────────────────────
@@ -148,7 +163,11 @@ function designSelectorFor(el) {
   while (cur && cur !== document.body) {
     if (cur.id) { parts.unshift(`#${CSS.escape(cur.id)}`); break; }
     let seg = cur.tagName.toLowerCase();
-    const cls = [...cur.classList].filter((c) => !/^(active|hidden|dz-)/.test(c)).slice(0, 2);
+    // Skip state classes (online/offline, selected…) — they flip on re-render,
+    // and a selector built on them would stop matching or grab a neighbour.
+    const cls = [...cur.classList]
+      .filter((c) => !/^(active|hidden|selected|open|dz-)/.test(c) && !/(online|offline|incall|typing|unread)/.test(c))
+      .slice(0, 2);
     if (cls.length) seg += `.${cls.map((c) => CSS.escape(c)).join('.')}`;
     const parent = cur.parentElement;
     if (parent) {
@@ -222,7 +241,14 @@ function designOnPointerMove(e) {
   const dx = e.clientX - d.startX;
   const dy = e.clientY - d.startY;
   if (Math.abs(dx) + Math.abs(dy) > 2) d.moved = true;
-  const el = designEdit.selEl;
+  let el = designEdit.selEl;
+  // Dynamic lists (friends, chats) can re-render mid-drag and replace the
+  // element — re-attach the drag to the new node with the same selector.
+  if (!el || !el.isConnected) {
+    try { el = document.querySelector(d.sel); } catch (_) { el = null; }
+    if (!el) { designEdit.drag = null; designUpdateBox(); return; }
+    designEdit.selEl = el;
+  }
   if (d.resize) {
     d.entry.w = Math.max(24, Math.round(d.baseW + dx));
     d.entry.h = Math.max(16, Math.round(d.baseH + dy));
@@ -247,6 +273,8 @@ function designOnPointerUp(e) {
     const en = d.entry;
     if (!en.dx && !en.dy && !en.w && !en.h) delete customDesign.layout[d.sel];
     saveCustomDesign();
+    // Track re-renders from now on even if the layout was empty at load time.
+    if (Object.keys(customDesign.layout).length) ensureCustomLayoutObserver();
   }
   designUpdateBox();
 }
@@ -278,7 +306,7 @@ function enterDesignEditMode() {
   const toolbar = document.createElement('div');
   toolbar.className = 'dz-toolbar';
   toolbar.innerHTML = `
-    <span class="dz-toolbar-hint">🎨 Тяни элементы мышкой • угол рамки — размер • брось картинку — фон • Esc — выход</span>
+    <span class="dz-toolbar-hint">🎨 Тяни элементы мышкой • угол рамки — размер • брось картинку — фон • Esc / Ctrl+Shift+D — выход</span>
     <button class="dz-btn" onclick="designResetSelected()">↺ Сбросить элемент</button>
     <button class="dz-btn dz-btn-primary" onclick="exitDesignEditMode()">✅ Готово</button>`;
   const box = document.createElement('div');
@@ -476,6 +504,23 @@ function resetCustomDesign() {
   location.reload();
 }
 window.resetCustomDesign = resetCustomDesign;
+
+// ── HOTKEYS ──────────────────────────────────────────────────────────────────
+// Work anywhere (главная тоже — окно настроек открывать не нужно):
+//   Ctrl/Cmd+Shift+D — включить/выключить режим редактирования
+//   Ctrl/Cmd+Shift+0 — сбросить весь дизайн (с подтверждением)
+// e.code (physical key) — работает и на русской раскладке.
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || !e.shiftKey || e.altKey) return;
+  if (e.code === 'KeyD') {
+    e.preventDefault();
+    if (designEdit) exitDesignEditMode();
+    else enterDesignEditMode();
+  } else if (e.code === 'Digit0') {
+    e.preventDefault();
+    resetCustomDesign();
+  }
+});
 
 // ── STARTUP ──────────────────────────────────────────────────────────────────
 if (document.readyState === 'loading') {
