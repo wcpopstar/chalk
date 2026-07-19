@@ -18,6 +18,17 @@ stubModule(require.resolve('../../src/services/supabase'), {
   supabase: {},
 });
 
+// src/routes/match.js does `require('../socket/state')` for
+// wereRecentCallPartners(), and socket/state.js in turn opens a real
+// ioredis connection at require time (src/socket/redisClient.js) — not
+// something we want happening in a test process. Stub the whole module out
+// with a controllable fake before match.js is ever required (same pattern
+// as test/routes/friends.test.ts).
+let wereRecentCallPartnersResult = true;
+stubModule(require.resolve('../../src/socket/state'), {
+  wereRecentCallPartners: async () => wereRecentCallPartnersResult,
+});
+
 const matchRouter = require('../../src/routes/match');
 
 describe('Match routes (/api/match)', () => {
@@ -33,6 +44,7 @@ describe('Match routes (/api/match)', () => {
 
   beforeEach(() => {
     supaMock.reset();
+    wereRecentCallPartnersResult = true;
   });
 
   describe('GET /api/match/history', () => {
@@ -109,6 +121,21 @@ describe('Match routes (/api/match)', () => {
         .send({ participants: [userId, otherId] });
 
       assert.equal(res.status, 500);
+    });
+
+    it('drops a participant the caller never actually shared a call room with, without querying the DB', async () => {
+      // No enqueue() — if the route incorrectly inserted anyway, the mock's
+      // default { data: null, error: null } would still make this pass, so
+      // this is really guarding the "insert was skipped" behavior below.
+      wereRecentCallPartnersResult = false;
+
+      const res = await request(app)
+        .post('/api/match/record-call')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ participants: [userId, otherId] });
+
+      assert.equal(res.status, 200);
+      assert.deepEqual(res.body, { matches: [] });
     });
   });
 

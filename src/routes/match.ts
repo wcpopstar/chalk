@@ -8,6 +8,7 @@ import { userLimiter } from '../middleware/rateLimit';
 import { uuidParam } from '../validation/common';
 import { historyQuerySchema, recordCallSchema, rateMatchSchema } from '../validation/matchSchemas';
 import { supabaseAdmin } from '../services/supabase';
+import { wereRecentCallPartners } from '../socket/state';
 
 // History is just a read, so it's kept loose. record-call and rate both
 // write, and record-call in particular is triggered by the call-ending flow
@@ -109,8 +110,20 @@ router.get('/history', requireAuth, historyLimiter, validate({ query: historyQue
 router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCallSchema }), async (req: Request, res: Response) => {
   const { participants, mode, gameId } = req.body as { participants: string[]; mode?: string; gameId?: string | null };
 
-  const rows = participants
-    .filter((pid) => pid !== req.user.id)
+  // The client picks who was "in the call" — without verifying that against
+  // the actual call state, anyone could fabricate match_history rows against
+  // an arbitrary user id and then post a fake rating for it via
+  // POST /:matchId/rate. Only keep participants Redis actually recorded as
+  // having shared a room with the caller (same check friends.ts uses to gate
+  // "add friend from call").
+  const verified = await Promise.all(
+    participants
+      .filter((pid) => pid !== req.user.id)
+      .map(async (pid) => ((await wereRecentCallPartners(req.user.id, pid)) ? pid : null)),
+  );
+
+  const rows = verified
+    .filter((pid): pid is string => pid !== null)
     .map((pid) => ({
       id: uuid(),
       user_a: req.user.id,
