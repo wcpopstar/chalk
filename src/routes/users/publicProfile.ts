@@ -60,14 +60,20 @@ const viewLimiter = userLimiter({ windowMs: 60 * 1000, max: 60, message: 'Сли
 router.get('/:id/reviews', requireAuth, viewLimiter, validate({ params: uuidParam() }), async (req: Request, res: Response) => {
   const { data, error } = await supabaseAdmin
     .from('ratings')
-    .select('rating, comment, created_at, rater:users!ratings_rater_user_id_fkey ( id, username, avatar_emoji, avatar_url )')
+    .select('rating, comment, created_at, rater:users!ratings_rater_user_id_fkey ( id, username, avatar_emoji, avatar_url ), match:match_history!ratings_match_id_fkey ( verified )')
     .eq('rated_user_id', req.params.id!)
     .not('comment', 'is', null)
     .neq('comment', '')
     .order('created_at', { ascending: false })
     .limit(30);
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ reviews: data || [] });
+  // Flatten the joined row into a plain boolean — the client only needs to
+  // know whether the rating is backed by a verified shared call.
+  const reviews = (data || []).map(({ match, ...review }: any) => ({
+    ...review,
+    verified_call: !!(match && match.verified),
+  }));
+  return res.json({ reviews });
 });
 
 // Must be mounted LAST so it doesn't swallow /me, /me/stats, /discover, etc.

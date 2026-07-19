@@ -409,6 +409,7 @@ export interface Database {
           user_b: string;
           game_id: string | null;
           mode: string;
+          verified: boolean;
           created_at: string;
         };
         Insert: {
@@ -417,6 +418,7 @@ export interface Database {
           user_b: string;
           game_id?: string | null;
           mode?: string;
+          verified?: boolean;
           created_at?: string;
         };
         Update: {
@@ -425,6 +427,7 @@ export interface Database {
           user_b?: string;
           game_id?: string | null;
           mode?: string;
+          verified?: boolean;
           created_at?: string;
         };
         Relationships: [

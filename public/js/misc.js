@@ -123,8 +123,11 @@ async function loadUserReviews(userId) {
       reviews.map((r) =>{
         const who = (r.rater && r.rater.username) ? escHtml(r.rater.username) : T('status_user');
         const ava = r.rater ? avatarHtml(r.rater.avatar_emoji, r.rater.avatar_url) : '🙂';
+        const verified = r.verified_call
+          ? `<span class="up-review-verified" title="${  escHtml(T('review_verified_call', 'Подтверждённый созвон'))  }">✓ ${  escHtml(T('review_verified_call', 'Подтверждённый созвон'))  }</span>`
+          : '';
         return `<div class="up-review"><div class="up-review-head"><span class="up-review-ava">${  ava  }</span>` +
-          `<span class="up-review-name">${  who  }</span><span class="up-review-stars">${  starsFor(r.rating)  }</span></div>` +
+          `<span class="up-review-name">${  who  }</span>${  verified  }<span class="up-review-stars">${  starsFor(r.rating)  }</span></div>` +
           `<div class="up-review-text">${  escHtml(r.comment || '')  }</div></div>`;
       }).join('')}`;
   } catch (_) { /* non-fatal: just omit reviews */ }

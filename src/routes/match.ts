@@ -130,6 +130,10 @@ router.post('/record-call', requireAuth, writeLimiter, validate({ body: recordCa
       user_b: pid,
       game_id: gameId || null,
       mode: mode || 'group',
+      // Participants above passed the Redis call-partner check, so this row
+      // is backed by a real shared call (surfaced as the "confirmed call"
+      // badge on ratings; pre-migration rows stay false).
+      verified: true,
       created_at: new Date().toISOString(),
     }));
 

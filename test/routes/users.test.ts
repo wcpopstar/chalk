@@ -448,4 +448,28 @@ describe('Users routes (/api/users)', () => {
       assert.equal(res.body.user.has_blocked_me, false);
     });
   });
+
+  describe('GET /api/users/:id/reviews', () => {
+    it('flattens the joined match row into a verified_call boolean', async () => {
+      supaMock.enqueue({
+        data: [
+          { rating: 5, comment: 'топ тиммейт', created_at: '2026-07-01', rater: { id: userId, username: 'me' }, match: { verified: true } },
+          { rating: 4, comment: 'норм', created_at: '2026-06-01', rater: { id: userId, username: 'me' }, match: { verified: false } },
+          { rating: 3, comment: 'старый отзыв', created_at: '2026-01-01', rater: null, match: null },
+        ],
+        error: null,
+      });
+
+      const res = await request(app)
+        .get(`/api/users/${otherId}/reviews`)
+        .set('Authorization', `Bearer ${token}`);
+
+      assert.equal(res.status, 200);
+      assert.equal(res.body.reviews.length, 3);
+      assert.equal(res.body.reviews[0].verified_call, true);
+      assert.equal(res.body.reviews[1].verified_call, false);
+      assert.equal(res.body.reviews[2].verified_call, false);
+      assert.equal(res.body.reviews[0].match, undefined);
+    });
+  });
 });
