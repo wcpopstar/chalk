@@ -33,3 +33,6 @@ ios/App/App/public/
 ios/App/build/
 ios/DerivedData/
 ios/App/App/App.entitlements.plist.bak
+
+# Local agent/editor tooling
+.claude/

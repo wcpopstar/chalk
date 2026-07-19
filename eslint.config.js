@@ -75,11 +75,9 @@ module.exports = [
       //   - ios/**      Capacitor native shell + a full synced copy of public/
       //                 (ios/App/App/public) + Xcode build output.
       //   - mobile/**   scratch space for the mobile build.
-      //   - .claude/**  agent worktrees (throwaway copies of the repo).
       //   - src-tauri/** Rust desktop shell (target/ + generated bindings).
       'ios/**',
       'mobile/**',
-      '.claude/**',
       'src-tauri/**',
       // Generated frontend bundle (npm run build:client) — minified, not source.
       'public/build/**',
