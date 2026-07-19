@@ -48,6 +48,6 @@ export function giphyProxyUrl(url) {
 // break out of the src="" attribute even if something slips past validation
 // (defense in depth against stored XSS — this renders other users' avatars).
 export function avatarHtml(emoji, url) {
-  if (url) return `<img src="${escHtml(giphyProxyUrl(url))}" alt="">`;
+  if (url) return `<img src="${escHtml(giphyProxyUrl(url))}" alt="" loading="lazy" decoding="async">`;
   return escHtml(emoji || '🎮');
 }

@@ -112,8 +112,9 @@ setIO(io);
 // CSP: locked to what public/index.html actually needs. The frontend is
 // vanilla JS with ~230 inline onclick= handlers, so script-src-attr must
 // allow 'unsafe-inline' — but <script> ELEMENTS are still restricted to
-// self + the two CDNs (Socket.IO client, Agora SDK), which is the part
-// that blocks an injected <script src="https://evil..."> outright.
+// self + the Agora CDN (the Socket.IO client is served by this server at
+// /socket.io/socket.io.min.js), which is the part that blocks an injected
+// <script src="https://evil..."> outright.
 // 'wasm-unsafe-eval' is for the Agora SDK's WebAssembly audio pipeline.
 // img/media/connect are broad (https:/wss:/blob:/data:) because avatars
 // come from Supabase storage, GIFs from Giphy CDNs, voice notes play from
@@ -124,7 +125,7 @@ app.use(helmet({
     directives: {
       // www.youtube.com serves the IFrame Player API, w.soundcloud.com the
       // SoundCloud Widget API (both used by js/call-watch.js).
-      'script-src': ["'self'", 'https://cdn.socket.io', 'https://download.agora.io', 'https://www.youtube.com', 'https://w.soundcloud.com', "'wasm-unsafe-eval'"],
+      'script-src': ["'self'", 'https://download.agora.io', 'https://www.youtube.com', 'https://w.soundcloud.com', "'wasm-unsafe-eval'"],
       'script-src-attr': ["'unsafe-inline'"],
       // Watch-together embeds: YouTube + Twitch + SoundCloud players.
       'frame-src': ["'self'", 'https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://player.twitch.tv', 'https://w.soundcloud.com'],

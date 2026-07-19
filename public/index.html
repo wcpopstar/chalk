@@ -6,7 +6,6 @@
 <title>Chalk</title>
 <!-- Both third-party origins the first paint depends on: warm the connections
      while the CSS is still downloading. -->
-<link rel="preconnect" href="https://cdn.socket.io" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/css/style.css">
@@ -1706,7 +1705,9 @@
 <!-- Third-party runtime deps, moved out of <head> so they no longer block
      first paint. They execute here — before every app script below — so the
      load order (and the io/nacl globals) is exactly what it was. -->
-<script src="https://cdn.socket.io/4.6.2/socket.io.min.js"></script>
+<!-- socket.io-клиент отдаёт наш же сервер (serveClient) — версия всегда
+     совпадает с серверной, и нет лишнего соединения к чужому CDN. -->
+<script src="/socket.io/socket.io.min.js"></script>
 <!-- tweetnacl 1.0.3 (vendored, no CDN — works offline / under strict CSP):
      X25519-XSalsa20-Poly1305 for end-to-end encrypted direct chats (see /js/e2ee.js) -->
 <script src="/vendor/nacl-fast.min.js"></script>
