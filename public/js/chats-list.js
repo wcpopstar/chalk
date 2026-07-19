@@ -387,6 +387,14 @@ async function openConv(convId, name) {
   partnerLastReadAt = null;
   convMessagesById = {};
 
+  // Instant feedback: skeleton bubbles while /messages is in flight, instead
+  // of the previous chat's history sitting on screen until the response lands.
+  document.getElementById('chatMessages').innerHTML =
+    `<div class="chat-skeleton">${
+      [55, 40, 70, 35, 60, 45].map((w, i) =>
+        `<div class="chat-skel-msg${i % 2 ? ' own' : ''}" style="width:${w}%"></div>`).join('')
+    }</div>`;
+
   try {
     const data = await api(`/api/chats/${  convId  }/messages`);
     // The user may have switched to another conversation while this response
