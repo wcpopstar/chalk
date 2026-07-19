@@ -226,7 +226,7 @@ async function runMessageSearch(q) {
       const who = (m.sender && m.sender.username) || '';
       const snippet = highlightMatch((m.text || '').slice(0, 80), q);
       const time = m.created_at ? formatChatTime(m.created_at) : '';
-      const nameJs = convName.replace(/'/g, "\\'");
+      const nameJs = jsStr(convName);
       return `<div class="chat-item msg-search-result" onclick="openConvToMessage('${  m.conversation_id  }','${  nameJs  }','${  escHtml(m.id)  }')">` +
         `<div class="chat-ava">🔎</div><div class="chat-item-body"><div class="chat-item-toprow">` +
         `<div class="chat-name">${  escHtml(convName)  }</div>${  time ? `<div class="chat-item-time">${  time  }</div>` : ''  }</div>` +

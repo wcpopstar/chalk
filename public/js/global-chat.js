@@ -119,7 +119,7 @@ function renderGifPickerIdle(scope, grid) {
   }
   const label = T('gif_recent', 'Недавние');
   grid.innerHTML = `<div class="gif-picker-recent-label">${  escHtml(label)  }</div>${
-    recent.map((u) => `<img src="${  escHtml(giphyProxyUrl(u))  }" onclick="pickGif('${  scope  }','${  u.replace(/'/g, "\\'")  }')" alt="gif" loading="lazy">`).join('')}`;
+    recent.map((u) => `<img src="${  escHtml(giphyProxyUrl(u))  }" onclick="pickGif('${  scope  }','${  jsStr(u)  }')" alt="gif" loading="lazy">`).join('')}`;
 }
 
 function toggleGifPicker(scope) {
@@ -150,7 +150,7 @@ function searchGifs(scope, query) {
       const data = await api(`/api/gifs/search?q=${  encodeURIComponent(query)  }&limit=12`);
       const results = data.results || [];
       if (!results.length) { grid.innerHTML = '<div class="gif-picker-hint"><span data-i18n="gif_nothing_found">Ничего не найдено</span></div>'; return; }
-      grid.innerHTML = results.map((g) => `<img src="${  escHtml(giphyProxyUrl(g.thumb))  }" onclick="pickGif('${  scope  }','${  g.full.replace(/'/g, "\\'")  }')" alt="gif">`).join('');
+      grid.innerHTML = results.map((g) => `<img src="${  escHtml(giphyProxyUrl(g.thumb))  }" onclick="pickGif('${  scope  }','${  jsStr(g.full)  }')" alt="gif">`).join('');
     } catch (e) {
       // Surface the server's own reason verbatim when it sends one — 503 =
       // GIPHY_API_KEY not configured on the server, 429 = beta-key hourly cap,
