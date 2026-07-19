@@ -1089,3 +1089,36 @@ mark.msg-search-hit.active {
   flex-direction: column;
   gap: 8px;
 }
+
+/* ── Скелетон загрузки чата ────────────────────────────────────────────────
+   Показывается мгновенно при открытии переписки, пока летит /messages —
+   интерфейс отвечает на клик сразу, а не после ответа сервера. */
+.chat-skeleton {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-skel-msg {
+  height: 36px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: chatSkelShimmer 1.2s linear infinite;
+}
+
+.chat-skel-msg.own { align-self: flex-end; }
+.chat-skel-msg:nth-child(3n) { height: 52px; }
+
+@keyframes chatSkelShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-skel-msg { animation: none; }
+}

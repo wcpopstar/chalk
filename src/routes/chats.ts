@@ -425,10 +425,11 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
   const uid  = req.user.id;
   const convId = req.params.id!; // validated by uuidParam()
 
-  // Verify membership
+  // Verify membership. chat_background (this member's wallpaper) lives in the
+  // same row — piggyback it here instead of a separate query at the end.
   const { data: member } = await supabaseAdmin
     .from('conversation_members')
-    .select('user_id, cleared_at')
+    .select('user_id, cleared_at, chat_background')
     .eq('conversation_id', convId)
     .eq('user_id', uid)
     .maybeSingle();
@@ -454,26 +455,26 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
   // messages to this member (they stay visible to the other participant).
   if (member.cleared_at) query = query.gt('created_at', member.cleared_at);
 
-  const { data, error } = await query;
+  // Messages, read watermarks (✓/✓✓) and the conversation row (E2EE flag +
+  // pinned id) are independent — fetch them in parallel: one Supabase round
+  // trip of latency instead of three.
+  const [
+    { data, error },
+    { data: reads },
+    { data: conv },
+  ] = await Promise.all([
+    query,
+    supabaseAdmin
+      .from('conversation_members')
+      .select('user_id, last_read_at')
+      .eq('conversation_id', convId),
+    supabaseAdmin
+      .from('conversations')
+      .select('e2ee_enabled, pinned_message_id')
+      .eq('id', convId)
+      .maybeSingle(),
+  ]);
   if (error) return res.status(500).json({ error: error.message });
-
-  // Per-member read watermarks, so the client can render ✓/✓✓ on its own
-  // messages from the initial load (live updates arrive via the chat:read
-  // socket event).
-  const { data: reads } = await supabaseAdmin
-    .from('conversation_members')
-    .select('user_id, last_read_at')
-    .eq('conversation_id', convId);
-
-  // The conversation-level E2EE flag + pinned message id, fresher than the
-  // chats-list snapshot — the partner may have toggled the lock or pinned a
-  // message while this client was away (live updates arrive via the
-  // chat:e2ee / chat:pinned socket events).
-  const { data: conv } = await supabaseAdmin
-    .from('conversations')
-    .select('e2ee_enabled, pinned_message_id')
-    .eq('id', convId)
-    .maybeSingle();
 
   // Hydrate the pinned message (if any and not since deleted) so the client
   // can render the banner without a second round trip.
@@ -494,20 +495,12 @@ router.get('/:id/messages', requireAuth, readLimiter, validate({ params: uuidPar
     pinned = pinnedRow || null;
   }
 
-  // This member's own chat background (per-user wallpaper, migration 019).
-  const { data: myMember } = await supabaseAdmin
-    .from('conversation_members')
-    .select('chat_background')
-    .eq('conversation_id', convId)
-    .eq('user_id', uid)
-    .maybeSingle();
-
   return res.json({
     messages: (data || []).reverse(),
     reads: reads || [],
     e2ee_enabled: Boolean(conv && conv.e2ee_enabled),
     pinned,
-    chat_background: (myMember && (myMember as any).chat_background) || null,
+    chat_background: (member as any).chat_background || null,
   });
 });
 
