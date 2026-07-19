@@ -99,13 +99,20 @@ router.post('/start', requireAuth, callLimiter, validate({ body: startCallSchema
 router.patch('/:id/end', requireAuth, callLimiter, validate({ params: uuidParam(), body: endCallSchema }), async (req: Request, res: Response) => {
   const { duration_seconds } = req.body;
 
-  const { error } = await supabaseAdmin.from('calls').update({
+  // Only a participant of the call (or whoever started it) may log its end —
+  // without this, any authenticated user could overwrite another user's call
+  // record just by guessing/knowing its id.
+  const { data, error } = await supabaseAdmin.from('calls').update({
     ended_at: new Date().toISOString(),
     duration_seconds: duration_seconds ?? null,
     status: 'ended',
-  }).eq('id', req.params.id!);
+  }).eq('id', req.params.id!)
+    .or(`initiated_by.eq.${req.user.id},participants.cs.{${req.user.id}}`)
+    .select('id')
+    .maybeSingle();
 
   if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: 'Call not found' });
   analytics.capture(req.user.id, 'call_ended', { durationSeconds: duration_seconds ?? null });
   return res.json({ ok: true });
 });

@@ -99,7 +99,7 @@ describe('Calls routes (/api/calls)', () => {
     });
 
     it('marks the call ended with the given duration', async () => {
-      supaMock.enqueue({ error: null });
+      supaMock.enqueue({ data: { id: 'd0000001-0001-4001-8001-000000000001' }, error: null });
 
       const res = await request(app)
         .patch('/api/calls/d0000001-0001-4001-8001-000000000001/end')
@@ -113,7 +113,7 @@ describe('Calls routes (/api/calls)', () => {
     it('defaults duration_seconds to null when omitted', async () => {
       // The mock doesn't assert on the update payload directly, but this
       // exercises the `duration_seconds || null` branch without throwing.
-      supaMock.enqueue({ error: null });
+      supaMock.enqueue({ data: { id: 'd0000001-0001-4001-8001-000000000001' }, error: null });
 
       const res = await request(app)
         .patch('/api/calls/d0000001-0001-4001-8001-000000000001/end')
@@ -121,6 +121,17 @@ describe('Calls routes (/api/calls)', () => {
         .send({});
 
       assert.equal(res.status, 200);
+    });
+
+    it('returns 404 when the caller was never a participant of the call', async () => {
+      supaMock.enqueue({ data: null, error: null });
+
+      const res = await request(app)
+        .patch('/api/calls/d0000001-0001-4001-8001-000000000001/end')
+        .set('Authorization', `Bearer ${token}`)
+        .send({});
+
+      assert.equal(res.status, 404);
     });
 
     it('returns 500 when the update fails', async () => {
