@@ -140,6 +140,16 @@ describe('socket/calls.js', () => {
       assert.equal(socket.emitted.length, 0);
     });
 
+    it('does nothing if the caller is not a participant of the room', async () => {
+      const { socket } = setup('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+      await state.saveRoom('10000000-0000-4000-8000-000000000001', { participants: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'], mode: 'direct' });
+
+      await socket.trigger('call:end', { roomId: '10000000-0000-4000-8000-000000000001' });
+
+      assert.equal(socket.emitted.length, 0);
+      assert.equal(await state.hasRoom('10000000-0000-4000-8000-000000000001'), true);
+    });
+
     it('notifies participants and tears down the room', async () => {
       const { io, socket } = setup('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
       await state.saveRoom('10000000-0000-4000-8000-000000000001', { participants: ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'], mode: 'direct' });

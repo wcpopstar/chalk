@@ -23,7 +23,7 @@ function registerCallHandlers(io: TypedServer, socket: TypedSocket, userId: stri
   // ── CALL CONTROL ──────────────────────────────────────────────────────
   secureOn(io, socket, userId, 'call:end', async ({ roomId }) => {
     const room = await getRoom(roomId);
-    if (!room) return;
+    if (!room || !room.participants.includes(userId)) return; // must be a participant
     io.to(roomId).emit('call:ended', { by: userId });
     await Promise.all(room.participants.map((pid) => clearUserRoom(io, pid)));
     await deleteRoom(roomId);
