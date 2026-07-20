@@ -1,5 +1,7 @@
 # 🎮 Chalk Backend
 
+https://chalk-production-01b7.up.railway.app
+
 Real-time teammate finder with voice calls.
 **Stack:** Node.js · Express · Socket.io · Supabase · Agora
 
